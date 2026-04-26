@@ -12,73 +12,46 @@ export default async function SearchPage({
 
   const supabase = await createClient()
 
-  // 1. 通过别名匹配产品ID
-  let aliasIds: string[] = []
-  if (query) {
-    const { data: aliasRows } = await supabase
-      .from('product_aliases')
-      .select('product_id')
-      .ilike('alias', `%${query}%`)
-    aliasIds = aliasRows?.map((r) => r.product_id) || []
+  // 使用数据库归一化搜索函数（支持希腊字母模糊匹配）
+  const { data: products } = await supabase.rpc('search_products', {
+    search_query: query || null,
+    species_filter: activeSpecies !== 'all' ? activeSpecies : null,
+  })
+
+  type ProductRow = {
+    id: string
+    name: string
+    slug: string
+    target: string
+    price: number
+    detection_range: string
+    stock_status: string
   }
+  const typedProducts = (products || []) as ProductRow[]
 
-  // 2. 通过名称/靶标匹配产品ID
-  let nameIds: string[] = []
-  if (query) {
-    const { data: nameRows } = await supabase
-      .from('products')
-      .select('id')
-      .eq('status', 'active')
-      .or(`name.ilike.%${query}%,target.ilike.%${query}%`)
-    nameIds = nameRows?.map((r) => r.id) || []
-  }
-
-  const matchedIds = [...new Set([...aliasIds, ...nameIds])]
-
-  // 3. 种属筛选
-  let speciesIds: string[] | null = null
-  if (activeSpecies !== 'all') {
-    const { data } = await supabase
+  // 查询所有产品的种属（用于卡片显示）
+  const productIds = typedProducts.map((p) => p.id)
+  let speciesMap: Record<string, string[]> = {}
+  if (productIds.length > 0) {
+    const { data: speciesRows } = await supabase
       .from('product_species')
-      .select('product_id')
-      .eq('species', activeSpecies)
-    speciesIds = data?.map((r) => r.product_id) || []
+      .select('product_id, species')
+      .in('product_id', productIds)
+    speciesMap =
+      speciesRows?.reduce((acc: Record<string, string[]>, row) => {
+        if (!acc[row.product_id]) acc[row.product_id] = []
+        acc[row.product_id].push(row.species)
+        return acc
+      }, {}) || {}
   }
 
-  // 4. 组装最终查询
-  let dbQuery = supabase
-    .from('products')
-    .select('*, product_species(species)')
-    .eq('status', 'active')
-
-  if (query) {
-    if (matchedIds.length > 0) {
-      dbQuery = dbQuery.in('id', matchedIds)
-    } else {
-      dbQuery = dbQuery.eq(
-        'id',
-        '00000000-0000-0000-0000-000000000000'
-      )
-    }
-  }
-
-  if (activeSpecies !== 'all' && speciesIds && speciesIds.length > 0) {
-    dbQuery = dbQuery.in('id', speciesIds)
-  } else if (activeSpecies !== 'all') {
-    dbQuery = dbQuery.eq(
-      'id',
-      '00000000-0000-0000-0000-000000000000'
-    )
-  }
-
-  const { data: products } = await dbQuery
-
-  const { data: speciesRows } = await supabase
+  // 查询所有可用种属（用于筛选栏）
+  const { data: allSpeciesRows } = await supabase
     .from('product_species')
     .select('species')
     .order('species')
   const speciesList = [
-    ...new Set(speciesRows?.map((r) => r.species) || []),
+    ...new Set(allSpeciesRows?.map((r) => r.species) || []),
   ]
 
   return (
@@ -91,7 +64,7 @@ export default async function SearchPage({
               name="q"
               type="text"
               defaultValue={query}
-              placeholder="搜索靶标、种属、别名..."
+              placeholder="搜索靶标、种属、别名...（试试 IL1b、TNFa、IFNg）"
               className="flex-1 px-4 py-3 rounded-l-lg border border-r-0 border-gray-300 outline-none focus:border-blue-500"
             />
             <button
@@ -106,7 +79,7 @@ export default async function SearchPage({
             {query ? `「${query}」的搜索结果` : '所有产品'}
           </h1>
           <p className="text-gray-500 mt-1">
-            共找到 {products?.length || 0} 款产品
+            共找到 {typedProducts.length} 款产品
           </p>
         </div>
 
@@ -139,7 +112,7 @@ export default async function SearchPage({
 
         {/* Results Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products?.map((product) => (
+          {typedProducts.map((product) => (
             <Link
               key={product.id}
               href={`/products/${product.slug}`}
@@ -153,16 +126,14 @@ export default async function SearchPage({
                   <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
                     {product.target}
                   </span>
-                  {(product.product_species as any[])
-                    ?.slice(0, 1)
-                    .map((s: any) => (
-                      <span
-                        key={s.species}
-                        className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
-                      >
-                        {s.species}
-                      </span>
-                    ))}
+                  {speciesMap[product.id]?.slice(0, 1).map((s) => (
+                    <span
+                      key={s}
+                      className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
+                    >
+                      {s}
+                    </span>
+                  ))}
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
                   {product.name}
@@ -178,7 +149,7 @@ export default async function SearchPage({
           ))}
         </div>
 
-        {(!products || products.length === 0) && (
+        {typedProducts.length === 0 && (
           <div className="text-center py-20">
             <p className="text-gray-400 text-lg mb-2">未找到匹配的产品</p>
             <p className="text-gray-400 text-sm">
