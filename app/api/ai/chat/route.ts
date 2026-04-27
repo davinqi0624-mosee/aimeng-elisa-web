@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getEmbedding, streamChat } from '@/lib/ai/ollama'
+import { getEmbedding, streamChat } from '@/lib/ai/llm'
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -34,7 +34,6 @@ async function retrieveKnowledge(query: string, limit: number = 5) {
 
   if (error) {
     console.warn('match_knowledge RPC failed, falling back to basic search:', error.message)
-    // Fallback: return recent documents if RPC fails
     const { data: fallback } = await supabase
       .from('knowledge_base')
       .select('id,title,content,category,tags')
@@ -91,7 +90,7 @@ ${contextText || '暂无相关知识库内容。'}
         let fullText = ''
         try {
           for await (const chunk of responseStream) {
-            const text = chunk.message?.content || ''
+            const text = chunk.choices[0]?.delta?.content || ''
             fullText += text
             controller.enqueue(
               encoder.encode(

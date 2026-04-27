@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { streamChat } from '@/lib/ai/ollama'
+import { chatCompletion } from '@/lib/ai/llm'
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,16 +58,10 @@ export async function POST(request: NextRequest) {
 - 样本类型：${sampleType}
 - 检测目的：${purpose}`
 
-    const messages = [
-      { role: 'system' as const, content: systemPrompt },
-      { role: 'user' as const, content: userPrompt },
-    ]
-
-    const response = await streamChat(messages, { temperature: 0.6, maxTokens: 4096 })
-    let protocolContent = ''
-    for await (const chunk of response) {
-      protocolContent += chunk.message?.content || ''
-    }
+    const protocolContent = await chatCompletion([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ], { temperature: 0.6, maxTokens: 4096 })
 
     // Extract checklist from protocol
     const checklist: string[] = []
@@ -82,7 +76,7 @@ export async function POST(request: NextRequest) {
         const item = line.replace(/^\d+\.\s*/, '').trim()
         if (item) checklist.push(item)
       }
-      if (inMaterials && line.includes('样本处理') || line.includes('实验步骤')) {
+      if (inMaterials && (line.includes('样本处理') || line.includes('实验步骤'))) {
         inMaterials = false
       }
     }

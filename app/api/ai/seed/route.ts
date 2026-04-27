@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getEmbedding } from '@/lib/ai/ollama'
+import { getEmbedding } from '@/lib/ai/llm'
 
 const ELISA_ARTICLES = [
   {
