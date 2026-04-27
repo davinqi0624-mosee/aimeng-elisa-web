@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { MessageSquare, CalendarDays, FlaskConical } from 'lucide-react'
 
 export default async function ShopPage({
   searchParams,
@@ -67,6 +68,52 @@ export default async function ShopPage({
               搜索
             </button>
           </form>
+        </div>
+      </section>
+
+      {/* Feature Entries */}
+      <section className="py-3 px-4 bg-gradient-to-r from-blue-50 to-violet-50 border-b border-blue-100">
+        <div className="max-w-6xl mx-auto flex items-center gap-4 flex-wrap">
+          <Link
+            href="/chat"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-blue-200 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all"
+          >
+            <MessageSquare className="w-4 h-4 text-blue-600" />
+            <div>
+              <div className="text-xs font-semibold text-gray-900">AI 智能客服</div>
+              <div className="text-[10px] text-gray-500">售前/售后/方案</div>
+            </div>
+          </Link>
+          <Link
+            href="/knowledge"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-emerald-200 rounded-lg hover:border-emerald-400 hover:shadow-sm transition-all"
+          >
+            <CalendarDays className="w-4 h-4 text-emerald-600" />
+            <div>
+              <div className="text-xs font-semibold text-gray-900">每日知识</div>
+              <div className="text-[10px] text-gray-500">ELISA 每日学习</div>
+            </div>
+          </Link>
+          <Link
+            href="/lab/experiment"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-violet-200 rounded-lg hover:border-violet-400 hover:shadow-sm transition-all"
+          >
+            <FlaskConical className="w-4 h-4 text-violet-600" />
+            <div>
+              <div className="text-xs font-semibold text-gray-900">实验方案</div>
+              <div className="text-[10px] text-gray-500">AI 生成实验设计</div>
+            </div>
+          </Link>
+          <Link
+            href="/lab/analysis"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-orange-200 rounded-lg hover:border-orange-400 hover:shadow-sm transition-all"
+          >
+            <FlaskConical className="w-4 h-4 text-orange-600" />
+            <div>
+              <div className="text-xs font-semibold text-gray-900">数据分析</div>
+              <div className="text-[10px] text-gray-500">4PL 拟合/报告</div>
+            </div>
+          </Link>
         </div>
       </section>
 
