@@ -1,13 +1,22 @@
 import OpenAI from 'openai'
 import { Ollama } from 'ollama'
 
-// DeepSeek client (OpenAI-compatible)
-const deepseek = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY || '',
-  baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
-})
-
 export const DEEPSEEK_CHAT_MODEL = 'deepseek-chat'
+
+// Lazy-init DeepSeek client to ensure env vars are loaded at call time
+function getDeepSeekClient(): OpenAI {
+  const apiKey = process.env.DEEPSEEK_API_KEY
+  const baseURL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
+
+  if (!apiKey || apiKey === 'sk-你复制的key') {
+    throw new Error('DEEPSEEK_API_KEY is missing or invalid. Please set it in Vercel environment variables.')
+  }
+
+  return new OpenAI({
+    apiKey,
+    baseURL,
+  })
+}
 
 // Ollama client for local embeddings only
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434'
@@ -17,7 +26,6 @@ export const EMBED_MODEL = 'nomic-embed-text'
 
 /**
  * Generate embedding using local Ollama (nomic-embed-text)
- * DeepSeek does not provide an embedding API, so we keep Ollama for this.
  */
 export async function getEmbedding(text: string): Promise<number[]> {
   const response = await ollama.embed({
@@ -34,7 +42,8 @@ export async function streamChat(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   options?: { temperature?: number; maxTokens?: number }
 ) {
-  return deepseek.chat.completions.create({
+  const client = getDeepSeekClient()
+  return client.chat.completions.create({
     model: DEEPSEEK_CHAT_MODEL,
     messages,
     stream: true,
@@ -44,13 +53,14 @@ export async function streamChat(
 }
 
 /**
- * Non-streaming chat for single-shot generation (e.g. experiment protocol)
+ * Non-streaming chat for single-shot generation
  */
 export async function chatCompletion(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<string> {
-  const res = await deepseek.chat.completions.create({
+  const client = getDeepSeekClient()
+  const res = await client.chat.completions.create({
     model: DEEPSEEK_CHAT_MODEL,
     messages,
     stream: false,

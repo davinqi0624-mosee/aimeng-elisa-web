@@ -156,10 +156,15 @@ export default function ChatPage() {
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
+        const detail = err.message || ''
+        const isApiError = detail.includes('API') || detail.includes('Key') || detail.includes('环境变量')
+        const displayMsg = isApiError
+          ? `DeepSeek API 调用失败: ${detail}\n\n请检查:\n1. Vercel 环境变量 DEEPSEEK_API_KEY 是否已配置\n2. API Key 是否有效`
+          : `抱歉，服务暂时不可用: ${detail}`
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsg.id
-              ? { ...m, content: '抱歉，服务暂时不可用，请稍后重试。', isLoading: false }
+              ? { ...m, content: displayMsg, isLoading: false }
               : m
           )
         )

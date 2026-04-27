@@ -46,6 +46,7 @@ async function retrieveKnowledge(query: string, limit: number = 5) {
 }
 
 export async function POST(request: NextRequest) {
+  let query = ''
   try {
     const body = await request.json()
     const { messages, mode = 'pre-sales', sessionId } = body as {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')
-    const query = lastUserMessage?.content || ''
+    query = lastUserMessage?.content || ''
 
     const knowledge = await retrieveKnowledge(query, 5)
     const contextText = knowledge
@@ -129,8 +130,14 @@ ${contextText || '暂无相关知识库内容。'}
               ])
             }
           }
-        } catch (e) {
-          controller.error(e)
+        } catch (e: any) {
+          console.error('Stream error:', e)
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: `DeepSeek API 流式输出错误: ${e.message}`, done: true })}\n\n`
+            )
+          )
+          controller.close()
         }
       },
     })
@@ -143,6 +150,13 @@ ${contextText || '暂无相关知识库内容。'}
       },
     })
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    console.error('Chat API error:', err)
+    return new Response(
+      JSON.stringify({
+        error: err.message,
+        detail: 'DeepSeek API 调用失败，请检查 API Key 和环境变量配置。',
+      }),
+      { status: 500 }
+    )
   }
 }

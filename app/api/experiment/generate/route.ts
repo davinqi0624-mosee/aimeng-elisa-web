@@ -101,6 +101,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ id: inserted!.id, title, protocolContent })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Experiment generate error:', err)
+    return NextResponse.json(
+      {
+        error: err.message,
+        detail: 'DeepSeek API 调用失败，请检查 API Key 和环境变量配置。',
+      },
+      { status: 500 }
+    )
   }
 }

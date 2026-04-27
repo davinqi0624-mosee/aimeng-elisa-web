@@ -53,10 +53,12 @@ export default function ExperimentPage() {
         body: JSON.stringify({ productId, sampleType, purpose }),
       })
       const data = await res.json()
-      if (data.error) throw new Error(data.error)
+      if (data.error) throw new Error(data.detail || data.error)
       router.push(`/lab/experiment/${data.id}`)
     } catch (err: any) {
-      setError(err.message)
+      const msg = err.message || ''
+      const isApiError = msg.includes('API') || msg.includes('Key') || msg.includes('环境变量')
+      setError(isApiError ? `DeepSeek API 调用失败: ${msg}\n请检查 Vercel 环境变量 DEEPSEEK_API_KEY 是否已配置。` : err.message)
       setLoading(false)
     }
   }
