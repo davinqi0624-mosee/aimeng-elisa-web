@@ -21,7 +21,7 @@ export default async function AiLayout({
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/')
+    redirect('/login?next=/chat')
   }
 
   const navItems = [
@@ -32,7 +32,7 @@ export default async function AiLayout({
   ]
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
