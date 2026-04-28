@@ -24,10 +24,31 @@ export async function GET() {
   else if (balance >= 2000) tier = 'gold'
   else if (balance >= 500) tier = 'silver'
 
+  // 从 profiles 表读取基本信息
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+
+  // 从 admin_roles 表读取管理员角色
+  const { data: adminRole } = await supabase
+    .from('admin_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+
+  const role = (adminRole?.role as string) || 'user'
+  const displayName = profile?.full_name || (user.user_metadata as any)?.full_name || user.email
+
   return NextResponse.json({
     balance,
     tier,
     userId: user.id,
-    displayName: (user.user_metadata as any)?.full_name || user.email,
+    displayName,
+    role,
+    isStaff: role === 'level2' || role === 'level1' || role === 'super',
+    isAdmin: role === 'level1' || role === 'super',
+    isSuper: role === 'super',
   })
 }

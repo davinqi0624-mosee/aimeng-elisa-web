@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole, getClientIP } from '@/lib/admin/permissions'
+import { logAudit } from '@/lib/admin/audit'
 
 const POINTS_PER_PAPER = 100
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+    if (authError) return authError
+
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
-
-    // 简单的管理员校验：检查 metadata 中是否有 is_admin 标记
-    const isAdmin = (user.user_metadata as any)?.is_admin === true
-    if (!isAdmin) {
-      return NextResponse.json({ error: '无权操作' }, { status: 403 })
-    }
-
     const body = await request.json()
     const { paperId, action, note } = body
     if (!paperId || !['verify', 'reject'].includes(action)) {
@@ -22,10 +18,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'verify') {
-      // 更新论文状态并发放积分
       const { data: paper } = await supabase
         .from('papers')
-        .select('user_id, status')
+        .select('user_id, status, title')
         .eq('id', paperId)
         .single()
 
@@ -41,7 +36,6 @@ export async function POST(request: NextRequest) {
 
       if (updateError) throw updateError
 
-      // 写入积分交易记录
       const { error: txError } = await supabase.from('point_transactions').insert({
         user_id: paper.user_id,
         amount: POINTS_PER_PAPER,
@@ -53,14 +47,41 @@ export async function POST(request: NextRequest) {
 
       if (txError) throw txError
 
+      await logAudit({
+        admin_id: user.id,
+        action: 'award_points',
+        target_table: 'papers',
+        target_id: paperId,
+        new_value: { points: POINTS_PER_PAPER, status: 'verified', title: paper.title },
+        reason: note || '论文审核通过',
+        ip_address: getClientIP(request),
+      })
+
       return NextResponse.json({ message: '审核通过，积分已发放', points: POINTS_PER_PAPER })
     } else {
+      const { data: paper } = await supabase
+        .from('papers')
+        .select('title')
+        .eq('id', paperId)
+        .single()
+
       const { error } = await supabase
         .from('papers')
         .update({ status: 'rejected', reviewer_note: note || null })
         .eq('id', paperId)
 
       if (error) throw error
+
+      await logAudit({
+        admin_id: user.id,
+        action: 'update',
+        target_table: 'papers',
+        target_id: paperId,
+        new_value: { status: 'rejected', title: paper?.title },
+        reason: note || '论文审核拒绝',
+        ip_address: getClientIP(request),
+      })
+
       return NextResponse.json({ message: '已拒绝' })
     }
   } catch (err: any) {
