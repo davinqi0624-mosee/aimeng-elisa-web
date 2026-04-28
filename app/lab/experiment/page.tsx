@@ -19,6 +19,12 @@ interface Product {
   detection_range: string
 }
 
+interface ProtocolResult {
+  title: string
+  protocolContent: string
+  checklist: string[]
+}
+
 export default function ExperimentPage() {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
@@ -28,6 +34,7 @@ export default function ExperimentPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fetching, setFetching] = useState(true)
+  const [result, setResult] = useState<ProtocolResult | null>(null)
 
   useEffect(() => {
     fetch('/api/experiment/products')
@@ -45,6 +52,7 @@ export default function ExperimentPage() {
       return
     }
     setError('')
+    setResult(null)
     setLoading(true)
     try {
       const res = await fetch('/api/experiment/generate', {
@@ -54,7 +62,18 @@ export default function ExperimentPage() {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.detail || data.error)
-      router.push(`/lab/experiment/${data.id}`)
+      if (data.id) {
+        router.push(`/lab/experiment/${data.id}`)
+      } else if (data.protocolContent) {
+        setResult({
+          title: data.title,
+          protocolContent: data.protocolContent,
+          checklist: data.checklist || [],
+        })
+        setLoading(false)
+      } else {
+        throw new Error('生成结果为空')
+      }
     } catch (err: any) {
       const msg = err.message || ''
       const isApiError = msg.includes('API') || msg.includes('Key') || msg.includes('环境变量')
@@ -157,6 +176,40 @@ export default function ExperimentPage() {
           )}
         </button>
       </div>
+
+      {/* Result Preview */}
+      {result && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mt-6">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
+            <h2 className="text-lg font-bold">{result.title}</h2>
+          </div>
+          <div className="p-6 space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">实验方案</h3>
+              <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-lg p-5">
+                {result.protocolContent}
+              </div>
+            </div>
+            {result.checklist.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">准备清单</h3>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-5">
+                  <ul className="space-y-2">
+                    {result.checklist.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-700 text-xs flex items-center justify-center shrink-0 mt-0.5">
+                          {i + 1}
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

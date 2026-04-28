@@ -39,6 +39,12 @@ export default async function RootLayout({
               <Link href="/lab/analysis" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
                 数据分析
               </Link>
+              <Link href="/papers" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
+                论文
+              </Link>
+              <Link href="/store" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
+                积分商城
+              </Link>
               {user ? (
                 <div className="flex items-center gap-3 ml-2 pl-3 border-l border-gray-200">
                   <Link
@@ -47,7 +53,19 @@ export default async function RootLayout({
                   >
                     AI 客服
                   </Link>
-                  <span className="text-xs text-gray-500 hidden sm:inline">{user.email}</span>
+                  <Link
+                    href="/member"
+                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors hidden sm:inline"
+                  >
+                    会员中心
+                  </Link>
+                  <Link
+                    href="/leaderboard"
+                    className="text-sm text-gray-600 hover:text-blue-600 transition-colors hidden sm:inline"
+                  >
+                    排行榜
+                  </Link>
+                  <span className="text-xs text-gray-500 hidden sm:inline">{(user.user_metadata as any)?.full_name || user.email}</span>
                   <form action="/api/auth/signout" method="post">
                     <button
                       type="submit"
@@ -79,7 +97,7 @@ export default async function RootLayout({
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto">
           {children}
         </div>
       </body>

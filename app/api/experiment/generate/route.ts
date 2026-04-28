@@ -14,30 +14,16 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
-    // Ensure table exists
-    const setupSql = `
-      CREATE TABLE IF NOT EXISTS experiments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-        product_id UUID REFERENCES products(id),
-        sample_type TEXT NOT NULL,
-        purpose TEXT NOT NULL,
-        title TEXT,
-        protocol_content TEXT,
-        checklist TEXT[],
-        created_at TIMESTAMPTZ DEFAULT now()
-      );
-      ALTER TABLE experiments ENABLE ROW LEVEL SECURITY;
-      DROP POLICY IF EXISTS "Allow all experiments" ON experiments;
-      CREATE POLICY "Allow all experiments" ON experiments FOR ALL USING (true) WITH CHECK (true);
-    `
-    try { await supabase.rpc('exec_sql', { sql: setupSql }) } catch { /* ignore */ }
-
-    const { data: product } = await supabase
+    const { data: product, error: productError } = await supabase
       .from('products')
       .select('*')
       .eq('id', productId)
       .single()
+
+    if (productError) {
+      console.error('Product query error:', productError)
+      return NextResponse.json({ error: `查询产品失败: ${productError.message}` }, { status: 400 })
+    }
 
     const systemPrompt = `你是一位资深的 ELISA 实验方案设计专家。请根据用户提供的产品信息和实验目的，设计一份详细、可执行的 ELISA 实验方案。
 输出格式要求：
@@ -83,29 +69,40 @@ export async function POST(request: NextRequest) {
 
     const title = `${product?.target || 'ELISA'} 实验方案 — ${sampleType}`
 
-    const { data: inserted, error } = await supabase
-      .from('experiments')
-      .insert({
-        user_id: user.id,
-        product_id: productId,
-        sample_type: sampleType,
-        purpose,
-        title,
-        protocol_content: protocolContent,
-        checklist,
-      })
-      .select('id')
-      .single()
+    // Try to persist to DB; if table missing, gracefully return content directly
+    try {
+      const { data: inserted, error: insertError } = await supabase
+        .from('experiments')
+        .insert({
+          user_id: user.id,
+          product_id: productId,
+          sample_type: sampleType,
+          purpose,
+          title,
+          protocol_content: protocolContent,
+          checklist,
+        })
+        .select('id')
+        .single()
 
-    if (error) throw error
+      if (!insertError && inserted) {
+        return NextResponse.json({ id: inserted.id, title, protocolContent, checklist })
+      }
+      console.warn('Experiments insert skipped:', insertError?.message)
+    } catch (dbErr: any) {
+      console.warn('Experiments DB unavailable:', dbErr.message)
+    }
 
-    return NextResponse.json({ id: inserted!.id, title, protocolContent })
+    return NextResponse.json({ id: null, title, protocolContent, checklist })
   } catch (err: any) {
     console.error('Experiment generate error:', err)
+    const isDeepSeekErr = err.message?.includes('DeepSeek') || err.message?.includes('DEEPSEEK')
     return NextResponse.json(
       {
         error: err.message,
-        detail: 'DeepSeek API 调用失败，请检查 API Key 和环境变量配置。',
+        detail: isDeepSeekErr
+          ? 'DeepSeek API 调用失败，请检查 API Key 和环境变量配置。'
+          : '服务器内部错误，请联系管理员。',
       },
       { status: 500 }
     )

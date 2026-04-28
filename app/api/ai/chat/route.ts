@@ -23,17 +23,24 @@ const MODE_PROMPTS: Record<string, string> = {
 }
 
 async function retrieveKnowledge(query: string, limit: number = 5) {
-  const embedding = await getEmbedding(query)
   const supabase = await createClient()
 
-  const { data, error } = await supabase.rpc('match_knowledge', {
-    query_embedding: embedding,
-    match_threshold: 0.5,
-    match_count: limit,
-  })
+  try {
+    const embedding = await getEmbedding(query)
+    const { data, error } = await supabase.rpc('match_knowledge', {
+      query_embedding: embedding,
+      match_threshold: 0.5,
+      match_count: limit,
+    })
 
-  if (error) {
-    console.warn('match_knowledge RPC failed, falling back to basic search:', error.message)
+    if (error) {
+      console.warn('match_knowledge RPC failed, falling back to basic search:', error.message)
+      throw error
+    }
+
+    return data || []
+  } catch (err: any) {
+    console.warn('Embedding or vector search failed, falling back to basic search:', err.message)
     const { data: fallback } = await supabase
       .from('knowledge_base')
       .select('id,title,content,category,tags')
@@ -41,8 +48,6 @@ async function retrieveKnowledge(query: string, limit: number = 5) {
       .limit(limit)
     return (fallback || []).map((row: any) => ({ ...row, similarity: 0.6 }))
   }
-
-  return data || []
 }
 
 export async function POST(request: NextRequest) {

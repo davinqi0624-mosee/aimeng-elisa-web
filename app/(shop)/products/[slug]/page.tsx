@@ -27,7 +27,7 @@ export default async function ProductDetailPage({
   const aliasList = (product.product_aliases || []) as any[]
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="h-full bg-gray-50 py-8 px-4">
       <div className="max-w-5xl mx-auto">
         <Link
           href="/"

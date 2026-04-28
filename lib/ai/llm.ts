@@ -3,19 +3,33 @@ import { Ollama } from 'ollama'
 
 export const DEEPSEEK_CHAT_MODEL = 'deepseek-chat'
 
-// Lazy-init DeepSeek client to ensure env vars are loaded at call time
+// Lazy-init DeepSeek client to ensure env vars are read at call time
 function getDeepSeekClient(): OpenAI {
   const apiKey = process.env.DEEPSEEK_API_KEY
   const baseURL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1'
 
   if (!apiKey || apiKey === 'sk-你复制的key') {
-    throw new Error('DEEPSEEK_API_KEY is missing or invalid. Please set it in Vercel environment variables.')
+    throw new Error('DEEPSEEK_API_KEY_MISSING')
   }
 
   return new OpenAI({
     apiKey,
     baseURL,
   })
+}
+
+function translateDeepSeekError(err: any): string {
+  const msg = err?.message || String(err)
+  if (msg.includes('Insufficient Balance') || msg.includes('insufficient_quota')) {
+    return 'DEEPSEEK_INSUFFICIENT_BALANCE'
+  }
+  if (msg.includes('invalid_request_error')) {
+    return `DeepSeek 请求错误: ${msg}`
+  }
+  if (msg.includes('Authentication') || msg.includes('auth')) {
+    return 'DEEPSEEK_AUTH_ERROR'
+  }
+  return msg
 }
 
 // Ollama client for local embeddings only
@@ -43,13 +57,18 @@ export async function streamChat(
   options?: { temperature?: number; maxTokens?: number }
 ) {
   const client = getDeepSeekClient()
-  return client.chat.completions.create({
-    model: DEEPSEEK_CHAT_MODEL,
-    messages,
-    stream: true,
-    temperature: options?.temperature ?? 0.7,
-    max_tokens: options?.maxTokens ?? 2048,
-  })
+  try {
+    return await client.chat.completions.create({
+      model: DEEPSEEK_CHAT_MODEL,
+      messages,
+      stream: true,
+      temperature: options?.temperature ?? 0.7,
+      max_tokens: options?.maxTokens ?? 2048,
+    })
+  } catch (err: any) {
+    console.error('[DeepSeek streamChat error]', err)
+    throw new Error(translateDeepSeekError(err))
+  }
 }
 
 /**
@@ -60,12 +79,17 @@ export async function chatCompletion(
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<string> {
   const client = getDeepSeekClient()
-  const res = await client.chat.completions.create({
-    model: DEEPSEEK_CHAT_MODEL,
-    messages,
-    stream: false,
-    temperature: options?.temperature ?? 0.6,
-    max_tokens: options?.maxTokens ?? 4096,
-  })
-  return res.choices[0]?.message?.content || ''
+  try {
+    const res = await client.chat.completions.create({
+      model: DEEPSEEK_CHAT_MODEL,
+      messages,
+      stream: false,
+      temperature: options?.temperature ?? 0.6,
+      max_tokens: options?.maxTokens ?? 4096,
+    })
+    return res.choices[0]?.message?.content || ''
+  } catch (err: any) {
+    console.error('[DeepSeek chatCompletion error]', err)
+    throw new Error(translateDeepSeekError(err))
+  }
 }
