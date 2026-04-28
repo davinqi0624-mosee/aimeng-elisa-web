@@ -99,7 +99,7 @@ export default function DatasheetListPage() {
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
           <FileText className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <p className="text-sm text-gray-500 mb-4">暂无生成的说明书</p>
-          {(role === 'admin_l1' || role === 'admin_l2') && (
+          {(role === 'super' || role === 'level1' || role === 'level2') && (
             <Link
               href="/datasheet/generate"
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"

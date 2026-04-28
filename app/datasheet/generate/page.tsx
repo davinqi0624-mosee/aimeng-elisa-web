@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   BookOpen,
+  Package,
 } from 'lucide-react'
 
 interface Antibody {
@@ -36,6 +37,8 @@ export default function DatasheetGeneratePage() {
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
   const [role, setRole] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState('')
 
   // Custom antibody info when no catalog match
   const [customSupplier, setCustomSupplier] = useState('')
@@ -150,7 +153,15 @@ export default function DatasheetGeneratePage() {
               )}
             </div>
           </div>
-          <div className="flex gap-3">
+
+          {publishError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+              <AlertCircle className="w-4 h-4" />
+              {publishError}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => router.push(`/datasheet/${result.id}`)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
@@ -158,9 +169,45 @@ export default function DatasheetGeneratePage() {
               查看完整说明书
             </button>
             <button
+              onClick={async () => {
+                if (!confirm('确定将此说明书一键上架为商品吗？')) return
+                setPublishing(true)
+                setPublishError('')
+                try {
+                  const res = await fetch('/api/admin/products/auto-create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ datasheetId: result.id }),
+                  })
+                  const data = await res.json()
+                  if (data.error) throw new Error(data.error)
+                  router.push(`/products/${data.slug}`)
+                } catch (err: any) {
+                  setPublishError(err.message || '上架失败')
+                } finally {
+                  setPublishing(false)
+                }
+              }}
+              disabled={publishing}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {publishing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  上架中...
+                </>
+              ) : (
+                <>
+                  <Package className="w-4 h-4" />
+                  一键上架
+                </>
+              )}
+            </button>
+            <button
               onClick={() => {
                 setResult(null)
                 setError('')
+                setPublishError('')
               }}
               className="px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
             >
