@@ -13,6 +13,12 @@ import {
   AlertCircle,
   BookOpen,
   Package,
+  X,
+  Eye,
+  Tag,
+  Beaker,
+  DollarSign,
+  ArrowRight,
 } from 'lucide-react'
 
 interface Antibody {
@@ -22,6 +28,21 @@ interface Antibody {
   target: string
   species: string
   host: string
+}
+
+interface PreviewData {
+  preview: boolean
+  name: string
+  slug: string
+  target: string
+  species: string
+  method: string
+  catalogNumber: string
+  detectionRange: string
+  sensitivity: string
+  description: string
+  price: number
+  size: string
 }
 
 export default function DatasheetGeneratePage() {
@@ -39,8 +60,10 @@ export default function DatasheetGeneratePage() {
   const [role, setRole] = useState<string | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null)
+  const [publishPrice, setPublishPrice] = useState(2800)
 
-  // Custom antibody info when no catalog match
   const [customSupplier, setCustomSupplier] = useState('')
   const [customCatalog, setCustomCatalog] = useState('')
   const [customHost, setCustomHost] = useState('')
@@ -97,6 +120,53 @@ export default function DatasheetGeneratePage() {
     } finally {
       setGenerating(false)
     }
+  }
+
+  const openPreview = async () => {
+    setPublishing(true)
+    setPublishError('')
+    try {
+      const res = await fetch('/api/admin/products/auto-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datasheetId: result.id, preview: true }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setPreviewData(data)
+      setPublishPrice(data.price || 2800)
+      setPreviewOpen(true)
+    } catch (err: any) {
+      setPublishError(err.message || '预览失败')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const confirmPublish = async () => {
+    setPublishing(true)
+    try {
+      const res = await fetch('/api/admin/products/auto-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datasheetId: result.id, price: publishPrice }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setPreviewOpen(false)
+      router.push(`/products/${data.slug}`)
+    } catch (err: any) {
+      setPublishError(err.message || '上架失败')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  const methodLabel = (m: string) => {
+    if (m === 'sandwich') return '夹心法 ELISA'
+    if (m === 'competitive') return '竞争法 ELISA'
+    if (m === 'chemiluminescence') return '化学发光法'
+    return m
   }
 
   return (
@@ -169,37 +239,19 @@ export default function DatasheetGeneratePage() {
               查看完整说明书
             </button>
             <button
-              onClick={async () => {
-                if (!confirm('确定将此说明书一键上架为商品吗？')) return
-                setPublishing(true)
-                setPublishError('')
-                try {
-                  const res = await fetch('/api/admin/products/auto-create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ datasheetId: result.id }),
-                  })
-                  const data = await res.json()
-                  if (data.error) throw new Error(data.error)
-                  router.push(`/products/${data.slug}`)
-                } catch (err: any) {
-                  setPublishError(err.message || '上架失败')
-                } finally {
-                  setPublishing(false)
-                }
-              }}
+              onClick={openPreview}
               disabled={publishing}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50"
             >
-              {publishing ? (
+              {publishing && previewOpen === false ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  上架中...
+                  加载预览...
                 </>
               ) : (
                 <>
-                  <Package className="w-4 h-4" />
-                  一键上架
+                  <Eye className="w-4 h-4" />
+                  预览并上架
                 </>
               )}
             </button>
@@ -208,6 +260,7 @@ export default function DatasheetGeneratePage() {
                 setResult(null)
                 setError('')
                 setPublishError('')
+                setPreviewOpen(false)
               }}
               className="px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
             >
@@ -423,6 +476,115 @@ export default function DatasheetGeneratePage() {
           </button>
         </form>
       ) : null}
+
+      {/* Preview Modal */}
+      {previewOpen && previewData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Package className="w-5 h-5 text-emerald-600" />
+                商品上架预览
+              </h2>
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Tag className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">商品名称</p>
+                    <p className="text-sm font-medium text-gray-900">{previewData.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Beaker className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">货号</p>
+                    <p className="text-sm font-medium text-gray-900">{previewData.catalogNumber}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <FileText className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">检测范围</p>
+                    <p className="text-sm font-medium text-gray-900">{previewData.detectionRange}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <FlaskConical className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">灵敏度</p>
+                    <p className="text-sm font-medium text-gray-900">{previewData.sensitivity}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <DollarSign className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">价格（元）</p>
+                    <input
+                      type="number"
+                      value={publishPrice}
+                      onChange={(e) => setPublishPrice(Number(e.target.value))}
+                      className="w-32 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>Slug: <code className="text-gray-700 bg-gray-100 px-1 py-0.5 rounded">{previewData.slug}</code></p>
+                <p>规格: {previewData.size}</p>
+                <p>方法: {methodLabel(previewData.method)}</p>
+                <p>种属: {previewData.species}</p>
+              </div>
+
+              {publishError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4" />
+                  {publishError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-200">
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmPublish}
+                disabled={publishing}
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {publishing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    上架中...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRight className="w-4 h-4" />
+                    确认上架
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

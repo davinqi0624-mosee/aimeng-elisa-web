@@ -47,13 +47,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { datasheetId, price = 2800 } = body
+    const { datasheetId, price = 2800, preview = false } = body
 
     if (!datasheetId) {
       return NextResponse.json({ error: '缺少说明书ID' }, { status: 400 })
     }
 
-    // 获取说明书数据
     const { data: ds, error: dsError } = await supabase
       .from('auto_datasheets')
       .select('*')
@@ -64,7 +63,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '说明书不存在' }, { status: 404 })
     }
 
-    // 检查是否已上架
     if (ds.product_id) {
       return NextResponse.json({ error: '该说明书已上架为商品' }, { status: 400 })
     }
@@ -76,6 +74,23 @@ export async function POST(request: NextRequest) {
 
     const slug = generateSlug(ds.target, ds.species, ds.method, ds.catalog_number)
     const name = `${ds.target} (${ds.species}) ${METHOD_LABEL[ds.method] || ds.method} ELISA 试剂盒`
+
+    if (preview) {
+      return NextResponse.json({
+        preview: true,
+        name,
+        slug,
+        target: ds.target,
+        species: ds.species,
+        method: ds.method,
+        catalogNumber: ds.catalog_number,
+        detectionRange,
+        sensitivity,
+        description,
+        price,
+        size: ds.size,
+      })
+    }
 
     const productData = {
       name,
@@ -91,7 +106,6 @@ export async function POST(request: NextRequest) {
       status: 'active',
     }
 
-    // 插入产品（处理 slug 冲突）
     let product = null
     const { data: firstAttempt, error: firstError } = await supabase
       .from('products')
@@ -113,7 +127,6 @@ export async function POST(request: NextRequest) {
       product = firstAttempt
     }
 
-    // 插入种属关联
     await supabase.from('product_species').insert({
       product_id: product.id,
       species: ds.species,
@@ -121,7 +134,6 @@ export async function POST(request: NextRequest) {
       is_primary: true,
     })
 
-    // 插入别名
     await supabase.from('product_aliases').insert({
       product_id: product.id,
       alias: ds.target,
@@ -129,13 +141,11 @@ export async function POST(request: NextRequest) {
       language: 'en',
     })
 
-    // 更新说明书状态
     await supabase
       .from('auto_datasheets')
       .update({ status: 'published', product_id: product.id })
       .eq('id', datasheetId)
 
-    // 审计日志
     await logAudit({
       admin_id: user.id,
       action: 'create',
