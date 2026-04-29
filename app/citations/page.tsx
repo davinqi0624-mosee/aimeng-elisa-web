@@ -46,6 +46,7 @@ export default function CitationsPage() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const [sort, setSort] = useState('newest')
   const [journalFilter, setJournalFilter] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -73,6 +74,7 @@ export default function CitationsPage() {
       const data = await res.json()
       setPapers(data.papers || [])
       setTotalPages(data.totalPages || 1)
+      setTotal(data.total || 0)
     } catch {
       setPapers([])
     }
@@ -203,7 +205,7 @@ export default function CitationsPage() {
 
         {/* Results count */}
         <div className="text-sm text-gray-500">
-          共 {papers.length > 0 ? '...' : '0'} 篇文献
+          共 {total} 篇文献
         </div>
 
         {/* List */}
