@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const EXCEL_PATH = path.join(__dirname, '..', 'data', '爱萌产品目录（已更新4.26）.xlsx');
-const SQL_OUTPUT = path.join(__dirname, 'import-products.sql');
+const SQL_OUTPUT_DIR = path.join(__dirname, 'import-sql-chunks');
 
 const SPECIES_MAP = {
   'Human': '人',
@@ -48,23 +48,30 @@ function parseSpeciesFromSheetName(sheetName) {
 }
 
 function extractTargetFromName(name, species) {
-  // Remove species prefix and suffix like "ELISA Kit"
   let t = name.replace(new RegExp(`^${species}\\s*`, 'i'), '').trim();
   t = t.replace(/ELISA\s*Kit.*$/i, '').trim();
-  // Remove trailing parentheses content
   t = t.replace(/[（(].*?[）)]/g, '').trim();
-  // Clean up extra spaces
   t = t.replace(/\s+/g, ' ').trim();
   return t || name;
 }
 
-function generateSlug(target, species, catalogNo) {
-  const base = `${target}-${species}-${catalogNo}`
+function generateSlug(target, species, catalogNo, usedSlugs) {
+  let base = `${target}-${species}-${catalogNo}`
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-  return base.substring(0, 100);
+  base = base.substring(0, 90);
+
+  let slug = base;
+  let counter = 1;
+  while (usedSlugs.has(slug)) {
+    const suffix = `-${counter}`;
+    slug = base.substring(0, 90 - suffix.length) + suffix;
+    counter++;
+  }
+  usedSlugs.add(slug);
+  return slug;
 }
 
 function parseSampleType(text) {
@@ -89,6 +96,7 @@ async function main() {
   const wb = xlsx.readFile(EXCEL_PATH);
   const allProducts = [];
   const allAliases = [];
+  const usedSlugs = new Set();
 
   for (const sheetName of wb.SheetNames) {
     if (sheetName === 'Sheet3') continue;
@@ -98,7 +106,6 @@ async function main() {
     if (rows.length < 2) continue;
 
     const headers = rows[0];
-    // Find column indexes
     const catIdx = headers.findIndex(h => String(h).includes('货号'));
     const nameIdx = headers.findIndex(h => String(h).includes('产品名称'));
     const sizeIdx = headers.findIndex(h => String(h).includes('规格'));
@@ -120,7 +127,7 @@ async function main() {
       if (!catalogNo || !rawName) continue;
 
       const target = extractTargetFromName(rawName, species);
-      const slug = generateSlug(target, species, catalogNo);
+      const slug = generateSlug(target, species, catalogNo, usedSlugs);
       const sampleType = parseSampleType(sampleText);
       const speciesZh = SPECIES_MAP[species] || species;
 
@@ -137,7 +144,6 @@ async function main() {
         sampleType,
       });
 
-      // Alias entry
       allAliases.push({
         slug,
         alias: target,
@@ -149,17 +155,27 @@ async function main() {
 
   console.log(`✅ 解析完成：共 ${allProducts.length} 条产品`);
 
-  // Generate SQL
-  console.log('📝 生成 SQL 文件...');
-  let sql = `-- 爱萌产品目录批量导入 SQL\n`;
-  sql += `-- 生成时间：${new Date().toISOString()}\n`;
-  sql += `-- 产品总数：${allProducts.length}\n\n`;
-  sql += `BEGIN;\n\n`;
+  // Generate chunked SQL files
+  console.log('📝 生成 SQL 分片文件...');
+  if (!fs.existsSync(SQL_OUTPUT_DIR)) {
+    fs.mkdirSync(SQL_OUTPUT_DIR);
+  }
 
-  // Insert products in batches
-  const batchSize = 50;
-  for (let i = 0; i < allProducts.length; i += batchSize) {
-    const batch = allProducts.slice(i, i + batchSize);
+  const chunkSize = 2000;
+  const totalChunks = Math.ceil(allProducts.length / chunkSize);
+
+  for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+    const start = chunkIdx * chunkSize;
+    const end = Math.min(start + chunkSize, allProducts.length);
+    const batch = allProducts.slice(start, end);
+    const aliasBatch = allAliases.slice(start, end);
+
+    let sql = `-- 爱萌产品目录导入 - 分片 ${chunkIdx + 1}/${totalChunks}\n`;
+    sql += `-- 产品范围: ${start + 1} ~ ${end}\n`;
+    sql += `-- 生成时间: ${new Date().toISOString()}\n\n`;
+    sql += `BEGIN;\n\n`;
+
+    // Insert products
     const values = batch.map(p =>
       `('${escapeSqlString(p.name)}', '${escapeSqlString(p.slug)}', '${escapeSqlString(p.target)}', ` +
       `'${escapeSqlString(p.detectionRange)}', '${escapeSqlString(p.sensitivity)}', ${toPgArray(p.sampleType)}, ` +
@@ -167,53 +183,56 @@ async function main() {
     ).join(',\n');
 
     sql += `INSERT INTO products (name, slug, target, detection_range, sensitivity, sample_type, price, currency, status, stock_status)\n`;
-    sql += `VALUES ${values};\n\n`;
+    sql += `VALUES ${values}\n`;
+    sql += `ON CONFLICT (slug) DO NOTHING;\n\n`;
 
-    if ((i + batchSize) % 500 === 0 || i + batchSize >= allProducts.length) {
-      console.log(`   SQL 进度：${Math.min(i + batchSize, allProducts.length)} / ${allProducts.length}`);
-    }
-  }
+    // Insert product_species
+    const speciesValues = batch.map(p =>
+      `('${escapeSqlString(p.slug)}', '${escapeSqlString(p.species)}', '${escapeSqlString(p.speciesZh)}', true)`
+    ).join(',\n');
 
-  // Insert product_species
-  sql += `-- 导入 product_species\n`;
-  for (let i = 0; i < allProducts.length; i += batchSize) {
-    const batch = allProducts.slice(i, i + batchSize);
-    const slugs = batch.map(p => `'${escapeSqlString(p.slug)}'`).join(',');
     sql += `INSERT INTO product_species (product_id, species, species_name_zh, is_primary)\n`;
-    sql += `SELECT id, '${escapeSqlString(batch[0].species)}', '${escapeSqlString(batch[0].speciesZh)}', true\n`;
-    sql += `FROM products WHERE slug IN (${slugs})\n`;
+    sql += `SELECT p.id, v.species, v.species_name_zh, v.is_primary\n`;
+    sql += `FROM (VALUES ${speciesValues}) AS v(slug, species, species_name_zh, is_primary)\n`;
+    sql += `JOIN products p ON p.slug = v.slug\n`;
     sql += `ON CONFLICT (product_id, species) DO NOTHING;\n\n`;
-  }
 
-  // Insert product_aliases
-  sql += `-- 导入 product_aliases\n`;
-  for (let i = 0; i < allAliases.length; i += batchSize) {
-    const batch = allAliases.slice(i, i + batchSize);
-    const conditions = batch.map(a => `slug = '${escapeSqlString(a.slug)}'`).join(' OR ');
+    // Insert product_aliases
+    const aliasValues = aliasBatch.map(a =>
+      `('${escapeSqlString(a.slug)}', '${escapeSqlString(a.alias)}', '${escapeSqlString(a.aliasType)}', '${escapeSqlString(a.language)}')`
+    ).join(',\n');
+
     sql += `INSERT INTO product_aliases (product_id, alias, alias_type, language)\n`;
-    sql += `SELECT id, '${escapeSqlString(batch[0].alias)}', 'target', 'en'\n`;
-    sql += `FROM products WHERE ${conditions}\n`;
+    sql += `SELECT p.id, v.alias, v.alias_type, v.language\n`;
+    sql += `FROM (VALUES ${aliasValues}) AS v(slug, alias, alias_type, language)\n`;
+    sql += `JOIN products p ON p.slug = v.slug\n`;
     sql += `ON CONFLICT DO NOTHING;\n\n`;
+
+    sql += `COMMIT;\n`;
+
+    const chunkPath = path.join(SQL_OUTPUT_DIR, `chunk-${String(chunkIdx + 1).padStart(3, '0')}.sql`);
+    fs.writeFileSync(chunkPath, sql);
+    console.log(`   分片 ${chunkIdx + 1}/${totalChunks} → ${chunkPath} (${(fs.statSync(chunkPath).size / 1024).toFixed(1)} KB)`);
   }
 
-  sql += `COMMIT;\n`;
-
-  fs.writeFileSync(SQL_OUTPUT, sql);
-  console.log(`✅ SQL 文件已保存：${SQL_OUTPUT}`);
-  console.log(`   文件大小：${(fs.statSync(SQL_OUTPUT).size / 1024).toFixed(1)} KB`);
+  console.log(`\n✅ SQL 分片文件已保存到: ${SQL_OUTPUT_DIR}`);
 
   // Try supabase-js if service role key available
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (serviceRoleKey) {
-    console.log('🔌 检测到 SERVICE_ROLE_KEY，尝试通过 supabase-js 导入...');
+    console.log('\n🔌 检测到 SERVICE_ROLE_KEY，尝试通过 supabase-js 导入...');
     const { createClient } = require('@supabase/supabase-js');
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     let inserted = 0;
+    let skipped = 0;
+    const batchSize = 50;
+
     for (let i = 0; i < allProducts.length; i += batchSize) {
       const batch = allProducts.slice(i, i + batchSize);
-      const { error } = await supabase.from('products').insert(batch.map(p => ({
+
+      const { data: insertedProducts, error } = await supabase.from('products').insert(batch.map(p => ({
         name: p.name,
         slug: p.slug,
         target: p.target,
@@ -224,10 +243,38 @@ async function main() {
         currency: 'CNY',
         status: 'active',
         stock_status: 'in_stock',
-      })));
+      }))).select('id, slug');
 
       if (error) {
         console.error(`❌ 第 ${i + 1} 批插入失败：`, error.message);
+        if (error.code === '23505') {
+          console.log('   检测到 slug 重复，尝试逐条插入...');
+          for (const p of batch) {
+            const { data: single, error: singleErr } = await supabase.from('products').insert({
+              name: p.name,
+              slug: p.slug,
+              target: p.target,
+              detection_range: p.detectionRange,
+              sensitivity: p.sensitivity,
+              sample_type: p.sampleType,
+              price: 1800,
+              currency: 'CNY',
+              status: 'active',
+              stock_status: 'in_stock',
+            }).select('id, slug').single();
+
+            if (singleErr && singleErr.code === '23505') {
+              console.warn(`   跳过重复 slug: ${p.slug}`);
+              skipped++;
+            } else if (singleErr) {
+              console.error(`   单条插入失败: ${p.slug}`, singleErr.message);
+              skipped++;
+            } else {
+              inserted++;
+            }
+          }
+          continue;
+        }
         break;
       }
 
@@ -236,10 +283,55 @@ async function main() {
         console.log(`   导入进度：${inserted} / ${allProducts.length}`);
       }
     }
-    console.log(`✅ supabase-js 导入完成：${inserted} 条`);
+
+    console.log(`✅ supabase-js 导入完成：${inserted} 条成功，${skipped} 条跳过`);
+
+    // Insert species and aliases for inserted products
+    if (inserted > 0) {
+      console.log('📝 导入 product_species 和 product_aliases...');
+
+      const { data: allDbProducts } = await supabase.from('products').select('id, slug');
+      const slugToId = new Map(allDbProducts?.map(p => [p.slug, p.id]) || []);
+
+      const speciesInserts = [];
+      const aliasInserts = [];
+
+      for (const p of allProducts) {
+        const productId = slugToId.get(p.slug);
+        if (!productId) continue;
+        speciesInserts.push({
+          product_id: productId,
+          species: p.species,
+          species_name_zh: p.speciesZh,
+          is_primary: true,
+        });
+        aliasInserts.push({
+          product_id: productId,
+          alias: p.target,
+          alias_type: 'target',
+          language: 'en',
+        });
+      }
+
+      // Batch insert species
+      const spBatch = 500;
+      for (let i = 0; i < speciesInserts.length; i += spBatch) {
+        const { error } = await supabase.from('product_species').insert(speciesInserts.slice(i, i + spBatch));
+        if (error) console.error(`species 插入失败:`, error.message);
+      }
+
+      // Batch insert aliases
+      for (let i = 0; i < aliasInserts.length; i += spBatch) {
+        const { error } = await supabase.from('product_aliases').insert(aliasInserts.slice(i, i + spBatch));
+        if (error) console.error(`aliases 插入失败:`, error.message);
+      }
+
+      console.log(`✅ 关联数据导入完成`);
+    }
   } else {
     console.log('\n⚠️  未检测到 SUPABASE_SERVICE_ROLE_KEY 环境变量。');
-    console.log('   已生成 SQL 文件，请复制到 Supabase SQL Editor 中执行。');
+    console.log(`   已生成 ${totalChunks} 个 SQL 分片文件，请逐个复制到 Supabase SQL Editor 执行。`);
+    console.log('   每个文件约 600-700 KB，在 SQL Editor 限制范围内。');
     console.log('   如需使用 supabase-js 导入，请配置环境变量后重新运行：');
     console.log('   export SUPABASE_SERVICE_ROLE_KEY=your_service_role_key');
     console.log('   node scripts/import-products.js');
