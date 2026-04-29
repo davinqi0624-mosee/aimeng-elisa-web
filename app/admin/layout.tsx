@@ -14,25 +14,63 @@ import {
   Settings,
   Menu,
   X,
+  ChevronDown,
+  BookOpen,
+  Store,
+  BarChart3,
 } from 'lucide-react'
 
 type AdminRole = 'super' | 'level1' | 'level2' | null
 
-interface NavItem {
+interface SubMenuItem {
   href: string
+  label: string
+}
+
+interface MenuGroup {
   label: string
   icon: React.ReactNode
   roles: AdminRole[]
+  items: SubMenuItem[]
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: '/admin', label: '概览', icon: <LayoutDashboard className="w-4 h-4" />, roles: ['super', 'level1', 'level2'] },
-  { href: '/admin/products', label: '商品管理', icon: <Package className="w-4 h-4" />, roles: ['super', 'level1', 'level2'] },
-  { href: '/admin/shop', label: '积分商城', icon: <Gift className="w-4 h-4" />, roles: ['super', 'level1', 'level2'] },
-  { href: '/admin/orders', label: '兑换订单', icon: <ClipboardList className="w-4 h-4" />, roles: ['super', 'level1', 'level2'] },
-  { href: '/admin/papers', label: '积分审核', icon: <FileText className="w-4 h-4" />, roles: ['super', 'level1', 'level2'] },
-  { href: '/admin/users', label: '用户管理', icon: <Users className="w-4 h-4" />, roles: ['super', 'level1'] },
-  { href: '/admin/settings', label: '系统设置', icon: <Settings className="w-4 h-4" />, roles: ['super'] },
+const MENU_GROUPS: MenuGroup[] = [
+  {
+    label: '概览',
+    icon: <LayoutDashboard className="w-4 h-4" />,
+    roles: ['super', 'level1', 'level2'],
+    items: [{ href: '/admin', label: '数据看板' }],
+  },
+  {
+    label: '商品中心',
+    icon: <Package className="w-4 h-4" />,
+    roles: ['super', 'level1', 'level2'],
+    items: [
+      { href: '/admin/products', label: '商品管理' },
+      { href: '/admin/orders', label: '兑换订单' },
+    ],
+  },
+  {
+    label: '积分运营',
+    icon: <Gift className="w-4 h-4" />,
+    roles: ['super', 'level1', 'level2'],
+    items: [
+      { href: '/admin/shop', label: '积分商城' },
+      { href: '/admin/citations', label: '文献审核' },
+    ],
+  },
+  {
+    label: '用户中心',
+    icon: <Users className="w-4 h-4" />,
+    roles: ['super', 'level1'],
+    items: [{ href: '/admin/users', label: '用户管理' }],
+  },
+  {
+    label: '系统管理',
+    icon: <Settings className="w-4 h-4" />,
+    roles: ['super'],
+    items: [{ href: '/admin/settings', label: '系统设置' }],
+  },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [role, setRole] = useState<AdminRole>(null)
   const [loading, setLoading] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([])
 
   useEffect(() => {
     fetch('/api/user/points')
@@ -50,6 +89,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .catch(() => setRole(null))
       .finally(() => setLoading(false))
   }, [])
+
+  // Auto-expand group containing current path
+  useEffect(() => {
+    const group = MENU_GROUPS.find((g) =>
+      g.items.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
+    )
+    if (group && !expandedGroups.includes(group.label)) {
+      setExpandedGroups((prev) => [...prev, group.label])
+    }
+  }, [pathname])
 
   if (loading) {
     return (
@@ -72,7 +121,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  const visibleNav = NAV_ITEMS.filter((item) => item.roles.includes(role))
+  const visibleGroups = MENU_GROUPS.filter((g) => g.roles.includes(role))
+
+  function toggleGroup(label: string) {
+    setExpandedGroups((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
+    )
+  }
 
   return (
     <div className="flex h-full">
@@ -88,21 +143,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-2">
-          {visibleNav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          {visibleGroups.map((group) => {
+            const isExpanded = expandedGroups.includes(group.label)
+            const hasActiveChild = group.items.some(
+              (item) => pathname === item.href || pathname.startsWith(item.href + '/')
+            )
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
-                  active
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                    hasActiveChild
+                      ? 'text-blue-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    {group.icon}
+                    {group.label}
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                      isExpanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {isExpanded && (
+                  <div className="pb-1">
+                    {group.items.map((item) => {
+                      const active =
+                        pathname === item.href || pathname.startsWith(item.href + '/')
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center gap-2 pl-10 pr-4 py-2 text-sm transition-colors ${
+                            active
+                              ? 'bg-blue-50 text-blue-700 font-medium'
+                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                          }`}
+                        >
+                          <span
+                            className={`w-1 h-1 rounded-full ${
+                              active ? 'bg-blue-500' : 'bg-gray-300'
+                            }`}
+                          />
+                          {item.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )
           })}
         </nav>
@@ -126,27 +218,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile Nav Overlay */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-30 bg-black/20" onClick={() => setMobileOpen(false)}>
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/20"
+          onClick={() => setMobileOpen(false)}
+        >
           <div
-            className="absolute top-12 left-0 right-0 bg-white border-b border-gray-200 py-2"
+            className="absolute top-12 left-0 right-0 bg-white border-b border-gray-200 py-2 max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {visibleNav.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            {visibleGroups.map((group) => {
+              const isExpanded = expandedGroups.includes(group.label)
+              const hasActiveChild = group.items.some(
+                (item) => pathname === item.href || pathname.startsWith(item.href + '/')
+              )
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
-                    active
-                      ? 'bg-blue-50 text-blue-700 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
+                <div key={group.label}>
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm ${
+                      hasActiveChild ? 'text-blue-700 font-medium' : 'text-gray-600'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      {group.icon}
+                      {group.label}
+                    </span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  {isExpanded &&
+                    group.items.map((item) => {
+                      const active =
+                        pathname === item.href || pathname.startsWith(item.href + '/')
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex items-center gap-2 pl-10 pr-4 py-2 text-sm ${
+                            active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-500'
+                          }`}
+                        >
+                          <span
+                            className={`w-1 h-1 rounded-full ${
+                              active ? 'bg-blue-500' : 'bg-gray-300'
+                            }`}
+                          />
+                          {item.label}
+                        </Link>
+                      )
+                    })}
+                </div>
               )
             })}
           </div>
