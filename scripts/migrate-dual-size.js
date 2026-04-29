@@ -49,14 +49,9 @@ function parseSpeciesFromSheetName(sheetName) {
   return 'Human';
 }
 
-// 配置价格规则：可修改这里调整定价
-function getPrices(size, basePrice) {
-  // 默认：96T = basePrice, 48T = basePrice * 0.55（向上取整到整百）
-  if (size === '48T') {
-    return { '48T': basePrice, '96T': Math.ceil(basePrice / 0.55 / 100) * 100 };
-  }
-  const p48 = Math.floor(basePrice * 0.55 / 100) * 100;
-  return { '48T': Math.max(p48, 500), '96T': basePrice };
+// 配置价格规则：48T = 1800, 96T = 2400
+function getPrices() {
+  return { '48T': 1800, '96T': 2400 };
 }
 
 async function main() {
@@ -162,7 +157,7 @@ async function main() {
         excel96 = e1 || e2;
       }
 
-      const prices = getPrices('96T', product96.price || 1800);
+      const prices = getPrices();
       const catalogNo = excel96?.catalogNo || product96.slug.split('-').pop()?.toUpperCase();
 
       // 更新 96T 产品为主产品
@@ -196,7 +191,7 @@ async function main() {
       // 单规格产品
       const p = group[0];
       const excel = excelMap.get(p.slug);
-      const prices = getPrices(excel?.size || '96T', p.price || 1800);
+      const prices = getPrices();
       const catalogNo = excel?.catalogNo || p.slug.split('-').pop()?.toUpperCase();
 
       const { error: updErr } = await supabase
