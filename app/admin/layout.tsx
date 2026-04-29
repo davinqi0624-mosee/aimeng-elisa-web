@@ -60,6 +60,14 @@ const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
+    label: '知识管理',
+    icon: <BookOpen className="w-4 h-4" />,
+    roles: ['super', 'level1', 'level2'],
+    items: [
+      { href: '/admin/knowledge/candidates', label: '知识审核' },
+    ],
+  },
+  {
     label: '用户中心',
     icon: <Users className="w-4 h-4" />,
     roles: ['super', 'level1'],
