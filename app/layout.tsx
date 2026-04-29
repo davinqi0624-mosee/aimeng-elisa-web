@@ -51,9 +51,14 @@ export default async function RootLayout({
               <Link href="/lab/analysis" className="text-sm text-gray-600 hover:text-blue-600 transition-colors shrink-0">
                 数据分析
               </Link>
-              <Link href="/papers" className="text-sm text-gray-600 hover:text-blue-600 transition-colors shrink-0">
-                论文
+              <Link href="/citations" className="text-sm text-gray-600 hover:text-blue-600 transition-colors shrink-0">
+                文献
               </Link>
+              {user && (
+                <Link href="/user/citations/submit" className="text-sm text-indigo-600 hover:text-indigo-700 transition-colors shrink-0 font-medium">
+                  + 投稿
+                </Link>
+              )}
               <Link href="/store" className="text-sm text-gray-600 hover:text-blue-600 transition-colors shrink-0">
                 积分商城
               </Link>
