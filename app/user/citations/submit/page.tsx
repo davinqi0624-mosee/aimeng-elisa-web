@@ -1,15 +1,27 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 
+interface MatchedProduct {
+  id: string
+  cat_no: string
+  name: string
+  species: string
+  target: string
+}
+
 export default function CitationSubmitPage() {
-  const [products, setProducts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [showOptional, setShowOptional] = useState(false)
+
+  const [productQuery, setProductQuery] = useState('')
+  const [matchedProducts, setMatchedProducts] = useState<MatchedProduct[]>([])
+  const [showMatches, setShowMatches] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<MatchedProduct | null>(null)
+  const [loadingMatches, setLoadingMatches] = useState(false)
 
   const [form, setForm] = useState({
     product_cat_no: '',
@@ -19,15 +31,56 @@ export default function CitationSubmitPage() {
     abstract: '',
   })
 
+  const matchRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Close dropdown on outside click
   useEffect(() => {
-    fetch('/api/admin/products')
-      .then((r) => r.json())
-      .then((data) => {
-        setProducts(data.products || [])
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    function handleClickOutside(e: MouseEvent) {
+      if (matchRef.current && !matchRef.current.contains(e.target as Node)) {
+        setShowMatches(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  const fetchMatches = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setMatchedProducts([])
+      setShowMatches(false)
+      return
+    }
+    setLoadingMatches(true)
+    try {
+      const res = await fetch(`/api/products/match?query=${encodeURIComponent(query)}`)
+      const data = await res.json()
+      setMatchedProducts(data.products || [])
+      setShowMatches((data.products || []).length > 0)
+    } catch {
+      setMatchedProducts([])
+    } finally {
+      setLoadingMatches(false)
+    }
+  }, [])
+
+  function handleProductInputChange(value: string) {
+    setProductQuery(value)
+    setSelectedProduct(null)
+    setForm((prev) => ({ ...prev, product_cat_no: value }))
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      fetchMatches(value)
+    }, 250)
+  }
+
+  function handleSelectProduct(product: MatchedProduct) {
+    setSelectedProduct(product)
+    setProductQuery(`${product.cat_no} - ${product.name}`)
+    setForm((prev) => ({ ...prev, product_cat_no: product.cat_no }))
+    setShowMatches(false)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -45,6 +98,8 @@ export default function CitationSubmitPage() {
       if (!res.ok) throw new Error(data.error)
       setSuccess('提交成功！您已获得50积分投稿奖励。审核通过后将追加发放积分。')
       setForm({ product_cat_no: '', title: '', journal: '', publication_year: '', abstract: '' })
+      setProductQuery('')
+      setSelectedProduct(null)
       setShowOptional(false)
     } catch (err: any) {
       setError(err.message)
@@ -76,27 +131,56 @@ export default function CitationSubmitPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Product */}
-            <div>
+            {/* Product - Smart Input */}
+            <div ref={matchRef} className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 产品货号 <span className="text-red-500">*</span>
               </label>
-              {loading ? (
-                <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-              ) : (
-                <select
-                  required
-                  value={form.product_cat_no}
-                  onChange={(e) => setForm({ ...form, product_cat_no: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
-                >
-                  <option value="">请选择产品</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.cat_no || p.slug}>
-                      {p.cat_no || p.slug} - {p.name}
-                    </option>
+              <input
+                required
+                value={productQuery}
+                onChange={(e) => handleProductInputChange(e.target.value)}
+                onFocus={() => {
+                  if (matchedProducts.length > 0) setShowMatches(true)
+                }}
+                placeholder="输入货号（如 LV30683）或 种属+指标（如 Human IL-6）"
+                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
+              />
+              {loadingMatches && (
+                <div className="absolute right-3 top-[2.1rem]">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* Match dropdown */}
+              {showMatches && (
+                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg overflow-hidden">
+                  {matchedProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleSelectProduct(p)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 transition-colors border-b last:border-b-0 border-gray-100"
+                    >
+                      <span className="shrink-0 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-mono font-medium">
+                        {p.cat_no}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm text-gray-900 truncate">{p.name}</div>
+                        <div className="text-xs text-gray-400">
+                          {p.species} · {p.target}
+                        </div>
+                      </div>
+                    </button>
                   ))}
-                </select>
+                </div>
+              )}
+
+              {selectedProduct && (
+                <div className="mt-1.5 text-xs text-green-600 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  已选择: {selectedProduct.cat_no}
+                </div>
               )}
             </div>
 
