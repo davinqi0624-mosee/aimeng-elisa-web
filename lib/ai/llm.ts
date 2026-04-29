@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
-import { Ollama } from 'ollama'
 
 export const DEEPSEEK_CHAT_MODEL = 'deepseek-chat'
+export const EMBED_MODEL = 'text-embedding-3-small'
 
 // Lazy-init DeepSeek client to ensure env vars are read at call time
 function getDeepSeekClient(): OpenAI {
@@ -18,6 +18,15 @@ function getDeepSeekClient(): OpenAI {
   })
 }
 
+// OpenAI client for cloud embeddings
+function getOpenAIClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY_MISSING: 请配置 OPENAI_API_KEY 环境变量以使用云端嵌入')
+  }
+  return new OpenAI({ apiKey })
+}
+
 function translateDeepSeekError(err: any): string {
   const msg = err?.message || String(err)
   if (msg.includes('Insufficient Balance') || msg.includes('insufficient_quota')) {
@@ -32,21 +41,16 @@ function translateDeepSeekError(err: any): string {
   return msg
 }
 
-// Ollama client for local embeddings only
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434'
-const ollama = new Ollama({ host: OLLAMA_HOST })
-
-export const EMBED_MODEL = 'nomic-embed-text'
-
 /**
- * Generate embedding using local Ollama (nomic-embed-text)
+ * Generate embedding using OpenAI cloud API (text-embedding-3-small)
  */
 export async function getEmbedding(text: string): Promise<number[]> {
-  const response = await ollama.embed({
+  const client = getOpenAIClient()
+  const response = await client.embeddings.create({
     model: EMBED_MODEL,
     input: text,
   })
-  return response.embeddings[0]
+  return response.data[0].embedding
 }
 
 /**
