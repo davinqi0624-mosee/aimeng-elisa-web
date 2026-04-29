@@ -10,6 +10,11 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS citation_count INTEGER DEFAULT 0;
 UPDATE products SET cat_no = catalog_number WHERE cat_no IS NULL AND catalog_number IS NOT NULL;
 
 -- 2. papers 表扩展
+-- 添加 upload_status 字段（从旧 status 字段迁移）
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS upload_status TEXT;
+UPDATE papers SET upload_status = status WHERE upload_status IS NULL;
+
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS publication_date DATE;
 ALTER TABLE papers ADD COLUMN IF NOT EXISTS product_cat_no TEXT;
 ALTER TABLE papers ADD COLUMN IF NOT EXISTS impact_factor DECIMAL(5,2);
 ALTER TABLE papers ADD COLUMN IF NOT EXISTS citation_type TEXT DEFAULT 'user_submitted';
@@ -40,7 +45,7 @@ SELECT
   pa.impact_factor,
   pa.doi,
   pa.publication_date,
-  pa.url,
+  pa.link AS url,
   pa.verified_at,
   pa.user_id as submitter_id
 FROM products p
