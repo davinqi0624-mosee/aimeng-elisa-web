@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     .limit(limit)
 
   if (status !== 'all') {
-    query = query.eq('status', status)
+    query = query.eq('upload_status', status)
   }
 
   if (myPapers && user) {

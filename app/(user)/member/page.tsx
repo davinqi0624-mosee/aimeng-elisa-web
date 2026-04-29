@@ -19,7 +19,7 @@ import {
 interface Paper {
   id: string
   title: string
-  status: string
+  upload_status: string
   points_awarded: number
   created_at: string
 }
@@ -49,7 +49,7 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([
       fetch('/api/user/points').then((r) => r.json()),
-      fetch('/api/papers?mine=true&status=all').then((r) => r.json()),
+      fetch('/api/user/citations').then((r) => r.json()),
       fetch('/api/shop/redeem').then((r) => r.json().catch(() => ({ orders: [] }))),
     ])
       .then(([ptData, papersData, ordersData]) => {
@@ -122,13 +122,13 @@ export default function DashboardPage() {
           {/* Quick Links */}
           <div className="grid grid-cols-2 gap-3">
             <Link
-              href="/upload"
+              href="/user/citations/submit"
               className="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 transition-colors"
             >
               <FileText className="w-5 h-5 text-blue-600" />
               <div>
-                <div className="text-sm font-medium text-gray-900">上传论文</div>
-                <div className="text-xs text-gray-500">审核通过 +100 积分</div>
+                <div className="text-sm font-medium text-gray-900">提交文献</div>
+                <div className="text-xs text-gray-500">审核通过最高 +1500 积分</div>
               </div>
             </Link>
             <Link
@@ -147,7 +147,7 @@ export default function DashboardPage() {
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-900">我的论文</h2>
-              <Link href="/papers" className="text-xs text-blue-600 hover:text-blue-700">
+              <Link href="/user/citations" className="text-xs text-blue-600 hover:text-blue-700">
                 查看全部
               </Link>
             </div>
@@ -160,12 +160,12 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <div className="text-sm text-gray-900 truncate">{p.title}</div>
                       <div className="text-xs text-gray-400 mt-0.5">
-                        {p.status === 'verified' ? (
+                        {p.upload_status === 'verified' ? (
                           <span className="flex items-center gap-1 text-emerald-600">
                             <CheckCircle2 className="w-3 h-3" />
                             已通过 +{p.points_awarded} 积分
                           </span>
-                        ) : p.status === 'pending' ? (
+                        ) : p.upload_status === 'pending' ? (
                           <span className="flex items-center gap-1 text-amber-600">
                             <Clock className="w-3 h-3" />
                             审核中
