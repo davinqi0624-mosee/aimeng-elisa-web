@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import ProductCard from '@/components/product/ProductCard'
 
 export default async function SearchPage({
   searchParams,
@@ -12,7 +13,7 @@ export default async function SearchPage({
 
   const supabase = await createClient()
 
-  // 尝试使用数据库搜索函数（支持别名模糊匹配）
+  // 尝试使用数据库搜索函数（支持希腊字母模糊匹配）
   let products: any[] | null = null
   let rpcError: any = null
 
@@ -28,7 +29,7 @@ export default async function SearchPage({
     // 降级：直接使用 supabase-js 查询（不关联别名表）
     let dbQuery = supabase
       .from('products')
-      .select('id, name, slug, target, price, detection_range, stock_status')
+      .select('id, name, slug, target, price, prices, detection_range, stock_status')
       .eq('status', 'active')
 
     if (query) {
@@ -60,6 +61,7 @@ export default async function SearchPage({
     slug: string
     target: string
     price: number
+    prices: Record<string, number> | null
     detection_range: string
     stock_status: string
   }
@@ -154,39 +156,11 @@ export default async function SearchPage({
         {/* Results Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {typedProducts.map((product) => (
-            <Link
+            <ProductCard
               key={product.id}
-              href={`/products/${product.slug}`}
-              className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all overflow-hidden group"
-            >
-              <div className="h-48 bg-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition-colors">
-                <span className="text-gray-400 text-sm">产品图片</span>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
-                    {product.target}
-                  </span>
-                  {speciesMap[product.id]?.slice(0, 1).map((s) => (
-                    <span
-                      key={s}
-                      className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
-                    >
-                      {s}
-                    </span>
-                  ))}
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
-                  {product.name}
-                </h3>
-                <p className="text-xs text-gray-500 mb-3">
-                  检测范围: {product.detection_range}
-                </p>
-                <p className="text-lg font-bold text-blue-600">
-                  ¥{product.price}
-                </p>
-              </div>
-            </Link>
+              product={product}
+              species={speciesMap[product.id] || []}
+            />
           ))}
         </div>
 
