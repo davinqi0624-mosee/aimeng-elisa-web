@@ -9,21 +9,20 @@ export default function CitationSubmitPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [showOptional, setShowOptional] = useState(false)
 
   const [form, setForm] = useState({
     product_cat_no: '',
     title: '',
-    doi: '',
     journal: '',
     publication_year: '',
-    authors: '',
     abstract: '',
   })
 
   useEffect(() => {
     fetch('/api/admin/products')
-      .then(r => r.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data) => {
         setProducts(data.products || [])
         setLoading(false)
       })
@@ -45,7 +44,8 @@ export default function CitationSubmitPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setSuccess('提交成功！您已获得50积分投稿奖励。审核通过后将追加发放积分。')
-      setForm({ product_cat_no: '', title: '', doi: '', journal: '', publication_year: '', authors: '', abstract: '' })
+      setForm({ product_cat_no: '', title: '', journal: '', publication_year: '', abstract: '' })
+      setShowOptional(false)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -55,7 +55,7 @@ export default function CitationSubmitPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
           <Link href="/user/citations" className="text-blue-600 hover:underline text-sm">
             ← 我的文献
@@ -63,7 +63,7 @@ export default function CitationSubmitPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">提交引用文献</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">提交引用文献</h1>
           <p className="text-sm text-gray-500 mb-6">
             提交使用爱萌产品的 SCI 论文，审核通过后可获得高额积分奖励
           </p>
@@ -76,19 +76,22 @@ export default function CitationSubmitPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Product */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">产品货号 *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                产品货号 <span className="text-red-500">*</span>
+              </label>
               {loading ? (
                 <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
               ) : (
                 <select
                   required
                   value={form.product_cat_no}
-                  onChange={e => setForm({ ...form, product_cat_no: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
+                  onChange={(e) => setForm({ ...form, product_cat_no: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
                 >
                   <option value="">请选择产品</option>
-                  {products.map(p => (
+                  {products.map((p) => (
                     <option key={p.id} value={p.cat_no || p.slug}>
                       {p.cat_no || p.slug} - {p.name}
                     </option>
@@ -97,75 +100,79 @@ export default function CitationSubmitPage() {
               )}
             </div>
 
+            {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">论文标题 *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                论文题目 <span className="text-red-500">*</span>
+              </label>
               <input
                 required
                 value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
                 placeholder="论文完整标题"
               />
             </div>
 
+            {/* Journal */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">DOI</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                期刊名称 <span className="text-red-500">*</span>
+              </label>
               <input
-                value={form.doi}
-                onChange={e => setForm({ ...form, doi: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
-                placeholder="10.xxxx/xxxxx"
+                required
+                value={form.journal}
+                onChange={(e) => setForm({ ...form, journal: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
+                placeholder="期刊名称"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">期刊 *</label>
-                <input
-                  required
-                  value={form.journal}
-                  onChange={e => setForm({ ...form, journal: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
-                  placeholder="期刊名称"
-                />
+            {/* Optional fields toggle */}
+            <button
+              type="button"
+              onClick={() => setShowOptional(!showOptional)}
+              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              {showOptional ? '收起可选项' : '+ 添加更多信息（摘要、发表年份）'}
+            </button>
+
+            {showOptional && (
+              <div className="space-y-4 pt-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">发表年份</label>
+                    <input
+                      value={form.publication_year}
+                      onChange={(e) => setForm({ ...form, publication_year: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
+                      placeholder="2024"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">论文摘要</label>
+                  <textarea
+                    value={form.abstract}
+                    onChange={(e) => setForm({ ...form, abstract: e.target.value })}
+                    rows={4}
+                    className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
+                    placeholder="论文摘要（可选）"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">发表年份</label>
-                <input
-                  value={form.publication_year}
-                  onChange={e => setForm({ ...form, publication_year: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
-                  placeholder="2024"
-                />
-              </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">作者</label>
-              <input
-                value={form.authors}
-                onChange={e => setForm({ ...form, authors: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
-                placeholder="作者1, 作者2, ..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">摘要</label>
-              <textarea
-                value={form.abstract}
-                onChange={e => setForm({ ...form, abstract: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-500"
-                placeholder="论文摘要（可选）"
-              />
-            </div>
-
+            {/* Points rules */}
             <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
               <p className="font-medium mb-1">积分奖励规则（总计）：</p>
               <ul className="space-y-1 text-blue-700">
                 <li>投稿即得 50 积分</li>
-                <li>审核通过追加：IF &lt; 5 → 450分（合计500）| 5-10 → 750分（合计800）| 10-20 → 1150分（合计1200）| ≥20 → 1450分（合计1500）</li>
+                <li>
+                  审核通过追加：IF &lt; 5 → 450分（合计500）| 5-10 → 750分（合计800）| 10-20 →
+                  1150分（合计1200）| ≥20 → 1450分（合计1500）
+                </li>
               </ul>
             </div>
 
