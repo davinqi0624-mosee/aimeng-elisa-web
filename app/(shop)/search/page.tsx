@@ -12,11 +12,47 @@ export default async function SearchPage({
 
   const supabase = await createClient()
 
-  // 使用数据库归一化搜索函数（支持希腊字母模糊匹配）
-  const { data: products } = await supabase.rpc('search_products', {
-    search_query: query || null,
-    species_filter: activeSpecies !== 'all' ? activeSpecies : null,
-  })
+  // 尝试使用数据库搜索函数（支持别名模糊匹配）
+  let products: any[] | null = null
+  let rpcError: any = null
+
+  try {
+    const { data, error } = await supabase.rpc('search_products', {
+      search_query: query || null,
+      species_filter: activeSpecies !== 'all' ? activeSpecies : null,
+    })
+    if (error) throw error
+    products = data
+  } catch (err) {
+    rpcError = err
+    // 降级：直接使用 supabase-js 查询（不关联别名表）
+    let dbQuery = supabase
+      .from('products')
+      .select('id, name, slug, target, price, detection_range, stock_status')
+      .eq('status', 'active')
+
+    if (query) {
+      dbQuery = dbQuery.or(`name.ilike.%${query}%,target.ilike.%${query}%`)
+    }
+
+    const { data: fallbackData, error: fallbackError } = await dbQuery.order(
+      'name'
+    )
+
+    if (!fallbackError) {
+      products = fallbackData
+    }
+  }
+
+  // 如果按种属筛选且 RPC 降级，需要进一步过滤
+  if (rpcError && activeSpecies !== 'all' && products && products.length > 0) {
+    const { data: speciesRows } = await supabase
+      .from('product_species')
+      .select('product_id')
+      .eq('species', activeSpecies)
+    const allowedIds = new Set(speciesRows?.map((r) => r.product_id) || [])
+    products = products.filter((p) => allowedIds.has(p.id))
+  }
 
   type ProductRow = {
     id: string
@@ -81,6 +117,11 @@ export default async function SearchPage({
           <p className="text-gray-500 mt-1">
             共找到 {typedProducts.length} 款产品
           </p>
+          {rpcError && (
+            <p className="text-xs text-amber-600 mt-1">
+              提示：搜索函数未就绪，已启用基础搜索模式
+            </p>
+          )}
         </div>
 
         {/* Species Filter */}
