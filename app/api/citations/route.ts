@@ -10,12 +10,15 @@ export async function GET(request: NextRequest) {
   const sort = searchParams.get('sort') || 'newest'
   const journal = searchParams.get('journal') || ''
   const productCatNo = searchParams.get('product') || ''
+  const minIf = searchParams.get('min_if') || ''
+  const maxIf = searchParams.get('max_if') || ''
+  const year = searchParams.get('year') || ''
 
   const offset = (page - 1) * limit
 
   let query = supabase
     .from('papers')
-    .select('*, products(name, target, slug)', { count: 'exact' })
+    .select('*, products(name, target, slug, cat_no)', { count: 'exact' })
     .eq('upload_status', 'verified')
     .eq('is_displayed', true)
 
@@ -24,6 +27,16 @@ export async function GET(request: NextRequest) {
   }
   if (productCatNo) {
     query = query.eq('product_cat_no', productCatNo)
+  }
+  if (minIf) {
+    query = query.gte('impact_factor', parseFloat(minIf))
+  }
+  if (maxIf) {
+    query = query.lte('impact_factor', parseFloat(maxIf))
+  }
+  if (year) {
+    query = query.gte('publication_date', `${year}-01-01`)
+    query = query.lte('publication_date', `${year}-12-31`)
   }
 
   if (sort === 'newest') {

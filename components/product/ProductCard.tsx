@@ -44,9 +44,12 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
             </span>
           )}
           {(product.citation_count || 0) > 0 && (
-            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full flex items-center gap-1">
+            <span className="relative px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full flex items-center gap-1 group/tooltip">
               <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
               {product.citation_count} 篇引用
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                被引用 {product.citation_count} 篇
+              </span>
             </span>
           )}
         </div>

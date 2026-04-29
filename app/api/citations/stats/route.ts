@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const { data: papers } = await supabase
       .from('papers')
-      .select('impact_factor, journal, publication_date, title, doi, product_cat_no')
+      .select('impact_factor, journal, publication_date, title, doi, product_cat_no, authors')
       .eq('upload_status', 'verified')
       .eq('is_displayed', true)
       .order('publication_date', { ascending: false })
@@ -21,12 +21,23 @@ export async function GET() {
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
     const monthly = papers?.filter(p => p.publication_date && p.publication_date >= monthStart).length || 0
 
+    // Recent 5 papers
+    const recentPapers = (papers || []).slice(0, 5).map(p => ({
+      title: p.title,
+      journal: p.journal,
+      impact_factor: p.impact_factor,
+      publication_date: p.publication_date,
+      doi: p.doi,
+      product_cat_no: p.product_cat_no,
+      authors: p.authors,
+    }))
+
     return NextResponse.json({
       total_citations: total,
-      total_impact_factor: Math.round(totalIF * 10) / 10,
+      total_if: Math.round(totalIF * 10) / 10,
       max_single_if: maxPaper?.impact_factor || 0,
       max_single_journal: maxPaper?.journal || '',
-      recent_papers: (papers || []).slice(0, 5),
+      recent_papers: recentPapers,
       monthly_growth: monthly,
     })
   } catch (err: any) {
