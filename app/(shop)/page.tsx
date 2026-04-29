@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { MessageSquare, CalendarDays, FlaskConical } from 'lucide-react'
+import ProductCard from '@/components/product/ProductCard'
 
 export default async function ShopPage({
   searchParams,
@@ -158,41 +159,20 @@ export default async function ShopPage({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products?.map((product) => (
-              <Link
+              <ProductCard
                 key={product.id}
-                href={`/products/${product.slug}`}
-                className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all overflow-hidden group"
-              >
-                <div className="h-48 bg-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition-colors">
-                  <span className="text-gray-400 text-sm">产品图片</span>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
-                      {product.target}
-                    </span>
-                    {(product.product_species as any[])
-                      ?.slice(0, 1)
-                      .map((s: any) => (
-                        <span
-                          key={s.species}
-                          className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
-                        >
-                          {s.species}
-                        </span>
-                      ))}
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
-                    {product.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-3">
-                    检测范围: {product.detection_range}
-                  </p>
-                  <p className="text-lg font-bold text-blue-600">
-                    ¥{product.price}
-                  </p>
-                </div>
-              </Link>
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  slug: product.slug,
+                  target: product.target,
+                  price: product.price,
+                  detection_range: product.detection_range,
+                  stock_status: product.stock_status,
+                }}
+                species={(product.product_species as any[])
+                  ?.map((s: any) => s.species)}
+              />
             ))}
           </div>
 

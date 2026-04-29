@@ -29,7 +29,7 @@ export default async function SearchPage({
     // 降级：直接使用 supabase-js 查询（不关联别名表）
     let dbQuery = supabase
       .from('products')
-      .select('id, name, slug, target, price, prices, detection_range, stock_status')
+      .select('id, name, slug, target, price, detection_range, stock_status')
       .eq('status', 'active')
 
     if (query) {
@@ -61,7 +61,6 @@ export default async function SearchPage({
     slug: string
     target: string
     price: number
-    prices: Record<string, number> | null
     detection_range: string
     stock_status: string
   }

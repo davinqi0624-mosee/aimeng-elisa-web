@@ -110,7 +110,8 @@ async function main() {
   console.log('🔍 查询数据库现有产品...');
   const { data: allProducts, error } = await supabase
     .from('products')
-    .select('id, name, slug, price, target, species, detection_range, sensitivity, sample_type');
+    .select('id, name, slug, price, target, detection_range, sensitivity, sample_type')
+    .limit(20000);
 
   if (error) {
     console.error('查询失败:', error.message);

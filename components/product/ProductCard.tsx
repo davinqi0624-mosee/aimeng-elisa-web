@@ -9,37 +9,13 @@ interface ProductCardProps {
     slug: string
     target: string
     price: number
-    prices?: Record<string, number> | null
     detection_range: string
     stock_status: string
   }
   species?: string[]
 }
 
-function formatPriceRange(prices: Record<string, number> | null | undefined): string {
-  if (!prices) return ''
-  const values = Object.values(prices).filter((v) => typeof v === 'number')
-  if (values.length === 0) return ''
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  if (min === max) return `¥${min}`
-  return `¥${min} - ¥${max}`
-}
-
-function formatDefaultPrice(prices: Record<string, number> | null | undefined, fallback: number): string {
-  if (prices && typeof prices['96T'] === 'number') {
-    return `¥${prices['96T']}`
-  }
-  return `¥${fallback}`
-}
-
 export default function ProductCard({ product, species = [] }: ProductCardProps) {
-  const priceDisplay = product.prices
-    ? formatPriceRange(product.prices)
-    : formatDefaultPrice(product.prices, product.price)
-
-  const hasDualSize = product.prices && Object.keys(product.prices).length >= 2
-
   return (
     <Link
       href={`/products/${product.slug}`}
@@ -74,10 +50,8 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
           检测范围: {product.detection_range}
         </p>
         <div className="flex items-baseline gap-2">
-          <p className="text-lg font-bold text-blue-600">{priceDisplay}</p>
-          {hasDualSize && (
-            <p className="text-xs text-gray-400">起</p>
-          )}
+          <p className="text-lg font-bold text-blue-600">¥1800 - ¥2400</p>
+          <p className="text-xs text-gray-400">起</p>
         </div>
       </div>
     </Link>

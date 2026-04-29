@@ -57,8 +57,6 @@ export default async function ProductDetailPage({
                 name: product.name,
                 target: product.target,
                 price: product.price,
-                prices: product.prices,
-                catalog_number: product.catalog_number,
                 detection_range: product.detection_range,
                 sensitivity: product.sensitivity,
                 sample_type: product.sample_type || [],

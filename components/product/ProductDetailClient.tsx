@@ -8,8 +8,6 @@ interface ProductDetailClientProps {
     name: string
     target: string
     price: number
-    prices: Record<string, number> | null
-    catalog_number: string | null
     detection_range: string
     sensitivity: string
     sample_type: string[]
@@ -19,21 +17,20 @@ interface ProductDetailClientProps {
   aliasList: string[]
 }
 
+const SIZE_PRICES: Record<string, number> = {
+  '48T': 1800,
+  '96T': 2400,
+}
+
 export default function ProductDetailClient({
   product,
   speciesList,
   aliasList,
 }: ProductDetailClientProps) {
-  const availableSizes = product.prices
-    ? (Object.keys(product.prices).sort() as string[])
-    : (['96T'] as string[])
+  const availableSizes = ['48T', '96T']
+  const [selectedSize, setSelectedSize] = useState<string>('96T')
 
-  const [selectedSize, setSelectedSize] = useState<string>(
-    availableSizes.includes('96T') ? '96T' : availableSizes[0]
-  )
-
-  const currentPrice = product.prices?.[selectedSize] ?? product.price
-  const hasDualSize = availableSizes.length >= 2
+  const currentPrice = SIZE_PRICES[selectedSize]
 
   return (
     <div className="w-full lg:w-3/5">
@@ -55,38 +52,34 @@ export default function ProductDetailClient({
       <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
 
       {/* 规格选择器 */}
-      {hasDualSize && (
-        <div className="mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-2">规格选择</p>
-          <div className="flex gap-3">
-            {availableSizes.map((size) => (
-              <button
-                key={size}
-                onClick={() => setSelectedSize(size)}
-                className={`px-5 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                  selectedSize === size
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {size}
-                <span className="ml-1 text-xs text-gray-400">
-                  ¥{product.prices?.[size]}
-                </span>
-              </button>
-            ))}
-          </div>
+      <div className="mb-6">
+        <p className="text-sm font-medium text-gray-700 mb-2">规格选择</p>
+        <div className="flex gap-3">
+          {availableSizes.map((size) => (
+            <button
+              key={size}
+              onClick={() => setSelectedSize(size)}
+              className={`px-5 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                selectedSize === size
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {size}
+              <span className="ml-1 text-xs text-gray-400">
+                ¥{SIZE_PRICES[size]}
+              </span>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* 价格 */}
       <p className="text-3xl font-bold text-blue-600 mb-8">
         ¥{currentPrice}
-        {hasDualSize && (
-          <span className="text-sm font-normal text-gray-400 ml-2">
-            / {selectedSize}
-          </span>
-        )}
+        <span className="text-sm font-normal text-gray-400 ml-2">
+          / {selectedSize}
+        </span>
       </p>
 
       {/* 产品参数 */}
@@ -111,12 +104,6 @@ export default function ProductDetailClient({
             {speciesList.join('、')}
           </p>
         </div>
-        {product.catalog_number && (
-          <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-xs text-gray-500 mb-1">货号</p>
-            <p className="font-semibold text-gray-900">{product.catalog_number}</p>
-          </div>
-        )}
       </div>
 
       {aliasList.length > 0 && (
