@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
 }
 
 function calculatePoints(ifValue: number): { verifyPoints: number; totalPoints: number } {
-  let verifyPoints = 500
-  if (ifValue >= 20) verifyPoints = 1500
-  else if (ifValue >= 10) verifyPoints = 1200
-  else if (ifValue >= 5) verifyPoints = 800
+  let verifyPoints = 450
+  if (ifValue >= 20) verifyPoints = 1450
+  else if (ifValue >= 10) verifyPoints = 1150
+  else if (ifValue >= 5) verifyPoints = 750
   return { verifyPoints, totalPoints: verifyPoints + 50 }
 }
 

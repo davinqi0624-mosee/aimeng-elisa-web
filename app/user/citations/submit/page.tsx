@@ -44,7 +44,7 @@ export default function CitationSubmitPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setSuccess(`提交成功！获得 ${data.pointsAwarded} 积分奖励`)
+      setSuccess('提交成功！您已获得50积分投稿奖励。审核通过后将追加发放积分。')
       setForm({ product_cat_no: '', title: '', doi: '', journal: '', publication_year: '', authors: '', abstract: '' })
     } catch (err: any) {
       setError(err.message)
@@ -162,10 +162,10 @@ export default function CitationSubmitPage() {
             </div>
 
             <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
-              <p className="font-medium mb-1">积分奖励规则：</p>
+              <p className="font-medium mb-1">积分奖励规则（总计）：</p>
               <ul className="space-y-1 text-blue-700">
                 <li>投稿即得 50 积分</li>
-                <li>审核通过额外奖励：IF &lt; 5 → 500分 | 5-10 → 800分 | 10-20 → 1200分 | ≥20 → 1500分</li>
+                <li>审核通过追加：IF &lt; 5 → 450分（合计500）| 5-10 → 750分（合计800）| 10-20 → 1150分（合计1200）| ≥20 → 1450分（合计1500）</li>
               </ul>
             </div>
 
