@@ -11,6 +11,7 @@ interface ProductCardProps {
     price: number
     detection_range: string
     stock_status: string
+    citation_count?: number
   }
   species?: string[]
 }
@@ -40,6 +41,12 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
           {product.stock_status !== 'in_stock' && (
             <span className="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs rounded-full">
               缺货
+            </span>
+          )}
+          {(product.citation_count || 0) > 0 && (
+            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
+              {product.citation_count} 篇引用
             </span>
           )}
         </div>

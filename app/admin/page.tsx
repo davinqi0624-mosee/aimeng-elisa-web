@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
       fetch('/api/admin/products').then((r) => r.json()),
       fetch('/api/admin/shop').then((r) => r.json()),
       fetch('/api/admin/orders').then((r) => r.json()),
-      fetch('/api/papers?status=pending').then((r) => r.json()),
+      fetch('/api/admin/citations?status=pending').then((r) => r.json()),
       fetch('/api/admin/users').then((r) => r.json()).catch(() => ({ users: [] })),
       fetch('/api/admin/dashboard/stats').then((r) => r.json()).catch(() => ({
         todayProducts: 0, todayDatasheets: 0, inStock: 0, outOfStock: 0,
@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
     { label: '商品', value: stats.products, href: '/admin/products', icon: <Package className="w-5 h-5 text-blue-600" />, color: 'bg-blue-50' },
     { label: '积分奖品', value: stats.shopItems, href: '/admin/shop', icon: <Gift className="w-5 h-5 text-pink-600" />, color: 'bg-pink-50' },
     { label: '兑换订单', value: stats.orders, href: '/admin/orders', icon: <ClipboardList className="w-5 h-5 text-amber-600" />, color: 'bg-amber-50' },
-    { label: '待审核论文', value: stats.pendingPapers, href: '/admin/papers', icon: <FileText className="w-5 h-5 text-emerald-600" />, color: 'bg-emerald-50' },
+    { label: '待审核论文', value: stats.pendingPapers, href: '/admin/citations', icon: <FileText className="w-5 h-5 text-emerald-600" />, color: 'bg-emerald-50' },
     { label: '注册用户', value: stats.users, href: '/admin/users', icon: <Users className="w-5 h-5 text-purple-600" />, color: 'bg-purple-50' },
   ]
 
