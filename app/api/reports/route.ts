@@ -117,7 +117,7 @@ tr:nth-child(even) { background: #f9fafb; }
 </div>
 
 <div class="footer">
-  <p>本报告由艾萌 ELISA 在线数据分析系统生成，仅供参考。</p>
+  <p>本报告由爱萌优宁 在线数据分析系统生成，仅供参考。</p>
   <p>实验决策请以实际情况和实验室 SOP 为准。</p>
 </div>
 </body>

@@ -13,6 +13,7 @@ import {
   History,
 } from 'lucide-react'
 import FeedbackButtons from './FeedbackButtons'
+import WeChatCopy from './WeChatCopy'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -171,7 +172,17 @@ export default async function KnowledgeArticlePage({ params }: PageProps) {
                 <p className="text-sm font-medium text-gray-700">这篇文章帮到你了吗？</p>
                 <p className="text-xs text-gray-400 mt-0.5">你的反馈帮助我们持续改进知识库</p>
               </div>
-              <FeedbackButtons knowledgeId={article.id} />
+              <div className="flex items-center gap-3">
+                <WeChatCopy
+                  title={article.title}
+                  summary={article.summary}
+                  content={article.content}
+                  category={article.category}
+                  date={article.date}
+                  tags={article.tags || []}
+                />
+                <FeedbackButtons knowledgeId={article.id} />
+              </div>
             </div>
           </div>
         </article>

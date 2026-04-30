@@ -36,7 +36,7 @@ export default async function RootLayout({
         <header className="shrink-0 bg-white border-b border-gray-200 px-4 py-2.5 z-30">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2 text-blue-600 font-bold text-base shrink-0">
-              <span>艾萌 ELISA</span>
+              <span>爱萌优宁</span>
             </Link>
             <nav className="flex items-center gap-4 overflow-x-auto whitespace-nowrap">
               <Link href="/" className="text-sm text-gray-600 hover:text-blue-600 transition-colors shrink-0">

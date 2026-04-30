@@ -40,7 +40,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-blue-600 font-bold text-xl">
             <FlaskConical className="w-6 h-6" />
-            <span>艾萌 ELISA</span>
+            <span>爱萌优宁</span>
           </Link>
           <p className="text-sm text-gray-500 mt-2">登录您的账户</p>
         </div>
