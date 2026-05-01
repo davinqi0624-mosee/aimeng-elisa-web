@@ -50,7 +50,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  const isLoginPage = pathname === '/admin/login'
+
   useEffect(() => {
+    if (isLoginPage) {
+      setLoading(false)
+      return
+    }
+
     fetch('/api/admin/me')
       .then((r) => r.json())
       .then((data) => {
@@ -62,11 +69,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       })
       .catch(() => router.push('/admin/login'))
       .finally(() => setLoading(false))
-  }, [router])
+  }, [router, isLoginPage])
 
   async function handleLogout() {
     await fetch('/api/admin/logout', { method: 'POST' })
     router.push('/admin/login')
+  }
+
+  if (isLoginPage) {
+    return <>{children}</>
   }
 
   if (loading) {

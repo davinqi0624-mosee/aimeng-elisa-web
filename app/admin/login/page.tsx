@@ -28,7 +28,7 @@ export default function AdminLoginPage() {
       if (!res.ok) {
         setError(data.error || '登录失败')
       } else {
-        router.push('/admin')
+        router.push('/admin/dashboard')
       }
     } catch {
       setError('网络错误')
