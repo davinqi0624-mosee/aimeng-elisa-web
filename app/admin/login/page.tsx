@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
     })
     const data = await res.json()
     if (data.success) {
-      window.location.href = '/admin/dashboard'
+      window.location.href = '/admin'
     } else {
       setError(data.error || '用户名或密码错误')
     }
