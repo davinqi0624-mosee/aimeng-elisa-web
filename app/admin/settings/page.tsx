@@ -8,7 +8,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/user/points')
+    fetch('/api/admin/me')
       .then((r) => r.json())
       .then((d) => {
         setRole(d.role || null)
