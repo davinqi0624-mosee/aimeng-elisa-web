@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, getClientIP } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
+import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit } from '@/lib/admin/audit'
 
 const SPECIES_NAME_ZH: Record<string, string> = {
@@ -40,7 +41,7 @@ function generateSlug(target: string, species: string, method: string, catalogNu
 }
 
 export async function POST(request: NextRequest) {
-  const { user, error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
       .eq('id', datasheetId)
 
     await logAudit({
-      admin_id: user.id,
+      admin_id: admin!.id,
       action: 'create',
       target_table: 'products',
       target_id: product.id,

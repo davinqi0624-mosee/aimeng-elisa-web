@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, getClientIP } from '@/lib/admin/permissions'
+import { requireSuper } from '@/lib/admin/auth'
+import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit, checkExportLimit, logExport, maskEmail } from '@/lib/admin/audit'
 
 export async function GET(request: NextRequest) {
-  const { user, error: authError } = await requireRole(request, ['super', 'level1'])
+  const { admin, error: authError } = await requireSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   if (exportCsv) {
     // 检查导出频率限制
-    const limitCheck = await checkExportLimit(user.id, 1, 3)
+    const limitCheck = await checkExportLimit(admin!.id, 1, 3)
     if (!limitCheck.allowed) {
       return NextResponse.json({ error: limitCheck.message }, { status: 429 })
     }
@@ -58,9 +59,9 @@ export async function GET(request: NextRequest) {
   }))
 
   if (exportCsv) {
-    await logExport(user.id, 'users', users.length)
+    await logExport(admin!.id, 'users', users.length)
     await logAudit({
-      admin_id: user.id,
+      admin_id: admin!.id,
       action: 'export',
       target_table: 'profiles',
       new_value: { count: users.length, type: 'users_csv' },

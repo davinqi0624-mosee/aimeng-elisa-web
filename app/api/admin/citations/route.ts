@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
 
 export async function GET(request: NextRequest) {
-  const { error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -36,7 +36,7 @@ function calculatePoints(ifValue: number): { verifyPoints: number; totalPoints: 
 }
 
 export async function POST(request: NextRequest) {
-  const { user, error: authError } = await requireRole(request, ['super', 'level1'])
+  const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           impact_factor: ifVal,
           is_displayed: true,
           points_awarded: totalPoints,
-          verified_by: user.id,
+          verified_by: admin!.id,
           verified_at: new Date().toISOString(),
         })
         .eq('id', paperId)

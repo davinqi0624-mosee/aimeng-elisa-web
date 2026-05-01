@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
 
 export async function GET(request: NextRequest) {
-  const { error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { user, error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       // Update candidate
       await supabase.from('knowledge_candidates').update({
         status: 'approved',
-        reviewer_id: user.id,
+        reviewer_id: admin!.id,
         review_note: note || '一键发布',
         merged_into_id: published.id,
         reviewed_at: new Date().toISOString(),
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (action === 'reject') {
       await supabase.from('knowledge_candidates').update({
         status: 'rejected',
-        reviewer_id: user.id,
+        reviewer_id: admin!.id,
         review_note: note || '不符合要求',
         reviewed_at: new Date().toISOString(),
       }).eq('id', id)
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       // Mark as merge pending - admin needs to specify target knowledge_id
       await supabase.from('knowledge_candidates').update({
         status: 'merge_pending',
-        reviewer_id: user.id,
+        reviewer_id: admin!.id,
         review_note: note || '等待合并',
         reviewed_at: new Date().toISOString(),
       }).eq('id', id)

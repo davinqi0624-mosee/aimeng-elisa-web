@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, getClientIP } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
+import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit } from '@/lib/admin/audit'
 
 export async function GET(request: NextRequest) {
-  const { error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const { user, error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   const supabase = await createClient()
@@ -53,7 +54,7 @@ export async function PUT(request: NextRequest) {
     if (dbError) throw dbError
 
     await logAudit({
-      admin_id: user.id,
+      admin_id: admin!.id,
       action: 'update',
       target_table: 'redeem_orders',
       target_id: id,

@@ -7,12 +7,12 @@ import {
   Gift,
   ClipboardList,
   FileText,
-  Users,
   ArrowRight,
   TrendingUp,
   Archive,
   AlertTriangle,
   BookOpen,
+  Shield,
 } from 'lucide-react'
 
 interface Stats {
@@ -20,7 +20,6 @@ interface Stats {
   shopItems: number
   orders: number
   pendingPapers: number
-  users: number
   todayProducts: number
   todayDatasheets: number
   inStock: number
@@ -33,32 +32,35 @@ export default function AdminDashboardPage() {
     shopItems: 0,
     orders: 0,
     pendingPapers: 0,
-    users: 0,
     todayProducts: 0,
     todayDatasheets: 0,
     inStock: 0,
     outOfStock: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [adminRole, setAdminRole] = useState<string>('admin')
 
   useEffect(() => {
+    fetch('/api/admin/me')
+      .then((r) => r.json())
+      .then((d) => setAdminRole(d.role || 'admin'))
+      .catch(() => {})
+
     Promise.all([
       fetch('/api/admin/products').then((r) => r.json()),
       fetch('/api/admin/shop').then((r) => r.json()),
       fetch('/api/admin/orders').then((r) => r.json()),
       fetch('/api/admin/citations?status=pending').then((r) => r.json()),
-      fetch('/api/admin/users').then((r) => r.json()).catch(() => ({ users: [] })),
       fetch('/api/admin/dashboard/stats').then((r) => r.json()).catch(() => ({
         todayProducts: 0, todayDatasheets: 0, inStock: 0, outOfStock: 0,
       })),
     ])
-      .then(([products, shop, orders, papers, users, dash]) => {
+      .then(([products, shop, orders, papers, dash]) => {
         setStats({
           products: products.products?.length || 0,
           shopItems: shop.items?.length || 0,
           orders: orders.orders?.length || 0,
           pendingPapers: papers.papers?.length || 0,
-          users: users.users?.length || 0,
           todayProducts: dash.todayProducts || 0,
           todayDatasheets: dash.todayDatasheets || 0,
           inStock: dash.inStock || 0,
@@ -74,7 +76,6 @@ export default function AdminDashboardPage() {
     { label: '积分奖品', value: stats.shopItems, href: '/admin/shop', icon: <Gift className="w-5 h-5 text-pink-600" />, color: 'bg-pink-50' },
     { label: '兑换订单', value: stats.orders, href: '/admin/orders', icon: <ClipboardList className="w-5 h-5 text-amber-600" />, color: 'bg-amber-50' },
     { label: '待审核论文', value: stats.pendingPapers, href: '/admin/citations', icon: <FileText className="w-5 h-5 text-emerald-600" />, color: 'bg-emerald-50' },
-    { label: '注册用户', value: stats.users, href: '/admin/users', icon: <Users className="w-5 h-5 text-purple-600" />, color: 'bg-purple-50' },
   ]
 
   const statCards = [
@@ -115,6 +116,16 @@ export default function AdminDashboardPage() {
         <p className="text-sm text-gray-500">概览与快捷入口</p>
       </div>
 
+      {adminRole === 'super' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <Shield className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-900">超级管理员模式</p>
+            <p className="text-xs text-amber-700 mt-0.5">您可以访问所有功能，包括管理员管理和系统设置。</p>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -122,8 +133,8 @@ export default function AdminDashboardPage() {
               <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
             ))}
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />
             ))}
           </div>
@@ -146,7 +157,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {mainCards.map((card) => (
               <Link
                 key={card.label}
