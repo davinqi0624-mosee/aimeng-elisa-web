@@ -95,15 +95,16 @@ export default async function RootLayout({
                     </Link>
                   )}
                   <span className="text-xs text-gray-500 hidden sm:inline">{(user.user_metadata as any)?.full_name || user.email}</span>
-                  <form action="/api/auth/signout" method="post">
-                    <button
-                      type="submit"
-                      className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors shrink-0"
-                    >
-                      <LogOut className="w-3 h-3" />
-                      退出
-                    </button>
-                  </form>
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/auth/signout', { method: 'POST' })
+                      window.location.href = '/'
+                    }}
+                    className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors shrink-0"
+                  >
+                    <LogOut className="w-3 h-3" />
+                    退出
+                  </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 ml-2 pl-3 border-l border-gray-200">

@@ -57,15 +57,16 @@ export default async function AiLayout({
 
         <div className="p-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 mb-2 truncate">{(user.user_metadata as any)?.full_name || user.email}</div>
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              退出登录
-            </button>
-          </form>
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/signout', { method: 'POST' })
+              window.location.href = '/'
+            }}
+            className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            退出登录
+          </button>
         </div>
       </aside>
 
