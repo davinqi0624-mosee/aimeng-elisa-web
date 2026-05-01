@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { LogOut, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
+import SignOutButton from "@/components/SignOutButton";
 
 export const metadata: Metadata = {
   title: "ELISA 生态网站 - 专业试剂盒搜索平台",
@@ -95,16 +96,7 @@ export default async function RootLayout({
                     </Link>
                   )}
                   <span className="text-xs text-gray-500 hidden sm:inline">{(user.user_metadata as any)?.full_name || user.email}</span>
-                  <button
-                    onClick={async () => {
-                      await fetch('/api/auth/signout', { method: 'POST' })
-                      window.location.href = '/'
-                    }}
-                    className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors shrink-0"
-                  >
-                    <LogOut className="w-3 h-3" />
-                    退出
-                  </button>
+                  <SignOutButton className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors shrink-0" />
                 </div>
               ) : (
                 <div className="flex items-center gap-2 ml-2 pl-3 border-l border-gray-200">
