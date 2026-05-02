@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import ProductCard from '@/components/product/ProductCard'
 import CitationStats from '@/components/citations/CitationStats'
+import MoleculeParticles from '@/components/animation/MoleculeParticles'
 
 interface RecentPaper {
   title: string
@@ -183,9 +184,11 @@ export default async function ShopPage({
     <div className="min-h-full">
       {/* Section 1: Hero */}
       <section className="relative overflow-hidden bg-white">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/60 via-white to-emerald-50/40" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-blue-100/20 to-purple-100/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
-        <div className="relative max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-32">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 animate-gradient-flow opacity-[0.07]" />
+        {/* Particle layer */}
+        <MoleculeParticles />
+        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-32">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium mb-8">
               <Sparkles className="w-3.5 h-3.5" />
