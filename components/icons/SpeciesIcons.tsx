@@ -242,6 +242,20 @@ const PlantIcon = ({ className }: IconProps) => (
   </svg>
 )
 
+const GoatIcon = ({ className }: IconProps) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <ellipse cx="12" cy="14" rx="4.5" ry="4" />
+    <circle cx="10.5" cy="13" r="0.5" fill="currentColor" stroke="none" />
+    <circle cx="13.5" cy="13" r="0.5" fill="currentColor" stroke="none" />
+    <path d="M8 10c-1-1.5-1.5-3-1-4" />
+    <path d="M16 10c1-1.5 1.5-3 1-4" />
+    <path d="M7 10c-1.5-0.5-2.5 0-3 0.5" />
+    <path d="M17 10c1.5-0.5 2.5 0 3 0.5" />
+    <path d="M7.5 16c-1.5 0.5-2.5 2-2 3.5" />
+    <path d="M16.5 16c1.5 0.5 2.5 2 2 3.5" />
+  </svg>
+)
+
 const GeneralIcon = ({ className }: IconProps) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="8" r="3" />
@@ -265,6 +279,7 @@ export const SPECIES_ICON_MAP: Record<string, React.FC<IconProps>> = {
   Cat: CatIcon,
   Sheep: SheepIcon,
   Horse: HorseIcon,
+  Goat: GoatIcon,
   'Guinea Pig': GuineaPigIcon,
   Hamster: HamsterIcon,
   Fish: FishIcon,
@@ -284,10 +299,11 @@ export const SPECIES_LABELS: Record<string, string> = {
   Porcine: '猪',
   Bovine: '牛',
   Monkey: '猴',
-  Canine: '狗',
+  Canine: '犬',
   Cat: '猫',
   Sheep: '羊',
   Horse: '马',
+  Goat: '山羊',
   'Guinea Pig': '豚鼠',
   Hamster: '仓鼠',
   Fish: '鱼',
@@ -303,16 +319,17 @@ export const SPECIES_ORDER = [
   'Mouse',
   'Rat',
   'Rabbit',
+  'Guinea Pig',
+  'Hamster',
   'Chicken',
   'Porcine',
   'Bovine',
+  'Sheep',
+  'Horse',
+  'Goat',
   'Monkey',
   'Canine',
   'Cat',
-  'Sheep',
-  'Horse',
-  'Guinea Pig',
-  'Hamster',
   'Fish',
   'Zebrafish',
   'Duck',

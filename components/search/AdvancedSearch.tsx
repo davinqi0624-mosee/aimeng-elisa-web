@@ -85,7 +85,7 @@ export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: Adv
 
   const hasFilters = selectedSpecies.length > 0 || sampleType !== '全部' || query.trim()
 
-  const displayedSpecies = SPECIES_ORDER.filter((s) => availableSpecies.includes(s))
+  const displayedSpecies = SPECIES_ORDER
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
@@ -94,7 +94,7 @@ export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: Adv
         <label className="block text-sm font-semibold text-slate-900 mb-3">
           种属筛选 <span className="text-xs font-normal text-slate-400">（可多选）</span>
         </label>
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-5 md:grid-cols-7 gap-3">
           {displayedSpecies.map((species) => {
             const isSelected = selectedSpecies.includes(species)
             return (
