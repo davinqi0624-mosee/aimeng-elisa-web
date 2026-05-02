@@ -42,12 +42,8 @@ interface CitationData {
 export default async function ShopPage() {
   const supabase = await createClient()
 
-  // Real counts — filter out template/placeholder products without catalog numbers
-  const { count: productCount } = await supabase
-    .from('products')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'active')
-    .not('cat_no', 'is', null)
+  // Real product count — hardcoded to actual catalog size while DB cat_no backfill is in progress
+  const productCount = 3484
 
   const { count: paperCount } = await supabase
     .from('papers')
@@ -67,7 +63,6 @@ export default async function ShopPage() {
     .from('products')
     .select('*, product_species(species)')
     .eq('status', 'active')
-    .not('cat_no', 'is', null)
     .order('is_featured', { ascending: false })
     .limit(8)
 
