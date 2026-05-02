@@ -42,8 +42,8 @@ export default function AdminLoginPage() {
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-400 flex items-center justify-center mx-auto mb-4">
               <Shield className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">管理后台</h1>
-            <p className="text-sm text-slate-500 mt-1">爱萌优宁 · 管理员登录</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Animal Union</h1>
+            <p className="text-sm text-slate-500 mt-1">管理后台 · 管理员登录</p>
           </div>
 
           {error && (

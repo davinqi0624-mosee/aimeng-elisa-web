@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import ProductCard from '@/components/product/ProductCard'
 import CitationStats from '@/components/citations/CitationStats'
-import MoleculeParticles from '@/components/animation/MoleculeParticles'
+import HeroBackground from '@/components/animation/HeroBackground'
 
 interface RecentPaper {
   title: string
@@ -183,12 +183,8 @@ export default async function ShopPage({
   return (
     <div className="min-h-full">
       {/* Section 1: Hero */}
-      <section className="relative overflow-hidden bg-white">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 animate-gradient-flow opacity-[0.07]" />
-        {/* Particle layer */}
-        <MoleculeParticles />
-        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-32">
+      <HeroBackground>
+        <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-32">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium mb-8">
               <Sparkles className="w-3.5 h-3.5" />
@@ -243,7 +239,7 @@ export default async function ShopPage({
             </div>
           </div>
         </div>
-      </section>
+      </HeroBackground>
 
       {/* Section 2: Stats Bar */}
       <section className="border-y border-slate-200 bg-slate-50/50">
@@ -550,7 +546,7 @@ export default async function ShopPage({
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-400 flex items-center justify-center">
                   <FlaskConical className="w-4.5 h-4.5 text-white" />
                 </div>
-                <span className="text-white font-black text-lg tracking-tight">爱萌优宁</span>
+                <span className="text-white font-black text-lg tracking-tight">Animal Union</span>
               </div>
               <p className="text-sm leading-relaxed max-w-sm">
                 AI 驱动的 ELISA 试剂盒平台，为科研工作者提供智能搜索、实验设计与数据分析服务。
@@ -576,7 +572,7 @@ export default async function ShopPage({
             </div>
           </div>
           <div className="pt-8 border-t border-slate-800 text-sm text-center">
-            &copy; {new Date().getFullYear()} 爱萌优宁 Animal Union. All rights reserved.
+            &copy; {new Date().getFullYear()} Animal Union 爱萌优宁. All rights reserved.
           </div>
         </div>
       </footer>

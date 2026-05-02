@@ -48,10 +48,10 @@ ${cleanContent}
 ━━━━━━━━━━━━━━━
 
 💡 想了解更多 ELISA 实验技巧？
-访问「爱萌优宁」知识库，每日更新实验干货：
+访问「Animal Union 爱萌优宁」知识库，每日更新实验干货：
 https://aimeng-elisa.com/knowledge/daily
 
-#${tagStr} #ELISA #爱萌优宁
+#${tagStr} #ELISA #AnimalUnion #爱萌优宁
 `
   }
 

@@ -38,7 +38,7 @@ export default async function AiLayout({
         <div className="p-4 border-b border-gray-200">
           <Link href="/" className="flex items-center gap-2 text-blue-600 font-bold text-lg">
             <FlaskConical className="w-6 h-6" />
-            <span>爱萌优宁 AI</span>
+            <span>Animal Union AI</span>
           </Link>
         </div>
 

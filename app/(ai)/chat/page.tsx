@@ -61,7 +61,7 @@ export default function ChatPage() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: '您好！我是爱萌优宁 智能客服助手。请选择上方的服务模式，我将为您提供专业的 ELISA 相关咨询服务。',
+      content: '您好！我是 Animal Union 爱萌优宁智能客服助手。请选择上方的服务模式，我将为您提供专业的 ELISA 相关咨询服务。',
     },
   ])
   const [input, setInput] = useState('')

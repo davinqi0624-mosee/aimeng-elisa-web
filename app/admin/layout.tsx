@@ -100,7 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
             </div>
-            管理后台
+            Animal Union
           </Link>
           <div className="mt-3 flex items-center gap-2">
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
