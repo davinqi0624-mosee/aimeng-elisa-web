@@ -18,6 +18,7 @@ import {
 import ProductCard from '@/components/product/ProductCard'
 import CitationStats from '@/components/citations/CitationStats'
 import HeroBackground from '@/components/animation/HeroBackground'
+import AdvancedSearch from '@/components/search/AdvancedSearch'
 
 interface RecentPaper {
   title: string
@@ -38,14 +39,7 @@ interface CitationData {
   recent_papers: RecentPaper[]
 }
 
-export default async function ShopPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ species?: string }>
-}) {
-  const { species: speciesFilter } = await searchParams
-  const activeSpecies = speciesFilter || 'all'
-
+export default async function ShopPage() {
   const supabase = await createClient()
 
   // Real counts
@@ -60,36 +54,20 @@ export default async function ShopPage({
     .eq('upload_status', 'verified')
     .eq('is_displayed', true)
 
-  // Species list + count
+  // Species list
   const { data: speciesRows } = await supabase
     .from('product_species')
     .select('species')
     .order('species')
   const speciesList = [...new Set(speciesRows?.map((r) => r.species) || [])]
 
-  // Products for display
-  let productIds: string[] | null = null
-  if (activeSpecies !== 'all') {
-    const { data } = await supabase
-      .from('product_species')
-      .select('product_id')
-      .eq('species', activeSpecies)
-    productIds = data?.map((r) => r.product_id) || []
-  }
-
-  let query = supabase
+  // Featured products
+  const { data: products } = await supabase
     .from('products')
     .select('*, product_species(species)')
     .eq('status', 'active')
     .order('is_featured', { ascending: false })
-
-  if (activeSpecies !== 'all' && productIds && productIds.length > 0) {
-    query = query.in('id', productIds)
-  } else if (activeSpecies !== 'all') {
-    query = query.eq('id', '00000000-0000-0000-0000-000000000000')
-  }
-
-  const { data: products } = await query.limit(8)
+    .limit(8)
 
   // Daily knowledge
   const today = new Date().toISOString().split('T')[0]
@@ -202,11 +180,11 @@ export default async function ShopPage({
             </p>
 
             {/* Search */}
-            <form action="/search" className="flex max-w-xl mb-8">
+            <form action="/products" className="flex max-w-xl mb-8">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
-                  name="q"
+                  name="query"
                   type="text"
                   placeholder="搜索靶标、种属、别名..."
                   className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-l-xl text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-base"
@@ -315,31 +293,9 @@ export default async function ShopPage({
             </Link>
           </div>
 
-          {/* Species Filter Pills */}
-          <div className="flex gap-2 overflow-x-auto pb-6 mb-2">
-            <Link
-              href="/"
-              className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                activeSpecies === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-              }`}
-            >
-              全部
-            </Link>
-            {speciesList.map((s) => (
-              <Link
-                key={s}
-                href={`/?species=${s}`}
-                className={`px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                  activeSpecies === s
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-                }`}
-              >
-                {s}
-              </Link>
-            ))}
+          {/* Advanced Search Filter */}
+          <div className="mb-8">
+            <AdvancedSearch availableSpecies={speciesList} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -371,7 +327,7 @@ export default async function ShopPage({
 
           <div className="mt-10 text-center md:hidden">
             <Link
-              href="/search"
+              href="/products"
               className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
             >
               查看全部 <ChevronRight className="w-4 h-4" />
