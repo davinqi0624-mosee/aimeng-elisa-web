@@ -89,7 +89,8 @@ export default function CitationStats({ initialStats }: CitationStatsProps) {
       value: stats.monthly_growth,
       icon: <BookOpen className="w-5 h-5 text-violet-600" />,
       color: 'bg-violet-50',
-      suffix: '篇',
+      suffix: stats.monthly_growth > 0 ? '篇' : '',
+      emptyText: stats.monthly_growth === 0 ? '待您投稿' : undefined,
     },
   ]
 
@@ -104,10 +105,12 @@ export default function CitationStats({ initialStats }: CitationStatsProps) {
                 {item.icon}
               </div>
               <p className="text-3xl md:text-4xl font-black text-gradient">
-                {typeof item.value === 'number' && item.value % 1 !== 0
-                  ? item.value.toFixed(1)
-                  : item.value}
-                {item.suffix && <span className="text-lg font-bold text-slate-400 ml-1">{item.suffix}</span>}
+                {item.emptyText && item.value === 0
+                  ? item.emptyText
+                  : typeof item.value === 'number' && item.value % 1 !== 0
+                    ? item.value.toFixed(1)
+                    : item.value}
+                {item.suffix && item.value !== 0 && <span className="text-lg font-bold text-slate-400 ml-1">{item.suffix}</span>}
               </p>
               <p className="text-sm font-medium text-slate-600 mt-1">{item.label}</p>
               {item.sub && (

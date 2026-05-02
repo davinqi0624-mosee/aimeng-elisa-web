@@ -47,7 +47,26 @@ export default async function ShopPage({
 
   const supabase = await createClient()
 
-  // Products
+  // Real counts
+  const { count: productCount } = await supabase
+    .from('products')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'active')
+
+  const { count: paperCount } = await supabase
+    .from('papers')
+    .select('*', { count: 'exact', head: true })
+    .eq('upload_status', 'verified')
+    .eq('is_displayed', true)
+
+  // Species list + count
+  const { data: speciesRows } = await supabase
+    .from('product_species')
+    .select('species')
+    .order('species')
+  const speciesList = [...new Set(speciesRows?.map((r) => r.species) || [])]
+
+  // Products for display
   let productIds: string[] | null = null
   if (activeSpecies !== 'all') {
     const { data } = await supabase
@@ -70,13 +89,6 @@ export default async function ShopPage({
   }
 
   const { data: products } = await query.limit(8)
-
-  // Species list
-  const { data: speciesRows } = await supabase
-    .from('product_species')
-    .select('species')
-    .order('species')
-  const speciesList = [...new Set(speciesRows?.map((r) => r.species) || [])]
 
   // Daily knowledge
   const today = new Date().toISOString().split('T')[0]
@@ -128,12 +140,16 @@ export default async function ShopPage({
     // ignore
   }
 
+  const totalProducts = productCount || 0
+  const totalPapers = paperCount || 0
+  const totalSpecies = speciesList.length
+
   const features = [
     {
       href: '/search',
       icon: <Microscope className="w-6 h-6" />,
       title: '产品搜索',
-      desc: '12,000+ 试剂盒，智能匹配靶标与种属',
+      desc: `${totalProducts.toLocaleString()}+ 试剂盒，智能匹配靶标与种属`,
       color: 'text-blue-600',
       bg: 'bg-blue-50',
     },
@@ -183,7 +199,7 @@ export default async function ShopPage({
               都精准可靠
             </h1>
             <p className="text-lg md:text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
-              为科研工作者提供智能搜索、实验设计与数据分析，覆盖 12,000+ 试剂盒，服务 3,000+ 实验室
+              为科研工作者提供智能搜索、实验设计与数据分析，覆盖 {totalProducts.toLocaleString()}+ 试剂盒，覆盖 {totalSpecies}+ 种属
             </p>
 
             {/* Search */}
@@ -231,9 +247,9 @@ export default async function ShopPage({
         <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { value: '12,000+', label: '试剂盒', icon: <Microscope className="w-5 h-5 text-blue-600" /> },
-              { value: '50,000+', label: '文献引用', icon: <FileText className="w-5 h-5 text-emerald-600" /> },
-              { value: '3,000+', label: '服务实验室', icon: <TrendingUp className="w-5 h-5 text-violet-600" /> },
+              { value: `${totalProducts.toLocaleString()}+`, label: '试剂盒', icon: <Microscope className="w-5 h-5 text-blue-600" /> },
+              { value: `${totalPapers.toLocaleString()}`, label: 'SCI 引用', icon: <FileText className="w-5 h-5 text-emerald-600" /> },
+              { value: `${totalSpecies}+`, label: '种属覆盖', icon: <TrendingUp className="w-5 h-5 text-violet-600" /> },
               { value: '24h', label: 'AI 在线响应', icon: <Sparkles className="w-5 h-5 text-sky-600" /> },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center gap-3">
@@ -290,7 +306,7 @@ export default async function ShopPage({
               <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-2">
                 热门产品
               </h2>
-              <p className="text-lg text-slate-600">共 {products?.length || 0} 款精选试剂盒</p>
+              <p className="text-lg text-slate-600">{totalProducts.toLocaleString()}+ 试剂盒现货供应</p>
             </div>
             <Link
               href="/search"
@@ -501,7 +517,7 @@ export default async function ShopPage({
             开始您的科研之旅
           </h2>
           <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-10">
-            加入 3,000+ 实验室，体验 AI 驱动的 ELISA 试剂盒平台
+            覆盖 {totalSpecies}+ 种属，{totalProducts.toLocaleString()}+ 试剂盒，体验 AI 驱动的 ELISA 平台
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
