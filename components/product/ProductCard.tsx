@@ -17,21 +17,32 @@ interface ProductCardProps {
   species?: string[]
 }
 
+function extractTargetAbbrev(target: string): string {
+  if (!target) return '--'
+  // Try to extract the main target name, e.g. "Human IL-6 ELISA Kit" -> "IL-6"
+  const match = target.match(/([A-Za-z0-9\-αβγδεζηθικλμνξοπρστυφχψω]+)/)
+  if (match) {
+    const abbr = match[1]
+    return abbr.length > 8 ? abbr.slice(0, 8) : abbr
+  }
+  return target.slice(0, 6)
+}
+
 export default function ProductCard({ product, species = [] }: ProductCardProps) {
   const isInStock = product.stock_status === 'in_stock'
+  const targetAbbr = extractTargetAbbrev(product.target)
 
   return (
     <Link
       href={`/products/${product.slug}`}
       className="group block bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 transition-colors"
     >
-      {/* Product Image Placeholder */}
+      {/* Product Image Placeholder — branded gradient circle */}
       <div className="h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center group-hover:from-blue-50 group-hover:to-emerald-50 transition-colors">
-        <div className="text-center">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
-            <span className="text-sm font-black text-slate-400">{product.target?.slice(0, 3)}</span>
-          </div>
-          <span className="text-xs font-medium text-slate-400">ELISA Kit</span>
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg">
+          <span className="text-white font-bold text-sm text-center leading-tight px-1">
+            {targetAbbr}
+          </span>
         </div>
       </div>
 

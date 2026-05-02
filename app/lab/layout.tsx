@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FlaskConical, ClipboardList, BarChart3, Home } from 'lucide-react'
+import { FlaskConical, ClipboardList, BarChart3, Home, Calculator } from 'lucide-react'
 
 export default function LabLayout({
   children,
@@ -15,6 +15,13 @@ export default function LabLayout({
             <span>Animal Union</span>
           </Link>
           <div className="flex-1" />
+          <Link
+            href="/lab/calculator"
+            className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-blue-600"
+          >
+            <Calculator className="w-4 h-4" />
+            孔数计算
+          </Link>
           <Link
             href="/lab/experiment"
             className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-blue-600"

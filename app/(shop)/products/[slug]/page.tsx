@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ProductDetailClient from '@/components/product/ProductDetailClient'
+import PlateCalculator from '@/components/calculator/PlateCalculator'
 
 export default async function ProductDetailPage({
   params,
@@ -86,6 +87,11 @@ export default async function ProductDetailPage({
               </p>
             </div>
           )}
+        </div>
+
+        {/* Plate Calculator */}
+        <div className="mt-6">
+          <PlateCalculator />
         </div>
 
         {/* Citations Section */}

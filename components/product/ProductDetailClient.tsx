@@ -93,6 +93,14 @@ export default function ProductDetailClient({
           <p className="font-semibold text-gray-900">{product.sensitivity}</p>
         </div>
         <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-xs text-gray-500 mb-1">标准曲线</p>
+          <p className="font-semibold text-gray-900">8 点（S1-S7 + Blank）</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <p className="text-xs text-gray-500 mb-1">规格</p>
+          <p className="font-semibold text-gray-900">48T / 96T</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4">
           <p className="text-xs text-gray-500 mb-1">适用样本</p>
           <p className="font-semibold text-gray-900">
             {product.sample_type?.join('、')}
