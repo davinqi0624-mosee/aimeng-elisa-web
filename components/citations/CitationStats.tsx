@@ -23,11 +23,16 @@ interface Stats {
   recent_papers: RecentPaper[]
 }
 
-export default function CitationStats() {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
+interface CitationStatsProps {
+  initialStats?: Stats
+}
+
+export default function CitationStats({ initialStats }: CitationStatsProps) {
+  const [stats, setStats] = useState<Stats | null>(initialStats || null)
+  const [loading, setLoading] = useState(!initialStats)
 
   useEffect(() => {
+    if (initialStats) return
     fetch('/api/citations/stats')
       .then((r) => r.json())
       .then((data) => {
@@ -35,19 +40,19 @@ export default function CitationStats() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [])
+  }, [initialStats])
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />
           ))}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-32 bg-gray-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-40 bg-slate-100 rounded-xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -89,42 +94,41 @@ export default function CitationStats() {
   ]
 
   return (
-    <div className="space-y-4">
-      {/* Big numbers */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {items.map((item) => (
-          <div
-            key={item.label}
-            className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className={`p-1.5 rounded-lg ${item.color}`}>{item.icon}</div>
-              <span className="text-xs text-gray-400">{item.label}</span>
+    <div className="space-y-6">
+      {/* Gradient stats bar */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-50 via-emerald-50 to-violet-50 border border-slate-200 p-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          {items.map((item) => (
+            <div key={item.label} className="text-center">
+              <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center mx-auto mb-3`}>
+                {item.icon}
+              </div>
+              <p className="text-3xl md:text-4xl font-black text-gradient">
+                {typeof item.value === 'number' && item.value % 1 !== 0
+                  ? item.value.toFixed(1)
+                  : item.value}
+                {item.suffix && <span className="text-lg font-bold text-slate-400 ml-1">{item.suffix}</span>}
+              </p>
+              <p className="text-sm font-medium text-slate-600 mt-1">{item.label}</p>
+              {item.sub && (
+                <p className="text-xs text-slate-400 mt-1 truncate max-w-[200px] mx-auto">{item.sub}</p>
+              )}
             </div>
-            <p className="text-xl font-bold text-gray-900">
-              {typeof item.value === 'number' && item.value % 1 !== 0
-                ? item.value.toFixed(1)
-                : item.value}
-              <span className="text-sm font-normal text-gray-400 ml-1">{item.suffix}</span>
-            </p>
-            {item.sub && (
-              <p className="text-xs text-gray-500 mt-1 truncate">{item.sub}</p>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Recent papers */}
       {stats.recent_papers && stats.recent_papers.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-700">最近发表</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-900">最近发表</h3>
             <Link
               href="/citations"
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               查看全部
-              <FileText className="w-3 h-3" />
+              <FileText className="w-3.5 h-3.5" />
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -132,21 +136,21 @@ export default function CitationStats() {
               <Link
                 key={i}
                 href={`/citations`}
-                className="bg-white border border-gray-200 rounded-xl p-4 hover:border-indigo-300 hover:shadow-sm transition-all group"
+                className="bg-white border border-slate-200 rounded-xl p-6 hover:border-blue-300 transition-colors group"
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full font-medium">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-semibold">
                     {p.product_cat_no || '未知货号'}
                   </span>
-                  <span className="text-xs text-amber-600 font-medium">
+                  <span className="text-xs text-amber-600 font-bold">
                     IF {p.impact_factor || '-'}
                   </span>
                 </div>
-                <h4 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1 group-hover:text-indigo-700 transition-colors">
+                <h4 className="text-sm font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-blue-700 transition-colors">
                   {p.title}
                 </h4>
-                <p className="text-xs text-gray-500 line-clamp-1">{p.journal}</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-slate-500 line-clamp-1">{p.journal}</p>
+                <p className="text-xs text-slate-400 mt-2">
                   {p.publication_date
                     ? new Date(p.publication_date).getFullYear()
                     : '-'}
