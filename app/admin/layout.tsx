@@ -8,13 +8,17 @@ import {
   Package,
   Gift,
   FileText,
-  BookOpen,
   Shield,
   Settings,
   Users,
   LogOut,
   Menu,
   X,
+  MapPin,
+  Globe,
+  FileCheck,
+  History,
+  BookOpen,
 } from 'lucide-react'
 
 interface AdminData {
@@ -35,9 +39,14 @@ interface MenuItem {
 const MENU_ITEMS: MenuItem[] = [
   { href: '/admin', label: '仪表盘', icon: <LayoutDashboard className="w-4 h-4" />, roles: ['super', 'admin'] },
   { href: '/admin/products', label: '商品管理', icon: <Package className="w-4 h-4" />, roles: ['super', 'admin'] },
-  { href: '/admin/shop', label: '积分审核', icon: <Gift className="w-4 h-4" />, roles: ['super', 'admin'] },
-  { href: '/admin/citations', label: '文献审核', icon: <FileText className="w-4 h-4" />, roles: ['super', 'admin'] },
-  { href: '/datasheet', label: '说明书生成', icon: <BookOpen className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/agents', label: '代理商管理', icon: <MapPin className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/pages', label: '内页管理', icon: <Globe className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/reviews', label: '积分审核', icon: <FileCheck className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/datasheet', label: '说明书生成', icon: <FileText className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/knowledge/generate', label: '每日知识生成', icon: <BookOpen className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/bulk-imports', label: '批量导入记录', icon: <History className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/shop', label: '积分商城', icon: <Gift className="w-4 h-4" />, roles: ['super', 'admin'] },
+  { href: '/admin/citations', label: '文献引用', icon: <FileText className="w-4 h-4" />, roles: ['super', 'admin'] },
   { href: '/admin/admins', label: '管理员管理', icon: <Users className="w-4 h-4" />, roles: ['super'] },
   { href: '/admin/settings', label: '系统设置', icon: <Settings className="w-4 h-4" />, roles: ['super'] },
 ]
@@ -92,9 +101,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const visibleItems = MENU_ITEMS.filter((item) => item.roles.includes(admin.role))
 
   return (
-    <div className="flex h-screen bg-[#0b1120]">
+    <div className="flex h-screen bg-slate-950">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-56 shrink-0 flex-col bg-[#0f172a] border-r border-slate-800">
+      <aside className="hidden md:flex w-56 shrink-0 flex-col bg-slate-900 border-r border-slate-800">
         <div className="px-4 py-4 border-b border-slate-800">
           <Link href="/admin" className="flex items-center gap-2 text-white font-bold">
             <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
@@ -121,10 +130,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors rounded-md mx-2 ${
+                className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors mx-2 rounded-lg ${
                   active
-                    ? 'bg-cyan-500/10 text-cyan-400 font-medium'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                    ? 'bg-slate-800 text-white font-medium border-l-2 border-cyan-400'
+                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                 }`}
               >
                 {item.icon}
@@ -149,7 +158,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#0f172a] border-b border-slate-800 px-4 py-2.5 flex items-center justify-between">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between">
         <Link href="/admin" className="flex items-center gap-2 text-white font-bold text-sm">
           <div className="w-6 h-6 rounded bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
             <Shield className="w-3.5 h-3.5 text-white" />
@@ -164,7 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Nav */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={() => setMobileOpen(false)}>
-          <div className="absolute top-12 left-0 right-0 bg-[#0f172a] border-b border-slate-800 py-2" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute top-12 left-0 right-0 bg-slate-900 border-b border-slate-800 py-2" onClick={(e) => e.stopPropagation()}>
             {visibleItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + '/')
               return (
@@ -173,7 +182,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 text-sm ${
-                    active ? 'bg-cyan-500/10 text-cyan-400 font-medium' : 'text-slate-400'
+                    active ? 'bg-slate-800 text-white font-medium border-l-2 border-cyan-400' : 'text-slate-400'
                   }`}
                 >
                   {item.icon}
@@ -192,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-auto pt-12 md:pt-0 bg-[#0b1120]">
+      <main className="flex-1 min-w-0 overflow-auto pt-12 md:pt-0 bg-slate-950">
         <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
           {children}
         </div>
