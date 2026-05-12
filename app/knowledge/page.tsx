@@ -43,7 +43,9 @@ export default async function KnowledgeCalendarPage({
   const endDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
 
   const supabase = await createClient()
-  const { data: articles } = await supabase
+
+  // Query both tables and merge — daily_knowledge takes precedence
+  const { data: baseArticles } = await supabase
     .from('knowledge_base')
     .select('id, title, publish_date, category')
     .gte('publish_date', startDate)
@@ -51,9 +53,19 @@ export default async function KnowledgeCalendarPage({
     .eq('is_published', true)
     .order('publish_date', { ascending: true })
 
+  const { data: dailyArticles } = await supabase
+    .from('daily_knowledge')
+    .select('id, title, date, category')
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true })
+
   const articleMap = new Map<string, Article>()
-  ;(articles || []).forEach((a) => {
-    articleMap.set(a.publish_date, a)
+  ;(baseArticles || []).forEach((a) => {
+    articleMap.set(a.publish_date, { id: a.id, title: a.title, publish_date: a.publish_date, category: a.category })
+  })
+  ;(dailyArticles || []).forEach((a) => {
+    articleMap.set(a.date, { id: a.id, title: a.title, publish_date: a.date, category: a.category })
   })
 
   const todayStr = new Date().toISOString().split('T')[0]
