@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/admin/knowledge/evolve",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

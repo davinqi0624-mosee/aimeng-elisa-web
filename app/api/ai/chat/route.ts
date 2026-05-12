@@ -209,7 +209,36 @@ ${contextText || '暂无相关知识库内容。'}
       ...messages.slice(-10),
     ]
 
-    const responseStream = await streamChat(chatMessages, { temperature: 0.7, maxTokens: 2048 })
+    let responseStream
+    try {
+      responseStream = await streamChat(chatMessages, { temperature: 0.7, maxTokens: 2048 })
+    } catch (err: any) {
+      console.error('[streamChat init error]', err)
+      const encoder = new TextEncoder()
+      const errorStream = new ReadableStream({
+        start(controller) {
+          const errorMsg = err.message || 'DeepSeek API 调用失败'
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ error: errorMsg, done: true })}
+\n\n`)
+          )
+          controller.close()
+        },
+      })
+      return new Response(errorStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      })
+    }
+
+    // Deferred promise to capture full response text after streaming completes
+    let resolveFullText: (value: string) => void
+    const fullTextPromise = new Promise<string>((resolve) => {
+      resolveFullText = resolve
+    })
 
     const encoder = new TextEncoder()
     const readable = new ReadableStream({
@@ -256,7 +285,11 @@ ${contextText || '暂无相关知识库内容。'}
                 },
               ])
             }
+
           }
+
+          // Resolve deferred promise so async IIFE can save to ai_conversations
+          resolveFullText(fullText)
         } catch (e: any) {
           console.error('Stream error:', e)
           controller.enqueue(
@@ -265,9 +298,29 @@ ${contextText || '暂无相关知识库内容。'}
             )
           )
           controller.close()
+          resolveFullText('')
         }
       },
     })
+
+    // Async save to ai_conversations — fire-and-forget after stream completes
+    ;(async () => {
+      try {
+        const fullResponseText = await fullTextPromise
+        if (!fullResponseText) return
+        const sourceType = products.length > 0 ? 'product' : knowledge.length > 0 ? 'knowledge' : 'rag'
+        const supabase = await createClient()
+        await supabase.from('ai_conversations').insert({
+          user_id: sessionId || 'anonymous',
+          question: query,
+          answer: fullResponseText,
+          source_type: sourceType,
+          products_referenced: products.map((p: any) => p.id),
+        })
+      } catch (err) {
+        console.error('Failed to save conversation:', err)
+      }
+    })()
 
     return new Response(readable, {
       headers: {
