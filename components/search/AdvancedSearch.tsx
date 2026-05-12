@@ -1,55 +1,82 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, ChevronDown, Check } from 'lucide-react'
+import { Search, X, Check } from 'lucide-react'
 import { SpeciesIcon, SPECIES_ORDER, SPECIES_LABELS } from '@/components/icons/SpeciesIcons'
 
-const SAMPLE_TYPES = [
-  '全部',
-  '组织',
-  '组织匀浆',
-  '血液',
-  '血清',
-  '血浆',
-  '尿液',
-  '精液',
-  '脑脊液',
-  '唾液',
-  '粪便',
-  '细胞',
-  '细胞上清液',
+const GREEK_CHARS = [
+  { char: 'α', name: 'alpha', sub: 'a' },
+  { char: 'β', name: 'beta', sub: 'b' },
+  { char: 'γ', name: 'gamma', sub: 'g' },
+  { char: 'δ', name: 'delta', sub: 'd' },
+  { char: 'ε', name: 'epsilon', sub: 'e' },
+  { char: 'θ', name: 'theta', sub: 'th' },
+  { char: 'λ', name: 'lambda', sub: 'l' },
+  { char: 'μ', name: 'mu', sub: 'm' },
+  { char: 'π', name: 'pi', sub: 'pi' },
+  { char: 'σ', name: 'sigma', sub: 's' },
+  { char: 'φ', name: 'phi', sub: 'ph' },
+  { char: 'ψ', name: 'psi', sub: 'ps' },
+  { char: 'ω', name: 'omega', sub: 'o' },
+]
+
+const ROMAN_NUMERALS = [
+  { char: 'Ⅰ', name: 'I', value: 1 },
+  { char: 'Ⅱ', name: 'II', value: 2 },
+  { char: 'Ⅲ', name: 'III', value: 3 },
+  { char: 'Ⅳ', name: 'IV', value: 4 },
+  { char: 'Ⅴ', name: 'V', value: 5 },
+  { char: 'Ⅵ', name: 'VI', value: 6 },
+  { char: 'Ⅶ', name: 'VII', value: 7 },
+  { char: 'Ⅷ', name: 'VIII', value: 8 },
+  { char: 'Ⅸ', name: 'IX', value: 9 },
+  { char: 'Ⅹ', name: 'X', value: 10 },
+  { char: 'Ⅺ', name: 'XI', value: 11 },
+  { char: 'Ⅻ', name: 'XII', value: 12 },
+  { char: 'ⅩⅢ', name: 'XIII', value: 13 },
+  { char: 'ⅩⅣ', name: 'XIV', value: 14 },
+  { char: 'ⅩⅤ', name: 'XV', value: 15 },
+  { char: 'ⅩⅥ', name: 'XVI', value: 16 },
+  { char: 'ⅩⅦ', name: 'XVII', value: 17 },
+  { char: 'ⅩⅧ', name: 'XVIII', value: 18 },
+  { char: 'ⅩⅨ', name: 'XIX', value: 19 },
+  { char: 'ⅩⅩ', name: 'XX', value: 20 },
 ]
 
 interface AdvancedSearchProps {
   availableSpecies?: string[]
+  targetPath?: string
+  queryParamName?: string
 }
 
-export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: AdvancedSearchProps) {
+export default function AdvancedSearch({
+  availableSpecies = SPECIES_ORDER,
+  targetPath = '/products',
+  queryParamName = 'query',
+}: AdvancedSearchProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [selectedSpecies, setSelectedSpecies] = useState<string[]>([])
-  const [sampleType, setSampleType] = useState('全部')
   const [query, setQuery] = useState('')
-  const [sampleDropdownOpen, setSampleDropdownOpen] = useState(false)
+  const [showGreekPanel, setShowGreekPanel] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [cursorPos, setCursorPos] = useState(0)
 
   // Initialize from URL params
   useEffect(() => {
     const speciesParam = searchParams.get('species')
-    const sampleParam = searchParams.get('sampleType')
-    const queryParam = searchParams.get('query')
+    const queryParam = searchParams.get(queryParamName)
 
     if (speciesParam) {
       setSelectedSpecies(speciesParam.split(',').filter(Boolean))
     }
-    if (sampleParam) {
-      setSampleType(sampleParam)
-    }
     if (queryParam) {
       setQuery(queryParam)
     }
-  }, [searchParams])
+  }, [searchParams, queryParamName])
 
   const toggleSpecies = useCallback((species: string) => {
     setSelectedSpecies((prev) =>
@@ -64,26 +91,67 @@ export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: Adv
     if (selectedSpecies.length > 0) {
       params.set('species', selectedSpecies.join(','))
     }
-    if (sampleType && sampleType !== '全部') {
-      params.set('sampleType', sampleType)
-    }
     if (query.trim()) {
-      params.set('query', query.trim())
+      params.set(queryParamName, query.trim())
     }
-    router.push(`/products?${params.toString()}`)
-  }, [selectedSpecies, sampleType, query, router])
+    router.push(`${targetPath}?${params.toString()}`)
+  }, [selectedSpecies, query, router, targetPath, queryParamName])
 
   const removeTag = useCallback((type: string, value: string) => {
     if (type === 'species') {
       setSelectedSpecies((prev) => prev.filter((s) => s !== value))
-    } else if (type === 'sampleType') {
-      setSampleType('全部')
     } else if (type === 'query') {
       setQuery('')
     }
   }, [])
 
-  const hasFilters = selectedSpecies.length > 0 || sampleType !== '全部' || query.trim()
+  const insertGreekChar = useCallback((char: string) => {
+    const input = inputRef.current
+    if (!input) return
+    const start = input.selectionStart || cursorPos
+    const end = input.selectionEnd || cursorPos
+    const before = query.slice(0, start)
+    const after = query.slice(end)
+    const newQuery = before + char + after
+    setQuery(newQuery)
+    const newPos = start + char.length
+    setCursorPos(newPos)
+    requestAnimationFrame(() => {
+      input.focus()
+      input.setSelectionRange(newPos, newPos)
+    })
+    setShowGreekPanel(false)
+  }, [query, cursorPos])
+
+  const handleInputFocus = useCallback(() => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current)
+      blurTimeoutRef.current = null
+    }
+    setShowGreekPanel(true)
+  }, [])
+
+  const handleInputBlur = useCallback(() => {
+    blurTimeoutRef.current = setTimeout(() => {
+      setShowGreekPanel(false)
+    }, 200)
+  }, [])
+
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    } else if (e.key === 'Escape') {
+      setShowGreekPanel(false)
+    }
+  }, [handleSearch])
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current)
+    }
+  }, [])
+
+  const hasFilters = selectedSpecies.length > 0 || query.trim()
 
   const displayedSpecies = SPECIES_ORDER
 
@@ -92,86 +160,138 @@ export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: Adv
       {/* Species Selection */}
       <div>
         <label className="block text-sm font-semibold text-slate-900 mb-3">
-          种属筛选 <span className="text-xs font-normal text-slate-400">（可多选）</span>
+          常用种属筛选 <span className="text-xs font-normal text-slate-400">（可多选）</span>
         </label>
-        <div className="grid grid-cols-5 md:grid-cols-7 gap-3">
-          {displayedSpecies.map((species) => {
-            const isSelected = selectedSpecies.includes(species)
-            return (
-              <button
-                key={species}
-                onClick={() => toggleSpecies(species)}
-                className={`relative flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg border text-xs font-medium transition-all ${
-                  isSelected
-                    ? 'border-blue-400 bg-blue-50/60 text-blue-700'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                {isSelected && (
-                  <span className="absolute top-1 right-1">
-                    <Check className="w-3 h-3 text-blue-500" />
-                  </span>
-                )}
-                <SpeciesIcon species={species} className="w-5 h-5" />
-                <span className="truncate w-full text-center">{SPECIES_LABELS[species] || species}</span>
-              </button>
-            )
-          })}
+        <div className="space-y-2">
+          {/* Row 1: first 7 species */}
+          <div className="grid grid-cols-7 gap-2">
+            {displayedSpecies.slice(0, 7).map((species) => {
+              const isSelected = selectedSpecies.includes(species)
+              return (
+                <button
+                  key={species}
+                  onClick={() => toggleSpecies(species)}
+                  className={`relative flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${
+                    isSelected
+                      ? 'border-blue-400 bg-blue-50/60 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {isSelected && (
+                    <span className="absolute top-0.5 right-0.5">
+                      <Check className="w-3 h-3 text-blue-500" />
+                    </span>
+                  )}
+                  <SpeciesIcon species={species} className="w-4 h-4" />
+                  <span className="truncate w-full text-center">{SPECIES_LABELS[species] || species}</span>
+                </button>
+              )
+            })}
+          </div>
+          {/* Row 2: remaining species */}
+          <div className="grid grid-cols-7 gap-2">
+            {displayedSpecies.slice(7).map((species) => {
+              const isSelected = selectedSpecies.includes(species)
+              return (
+                <button
+                  key={species}
+                  onClick={() => toggleSpecies(species)}
+                  className={`relative flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${
+                    isSelected
+                      ? 'border-blue-400 bg-blue-50/60 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {isSelected && (
+                    <span className="absolute top-0.5 right-0.5">
+                      <Check className="w-3 h-3 text-blue-500" />
+                    </span>
+                  )}
+                  <SpeciesIcon species={species} className="w-4 h-4" />
+                  <span className="truncate w-full text-center">{SPECIES_LABELS[species] || species}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Sample Type + Query Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Sample Type Dropdown */}
+      {/* Query Input with Greek Letter Panel */}
+      <div className="relative">
+        <label className="block text-sm font-semibold text-slate-900 mb-2">检测指标</label>
         <div className="relative">
-          <label className="block text-sm font-semibold text-slate-900 mb-2">样本类型</label>
-          <button
-            onClick={() => setSampleDropdownOpen(!sampleDropdownOpen)}
-            className="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-left hover:border-slate-300 transition-colors"
-          >
-            <span className={sampleType === '全部' ? 'text-slate-400' : 'text-slate-900'}>
-              {sampleType}
-            </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${sampleDropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {sampleDropdownOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setSampleDropdownOpen(false)} />
-              <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {SAMPLE_TYPES.map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      setSampleType(type)
-                      setSampleDropdownOpen(false)
-                    }}
-                    className={`w-full px-3 py-2 text-sm text-left hover:bg-slate-50 transition-colors ${
-                      sampleType === type ? 'text-blue-600 font-medium bg-blue-50/50' : 'text-slate-700'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setCursorPos(e.target.selectionStart || 0)
+            }}
+            onKeyDown={handleInputKeyDown}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            placeholder="输入指标名称，如 IL-6、TNF-α、IFN-γ..."
+            className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+          />
         </div>
 
-        {/* Target Input */}
-        <div>
-          <label className="block text-sm font-semibold text-slate-900 mb-2">检测指标</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="输入指标名称，如 IL-6、TNF-α、IFN-γ..."
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-            />
+        {/* Greek & Roman Panel */}
+        {showGreekPanel && (
+          <div
+            className="absolute z-20 mt-2 left-0 right-0 md:left-auto md:right-auto md:w-full bg-white rounded-xl shadow-lg border border-slate-200 p-3 max-h-80 overflow-y-auto"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {/* Triangle */}
+            <div className="absolute -top-2 left-6 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
+            <div className="relative space-y-3">
+              {/* Greek Letters */}
+              <div>
+                <p className="text-xs font-medium text-slate-400 mb-1.5">希腊字母</p>
+                <div className="grid grid-cols-10 gap-1.5">
+                  {GREEK_CHARS.map((g) => (
+                    <button
+                      key={g.char}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        insertGreekChar(g.char)
+                      }}
+                      className="flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md border border-slate-100 bg-slate-50 hover:bg-gradient-to-r hover:from-blue-600 hover:via-emerald-500 hover:to-purple-500 hover:text-white hover:border-transparent transition-all min-h-[2.5rem]"
+                    >
+                      <span className="text-lg leading-none">{g.char}</span>
+                      <span className="text-[10px] text-slate-400 leading-none mt-0.5">{g.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Roman Numerals */}
+              <div>
+                <p className="text-xs font-medium text-slate-400 mb-1.5">罗马数字</p>
+                <div className="grid grid-cols-10 gap-1.5">
+                  {ROMAN_NUMERALS.map((r) => (
+                    <button
+                      key={r.char}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        insertGreekChar(r.char)
+                      }}
+                      className="flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md border border-slate-100 bg-slate-50 hover:bg-gradient-to-r hover:from-blue-600 hover:via-emerald-500 hover:to-purple-500 hover:text-white hover:border-transparent transition-all min-h-[2.5rem]"
+                    >
+                      <span className="text-lg leading-none">{r.char}</span>
+                      <span className="text-[10px] text-slate-400 leading-none mt-0.5">{r.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 text-center pt-0.5">
+                点击插入：IL-1β、TNF-α、IFN-γ、IL-Ⅱ…
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Selected Tags */}
@@ -189,14 +309,6 @@ export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: Adv
               </button>
             </span>
           ))}
-          {sampleType !== '全部' && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-100">
-              {sampleType}
-              <button onClick={() => removeTag('sampleType', sampleType)} className="hover:text-emerald-900">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
           {query.trim() && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-100">
               {query.trim()}
@@ -208,7 +320,6 @@ export default function AdvancedSearch({ availableSpecies = SPECIES_ORDER }: Adv
           <button
             onClick={() => {
               setSelectedSpecies([])
-              setSampleType('全部')
               setQuery('')
             }}
             className="text-xs text-slate-400 hover:text-slate-600 underline"
