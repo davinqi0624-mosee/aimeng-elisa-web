@@ -38,13 +38,17 @@ export default async function KnowledgeCalendarPage({
     month: 'long',
   })
 
-  // Query articles for this month
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  // Query articles for this month, capped at today (no future articles)
   const startDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`
-  const endDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+  const monthEndDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+  const endDate = monthEndDate < todayStr ? monthEndDate : todayStr
 
   const supabase = await createClient()
 
   // Query both tables and merge — daily_knowledge takes precedence
+  // Only fetch up to today so future calendar dates don't show articles
   const { data: baseArticles } = await supabase
     .from('knowledge_base')
     .select('id, title, publish_date, category')
@@ -67,8 +71,6 @@ export default async function KnowledgeCalendarPage({
   ;(dailyArticles || []).forEach((a) => {
     articleMap.set(a.date, { id: a.id, title: a.title, publish_date: a.date, category: a.category })
   })
-
-  const todayStr = new Date().toISOString().split('T')[0]
 
   // Build calendar grid
   const cells: {
