@@ -20,6 +20,7 @@ const navLinks = [
   { href: '/knowledge', label: '每日知识' },
   { href: '/citations', label: '文献引用' },
   { href: '/store', label: '积分商城' },
+  { href: '/contact', label: '联系我们' },
 ]
 
 export default function Navbar({ user, isAdmin }: NavbarProps) {
@@ -43,7 +44,7 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors relative after:absolute after:bottom-1 after:left-3 after:right-3 after:h-px after:bg-slate-900 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:origin-left"
               >
                 {link.label}
               </Link>
@@ -74,7 +75,7 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
                     await fetch('/api/auth/signout', { method: 'POST' })
                     window.location.href = '/'
                   }}
-                  className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-2 py-1 rounded hover:bg-slate-50 transition-colors"
                 >
                   <LogOut className="w-3 h-3" />
                   退出
@@ -84,13 +85,13 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   登录
                 </Link>
                 <Link
                   href="/register"
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500 hover:opacity-90 transition-opacity"
+                  className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-slate-900 hover:bg-slate-800 transition-colors"
                 >
                   注册
                 </Link>
@@ -163,7 +164,7 @@ export default function Navbar({ user, isAdmin }: NavbarProps) {
                   <Link
                     href="/register"
                     onClick={() => setMobileOpen(false)}
-                    className="flex-1 text-center py-2 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500"
+                    className="flex-1 text-center py-2 text-sm font-medium text-white rounded-lg bg-slate-900"
                   >
                     注册
                   </Link>

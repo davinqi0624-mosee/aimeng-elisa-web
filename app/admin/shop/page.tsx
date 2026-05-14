@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Gift, Plus, Pencil, Trash2, Loader2, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Gift, Plus, Pencil, Trash2, Loader2, X, Upload } from 'lucide-react'
 
 interface ShopItem {
   id: string
@@ -21,6 +21,8 @@ export default function AdminShopPage() {
   const [editingItem, setEditingItem] = useState<ShopItem | null>(null)
   const [form, setForm] = useState({ name: '', description: '', points_required: '', stock: '', image_url: '', status: 'active' })
   const [saving, setSaving] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
 
   const fetchItems = () => {
     setLoading(true)
@@ -52,6 +54,56 @@ export default function AdminShopPage() {
       status: item.status,
     })
     setShowForm(true)
+  }
+
+  const handleImageUpload = async (file: File) => {
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif']
+    const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
+    if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
+      alert('仅支持 JPG、JPEG、PNG、GIF 格式的图片')
+      return
+    }
+
+    // Validate file size (max 5MB before compression)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片大小不能超过 5MB')
+      return
+    }
+
+    setImageUploading(true)
+    try {
+      const { compressImage } = await import('@/lib/image-compress')
+      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85, maxSizeMB: 1 })
+      const ext = file.type === 'image/png' ? 'png' : 'jpg'
+      const timestamp = Date.now()
+      const itemId = editingItem?.id || 'new'
+      const path = `shop/${itemId}/${timestamp}.${ext}`
+
+      const body = new FormData()
+      body.append('file', compressed, file.name)
+      body.append('bucket', 'product-assets')
+      body.append('path', path)
+
+      const oldUrl = editingItem?.image_url
+      if (oldUrl) body.append('old_url', oldUrl)
+
+      const res = await fetch('/api/admin/upload', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) {
+        alert('图片上传失败: ' + (data.error || '未知错误'))
+      } else {
+        setForm((prev) => ({ ...prev, image_url: data.url }))
+      }
+    } catch (err: any) {
+      console.error('Image upload exception:', err)
+      alert('图片上传失败: ' + (err.message || '网络或服务器错误'))
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -137,8 +189,33 @@ export default function AdminShopPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs text-gray-500 mb-1">图片URL</label>
-              <input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+              <label className="block text-xs text-gray-500 mb-1">奖品图片</label>
+              <div className="flex items-center gap-4">
+                {form.image_url && (
+                  <img src={form.image_url} alt="预览" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                )}
+                <div className="flex-1">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f) }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={imageUploading}
+                    className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {imageUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {imageUploading ? '上传中...' : form.image_url ? '更换图片' : '上传图片'}
+                  </button>
+                  {form.image_url && (
+                    <p className="text-xs text-gray-400 mt-1 truncate max-w-xs">{form.image_url}</p>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs text-gray-500 mb-1">描述</label>
@@ -170,7 +247,12 @@ export default function AdminShopPage() {
           <div className="divide-y divide-gray-100">
             {items.map((item) => (
               <div key={item.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors">
-                <div className="col-span-4 text-sm font-medium text-gray-900 truncate">{item.name}</div>
+                <div className="col-span-4 flex items-center gap-2">
+                  {item.image_url && (
+                    <img src={item.image_url} alt="" className="w-8 h-8 rounded object-cover border border-gray-200" />
+                  )}
+                  <span className="text-sm font-medium text-gray-900 truncate">{item.name}</span>
+                </div>
                 <div className="col-span-2 text-sm text-gray-600">{item.points_required}</div>
                 <div className="col-span-2 text-sm text-gray-600">{item.stock}</div>
                 <div className="col-span-2">

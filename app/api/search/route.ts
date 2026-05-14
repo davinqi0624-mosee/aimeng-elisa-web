@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { SPECIES_NAME_PATTERNS } from '@/components/icons/SpeciesIcons'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const species = searchParams.get('species')?.split(',').filter(Boolean) || []
-  const sampleType = searchParams.get('sampleType')
   const query = searchParams.get('query')?.trim()
 
   const supabase = await createClient()
@@ -14,23 +14,27 @@ export async function GET(request: NextRequest) {
     .select('*, product_species(species)', { count: 'exact' })
     .eq('status', 'active')
 
-  // Species filter
+  // Species filter — fallback to name matching when product_species table is incomplete
   if (species.length > 0) {
     const { data: productIds } = await supabase
       .from('product_species')
       .select('product_id')
       .in('species', species)
     const ids = [...new Set(productIds?.map((r) => r.product_id) || [])]
+
     if (ids.length > 0) {
       dbQuery = dbQuery.in('id', ids)
     } else {
-      dbQuery = dbQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+      // Fallback: match species name in product name
+      const namePatterns = species
+        .flatMap((s) => SPECIES_NAME_PATTERNS[s] || [s])
+      const orConditions = namePatterns.map((p) => `name.ilike.%${p}%`).join(',')
+      if (orConditions) {
+        dbQuery = dbQuery.or(orConditions)
+      } else {
+        dbQuery = dbQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+      }
     }
-  }
-
-  // Sample type filter
-  if (sampleType && sampleType !== '全部') {
-    dbQuery = dbQuery.contains('sample_type', [sampleType])
   }
 
   // Query filter (target/aliases)
@@ -59,6 +63,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     products: data || [],
     count: count || 0,
-    filters: { species, sampleType, query },
+    filters: { species, query },
   })
 }

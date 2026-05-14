@@ -10,7 +10,9 @@
   --text-secondary: #475569;
   --text-muted: #64748b;
   --border: #e2e8f0;
+  --border-subtle: #f1f5f9;
   --surface: #f8fafc;
+  --surface-elevated: #ffffff;
   --gradient-brand: linear-gradient(135deg, #2563eb, #10b981, #a855f7);
 }
 
@@ -24,7 +26,9 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
   --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
   --font-sans: "Inter", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
@@ -37,7 +41,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Gradient text utility */
+/* Gradient text utility — reserved for hero focal points only */
 .text-gradient {
   background: linear-gradient(135deg, #2563eb, #10b981, #a855f7);
   -webkit-background-clip: text;
@@ -45,7 +49,7 @@ body {
   background-clip: text;
 }
 
-/* Gradient background utility */
+/* Gradient background utility — reserved for CTAs only */
 .bg-gradient-brand {
   background: linear-gradient(135deg, #2563eb, #10b981, #a855f7);
 }
@@ -60,7 +64,7 @@ body {
               linear-gradient(135deg, #2563eb, #10b981, #a855f7) border-box;
 }
 
-/* Animated gradient flow */
+/* Animated gradient flow — ultra-subtle background atmosphere */
 @keyframes gradient-flow {
   0% {
     background-position: 0% 50%;
@@ -76,7 +80,7 @@ body {
 .animate-gradient-flow {
   background: linear-gradient(-45deg, #2563EB, #10B981, #A855F7, #3B82F6);
   background-size: 400% 400%;
-  animation: gradient-flow 15s ease infinite;
+  animation: gradient-flow 20s ease infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -84,4 +88,12 @@ body {
     animation: none;
     background: linear-gradient(135deg, #2563EB, #10B981, #A855F7);
   }
+}
+
+/* Elevation shadow for cards — precise, scientific aesthetic */
+.shadow-elevation {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.02);
+}
+.shadow-elevation-hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.03);
 }

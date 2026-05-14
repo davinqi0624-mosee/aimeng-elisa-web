@@ -4,11 +4,11 @@ import { createClient } from '@/lib/supabase/server'
 import { ArrowLeft, Search } from 'lucide-react'
 import ProductCard from '@/components/product/ProductCard'
 import AdvancedSearch from '@/components/search/AdvancedSearch'
+import { SPECIES_NAME_PATTERNS } from '@/components/icons/SpeciesIcons'
 
 interface ProductsPageProps {
   searchParams: Promise<{
     species?: string
-    sampleType?: string
     query?: string
   }>
 }
@@ -16,7 +16,6 @@ interface ProductsPageProps {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams
   const speciesFilter = params.species ? params.species.split(',').filter(Boolean) : []
-  const sampleTypeFilter = params.sampleType
   const queryFilter = params.query
 
   const supabase = await createClient()
@@ -34,23 +33,25 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     .select('*, product_species(species)', { count: 'exact' })
     .eq('status', 'active')
 
-  // Species filter
+  // Species filter — fallback to name matching when product_species table is incomplete
   if (speciesFilter.length > 0) {
     const { data: productIds } = await supabase
       .from('product_species')
       .select('product_id')
       .in('species', speciesFilter)
     const ids = [...new Set(productIds?.map((r) => r.product_id) || [])]
+
     if (ids.length > 0) {
       query = query.in('id', ids)
     } else {
-      query = query.eq('id', '00000000-0000-0000-0000-000000000000')
+      const namePatterns = speciesFilter.flatMap((s) => SPECIES_NAME_PATTERNS[s] || [s])
+      const orConditions = namePatterns.map((p) => `name.ilike.%${p}%`).join(',')
+      if (orConditions) {
+        query = query.or(orConditions)
+      } else {
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000')
+      }
     }
-  }
-
-  // Sample type filter
-  if (sampleTypeFilter && sampleTypeFilter !== '全部') {
-    query = query.contains('sample_type', [sampleTypeFilter])
   }
 
   // Query filter (target/aliases)
@@ -71,7 +72,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   const { data: products, count } = await query.order('is_featured', { ascending: false }).range(0, 47)
 
-  const hasFilters = speciesFilter.length > 0 || (sampleTypeFilter && sampleTypeFilter !== '全部') || !!queryFilter
+  const hasFilters = speciesFilter.length > 0 || !!queryFilter
 
   return (
     <div className="min-h-full bg-gray-50">
@@ -116,6 +117,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   detection_range: product.detection_range,
                   stock_status: product.stock_status,
                   citation_count: product.citation_count,
+                  image_url: product.image_url,
                 }}
                 species={(product.product_species as any[])
                   ?.map((s: any) => s.species)}

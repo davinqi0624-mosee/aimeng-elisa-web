@@ -1,0 +1,253 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
+  X,
+  Building2,
+  User,
+  MapPinned,
+} from 'lucide-react'
+import ChinaAgentMap from '@/components/map/ChinaAgentMap'
+
+interface Agent {
+  id?: string
+  province: string
+  province_code?: string
+  city?: string
+  company_name: string
+  contact_name?: string
+  phone?: string
+  email?: string
+  wechat_qr?: string
+  address?: string
+}
+
+export default function ContactPage() {
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedProvince, setSelectedProvince] = useState<string | null>(null)
+  const [selectedAgents, setSelectedAgents] = useState<Agent[]>([])
+
+  useEffect(() => {
+    fetch('/api/agents')
+      .then((r) => r.json())
+      .then((d) => {
+        setAgents(d.agents || [])
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const handleProvinceClick = (province: string, matched: Agent[]) => {
+    setSelectedProvince(province)
+    setSelectedAgents(matched)
+  }
+
+  const closeModal = () => {
+    setSelectedProvince(null)
+    setSelectedAgents([])
+  }
+
+  return (
+    <div className="min-h-full bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16">
+        {/* Page Header */}
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
+            联系我们
+          </h1>
+          <p className="text-slate-500">Contact Us — 期待与您的合作</p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left: Company Info (40%) */}
+          <div className="w-full lg:w-[38%] space-y-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 mb-1">
+                  Animal Union
+                </h2>
+                <p className="text-sm text-slate-500">上海爱萌优宁生物技术有限公司</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">地址</p>
+                    <p className="text-sm text-slate-700">
+                      上海市浦东新区张江高科技园区科苑路88号
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                    <Phone className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">总机</p>
+                    <p className="text-sm text-slate-700">400-888-0123</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">邮箱</p>
+                    <p className="text-sm text-slate-700">service@animaluni.com</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-0.5">工作时间</p>
+                    <p className="text-sm text-slate-700">
+                      周一至周五 9:00 - 18:00
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <a
+                href="/chat"
+                className="block w-full text-center px-6 py-3 bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
+              >
+                在线留言咨询
+              </a>
+            </div>
+
+            {/* Agent List Summary */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h3 className="font-semibold text-slate-900 mb-4">代理商分布</h3>
+              {loading ? (
+                <p className="text-sm text-slate-400">加载中...</p>
+              ) : agents.length === 0 ? (
+                <p className="text-sm text-slate-400">暂无代理商数据</p>
+              ) : (
+                <div className="space-y-2">
+                  {agents.map((agent) => (
+                    <button
+                      key={agent.id || agent.province_code}
+                      onClick={() =>
+                        handleProvinceClick(agent.province, [
+                          agent,
+                        ])
+                      }
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <MapPinned className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span className="text-sm text-slate-700">
+                        {agent.province} — {agent.company_name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: China Map (60%) */}
+          <div className="w-full lg:w-[62%]">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 h-[500px] md:h-[600px]">
+              <ChinaAgentMap
+                agents={agents}
+                onProvinceClick={handleProvinceClick}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Agent Detail Modal */}
+      {selectedProvince && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-lg max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">
+                {selectedProvince} 代理商
+              </h3>
+              <button
+                onClick={closeModal}
+                className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {selectedAgents.map((agent, idx) => (
+                <div
+                  key={idx}
+                  className="border border-slate-200 rounded-xl p-5 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-blue-600" />
+                    <span className="font-semibold text-slate-900">
+                      {agent.company_name}
+                    </span>
+                  </div>
+
+                  {agent.contact_name && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <User className="w-4 h-4 text-slate-400" />
+                      <span>联系人：{agent.contact_name}</span>
+                    </div>
+                  )}
+
+                  {agent.phone && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Phone className="w-4 h-4 text-slate-400" />
+                      <span>{agent.phone}</span>
+                    </div>
+                  )}
+
+                  {agent.email && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <Mail className="w-4 h-4 text-slate-400" />
+                      <span>{agent.email}</span>
+                    </div>
+                  )}
+
+                  {agent.address && (
+                    <div className="flex items-start gap-2 text-sm text-slate-600">
+                      <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                      <span>{agent.address}</span>
+                    </div>
+                  )}
+
+                  {agent.wechat_qr && (
+                    <div className="pt-2 flex flex-col items-center">
+                      <img
+                        src={agent.wechat_qr}
+                        alt="微信二维码"
+                        className="w-32 h-32 object-contain rounded-lg border border-slate-200"
+                        onError={(e) => {
+                          const img = e.currentTarget
+                          img.style.opacity = '0.3'
+                          img.alt = '二维码加载失败'
+                        }}
+                      />
+                      <p className="text-xs text-slate-500 mt-1">微信扫码联系</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,8 +1,10 @@
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import ProductDetailClient from '@/components/product/ProductDetailClient'
-import PlateCalculator from '@/components/calculator/PlateCalculator'
+import Breadcrumb from '@/components/ui/Breadcrumb'
+import ProductImageGallery from '@/components/product/ProductImageGallery'
+import OrderPanel from '@/components/product/OrderPanel'
+import ProductInfoCards from '@/components/product/ProductInfoCards'
+import ProductAccordion from '@/components/product/ProductAccordion'
 
 export default async function ProductDetailPage({
   params,
@@ -12,10 +14,11 @@ export default async function ProductDetailPage({
   const { slug } = await params
   const supabase = await createClient()
 
+  // Fetch product with all related data
   const { data: product } = await supabase
     .from('products')
     .select(
-      '*, product_species(species, species_name_zh), product_aliases(alias, alias_type), cat_no, citation_count'
+      '*, product_species(species, species_name_zh, is_primary), product_aliases(alias, alias_type), product_images(image_url, image_type, display_order), cat_no, citation_count'
     )
     .eq('slug', slug)
     .eq('status', 'active')
@@ -25,14 +28,38 @@ export default async function ProductDetailPage({
     notFound()
   }
 
-  const speciesList = (product.product_species || []).map(
-    (s: any) => s.species
-  ) as string[]
-  const aliasList = (product.product_aliases || []).map(
-    (a: any) => a.alias
-  ) as string[]
+  const speciesRows = (product.product_species || []) as any[]
+  const aliasRows = (product.product_aliases || []) as any[]
+  const imageRows = (product.product_images || []) as any[]
 
-  // Fetch verified citations for this product
+  const speciesList = speciesRows.map((s) => s.species) as string[]
+  const aliasList = aliasRows.map((a) => a.alias) as string[]
+
+  // Primary species for breadcrumb
+  const primarySpeciesRow = speciesRows.find((s) => s.is_primary)
+  const primarySpecies = primarySpeciesRow?.species || speciesList[0]
+  const primarySpeciesLabel = primarySpeciesRow?.species_name_zh || primarySpecies
+
+  // Build gallery images
+  const galleryImages = imageRows
+    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+    .map((img) => ({
+      url: img.image_url,
+      type: img.image_type,
+      label: img.image_type,
+    }))
+
+  // Fallback if no product_images
+  if (galleryImages.length === 0) {
+    const fallbackImage = product.image_url || '/images/elisa/elisa_sandwich_lego.jpg'
+    galleryImages.push({
+      url: fallbackImage,
+      type: 'principle',
+      label: '检测原理',
+    })
+  }
+
+  // Fetch citations
   const { data: citations } = await supabase
     .from('papers')
     .select('id, title, authors, journal, doi, impact_factor, publication_date')
@@ -41,119 +68,86 @@ export default async function ProductDetailPage({
     .eq('is_displayed', true)
     .order('impact_factor', { ascending: false })
 
+  // Breadcrumb items
+  const breadcrumbItems = [
+    { label: '首页', href: '/' },
+    ...(primarySpecies
+      ? [
+          {
+            label: primarySpeciesLabel,
+            href: `/products?species=${encodeURIComponent(primarySpecies)}`,
+          },
+        ]
+      : []),
+    { label: product.target || product.name },
+  ]
+
   return (
-    <div className="h-full bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        <Link
-          href="/"
-          className="text-blue-600 hover:underline mb-6 inline-block text-sm"
-        >
-          ← 返回产品列表
-        </Link>
+    <div className="min-h-full bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* Breadcrumb */}
+        <div className="py-2">
+          <Breadcrumb items={breadcrumbItems} />
+        </div>
 
-        <div className="bg-white rounded-2xl shadow-sm p-8">
-          <div className="flex flex-col lg:flex-row gap-10">
-            {/* Image */}
-            <div className="w-full lg:w-2/5">
-              <div className="aspect-square bg-gray-100 rounded-xl flex items-center justify-center">
-                <span className="text-gray-400">产品图片</span>
-              </div>
-            </div>
-
-            {/* Info - Client Component */}
-            <ProductDetailClient
-              product={{
-                id: product.id,
-                name: product.name,
-                target: product.target,
-                price: product.price,
-                detection_range: product.detection_range,
-                sensitivity: product.sensitivity,
-                sample_type: product.sample_type || [],
-                stock_status: product.stock_status,
-              }}
-              speciesList={speciesList}
-              aliasList={aliasList}
+        {/* Main Content: Left Image + Right Order Panel */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left: Image Gallery (60%) */}
+          <div className="w-full lg:w-[58%]">
+            <ProductImageGallery
+              images={galleryImages}
+              productName={product.name}
             />
           </div>
 
-          {product.description && (
-            <div className="mt-10 pt-8 border-t">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                产品描述
-              </h2>
-              <p className="text-gray-700 leading-relaxed">
-                {product.description}
-              </p>
-            </div>
-          )}
+          {/* Right: Order Panel (40%) */}
+          <div className="w-full lg:w-[42%]">
+            <OrderPanel
+              catNo={product.cat_no || '-'}
+              name={product.name}
+              target={product.target || ''}
+              basePrice={product.price || 0}
+              stockStatus={product.stock_status || 'out_of_stock'}
+              datasheetUrl={product.datasheet_url}
+            />
+          </div>
         </div>
 
-        {/* Plate Calculator */}
-        <div className="mt-6">
-          <PlateCalculator />
-        </div>
+        {/* Key Info Cards */}
+        <section>
+          <ProductInfoCards
+            detectionMethod={product.detection_method}
+            speciesList={speciesList}
+            sampleType={product.sample_type || []}
+            sensitivity={product.sensitivity}
+            detectionRange={product.detection_range}
+            assayTime={product.assay_time}
+          />
+        </section>
 
-        {/* Citations Section */}
-        {(citations && citations.length > 0) ? (
-          <div className="mt-6 bg-white rounded-2xl shadow-sm p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">
-                文献引用
-              </h2>
-              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium">
-                {citations.length} 篇 SCI 论文
-              </span>
-            </div>
-            <div className="space-y-4">
-              {citations.map((c) => (
-                <div
-                  key={c.id}
-                  className="border rounded-xl p-4 hover:border-indigo-200 transition-colors"
-                >
-                  <h3 className="font-semibold text-gray-900 mb-1">
-                    {c.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-2">{c.authors}</p>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                    <span className="font-medium text-gray-600">
-                      {c.journal}
-                    </span>
-                    <span>IF: {c.impact_factor || '-'}</span>
-                    <span>
-                      {c.publication_date
-                        ? new Date(c.publication_date).getFullYear()
-                        : '-'}
-                    </span>
-                    {c.doi && (
-                      <a
-                        href={`https://doi.org/${c.doi}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        DOI: {c.doi}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="mt-6 bg-white rounded-2xl shadow-sm p-8 text-center">
-            <p className="text-gray-400 mb-2">暂无引用文献</p>
-            <p className="text-sm text-gray-500">
-              使用本产品发表论文？
-              <Link
-                href="/user/citations/submit"
-                className="text-blue-600 hover:underline ml-1"
-              >
-                提交引用文献获得积分奖励 →
-              </Link>
-            </p>
-          </div>
-        )}
+        {/* Accordion Sections */}
+        <section>
+          <ProductAccordion
+            description={product.description}
+            detectionRange={product.detection_range}
+            sensitivity={product.sensitivity}
+            sampleType={product.sample_type || []}
+            galleryImages={galleryImages}
+            citations={
+              citations?.map((c) => ({
+                id: c.id,
+                title: c.title,
+                authors: c.authors,
+                journal: c.journal,
+                doi: c.doi,
+                impact_factor: c.impact_factor,
+                publication_date: c.publication_date,
+              })) || []
+            }
+            datasheetUrl={product.datasheet_url}
+            catNo={product.cat_no || '-'}
+          />
+        </section>
       </div>
     </div>
   )

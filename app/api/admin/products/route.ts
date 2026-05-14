@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdminOrSuper } from '@/lib/admin/auth'
 import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit, isPriceChangeSignificant } from '@/lib/admin/audit'
+import { generateProductSlug } from '@/lib/products'
 
 export async function GET(request: NextRequest) {
   const { error: authError } = await requireAdminOrSuper(request)
@@ -31,15 +32,27 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient()
   try {
     const body = await request.json()
-    const { name, target, detection_range, sensitivity, price, status = 'active', stock_status = 'in_stock' } = body
+    const {
+      catalog_number, name, target, detection_range, sensitivity, size,
+      price, status = 'active', stock_status = 'in_stock',
+      product_image, standard_curve_image, validation_image,
+      additional_image, datasheet_pdf,
+    } = body
 
     if (!name || !target) {
       return NextResponse.json({ error: '缺少必填字段（名称、靶标）' }, { status: 400 })
     }
 
+    const slug = generateProductSlug(name, target, catalog_number)
+
     const { data, error: dbError } = await supabase
       .from('products')
-      .insert({ name, target, detection_range, sensitivity, price, status, stock_status })
+      .insert({
+        catalog_number, name, target, detection_range, sensitivity, size, price, status, stock_status,
+        product_image, standard_curve_image, validation_image,
+        additional_image, datasheet_pdf,
+        slug,
+      })
       .select('id')
       .single()
 
@@ -87,6 +100,15 @@ export async function PUT(request: NextRequest) {
           )
         }
       }
+    }
+
+    // Ensure slug exists for legacy products missing one
+    if (!oldProduct.slug && !updates.slug) {
+      updates.slug = generateProductSlug(
+        updates.name || oldProduct.name,
+        updates.target || oldProduct.target,
+        updates.catalog_number || oldProduct.catalog_number
+      )
     }
 
     const { error: dbError } = await supabase.from('products').update(updates).eq('id', id)

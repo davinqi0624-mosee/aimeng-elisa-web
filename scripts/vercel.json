@@ -1,0 +1,29 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "regions": ["hkg1"],
+  "crons": [
+    {
+      "path": "/api/admin/knowledge/evolve",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/admin/knowledge/daily",
+      "schedule": "0 8 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    },
+    "app/api/ai/**/*.ts": {
+      "maxDuration": 60
+    },
+    "app/api/admin/knowledge/evolve/route.ts": {
+      "maxDuration": 120
+    }
+  }
+}

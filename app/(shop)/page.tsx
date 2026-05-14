@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import {
-  Search,
   ChevronRight,
   Microscope,
   MessageSquare,
@@ -159,59 +158,43 @@ export default async function ShopPage() {
     <div className="min-h-full">
       {/* Section 1: Hero */}
       <HeroBackground>
-        <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-32">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium mb-8">
-              <Sparkles className="w-3.5 h-3.5" />
-              AI 驱动的 ELISA 试剂盒平台
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black tracking-tight text-slate-900 leading-[1.1] mb-6">
-              让每一次
-              <br />
-              <span className="text-gradient">ELISA 实验</span>
-              <br />
-              都精准可靠
-            </h1>
-            <p className="text-lg md:text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
-              为科研工作者提供智能搜索、实验设计与数据分析，覆盖 {totalProducts.toLocaleString()}+ 试剂盒，覆盖 {totalSpecies}+ 种属
-            </p>
+        <div className="max-w-7xl mx-auto px-6 md:px-8 py-24 md:py-32 text-left">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium mb-6">
+            <Sparkles className="w-3.5 h-3.5" />
+            AI 驱动的 ELISA 试剂盒平台
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 leading-[1.1] mb-4">
+            让每一次
+            <br />
+            <span className="text-gradient">ELISA 实验</span>
+            <br />
+            都精准可靠
+          </h1>
+          <p className="text-sm md:text-base text-slate-600 leading-relaxed mb-8 whitespace-nowrap">
+            为科研工作者提供智能搜索、实验设计与数据分析，覆盖 {totalProducts.toLocaleString()}+ 试剂盒、{totalSpecies}+ 种属
+          </p>
 
-            {/* Search */}
-            <form action="/products" className="flex max-w-xl mb-8">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  name="query"
-                  type="text"
-                  placeholder="搜索靶标、种属、别名..."
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-l-xl text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-base"
-                />
-              </div>
-              <button
-                type="submit"
-                className="px-8 py-4 bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500 text-white rounded-r-xl font-semibold hover:opacity-90 transition-opacity"
-              >
-                搜索
-              </button>
-            </form>
+          {/* Advanced Search */}
+          <div className="max-w-3xl mr-auto mb-8">
+            <AdvancedSearch />
+          </div>
 
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center gap-4">
-              <Link
-                href="/lab/experiment"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
-              >
-                <FlaskConical className="w-4 h-4" />
-                设计实验方案
-              </Link>
-              <Link
-                href="/chat"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-slate-700 border border-slate-200 rounded-lg font-semibold hover:border-slate-300 transition-colors"
-              >
-                <MessageSquare className="w-4 h-4" />
-                咨询 AI 客服
-              </Link>
-            </div>
+          {/* CTAs */}
+          <div className="flex flex-wrap items-center justify-start gap-4">
+            <Link
+              href="/lab/experiment"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors"
+            >
+              <FlaskConical className="w-4 h-4" />
+              设计实验方案
+            </Link>
+            <Link
+              href="/chat"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-lg font-semibold hover:border-slate-300 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              咨询 AI 客服
+            </Link>
           </div>
         </div>
       </HeroBackground>
@@ -221,10 +204,10 @@ export default async function ShopPage() {
         <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { value: `${totalProducts.toLocaleString()}+`, label: '试剂盒', icon: <Microscope className="w-5 h-5 text-blue-600" /> },
-              { value: `${totalPapers.toLocaleString()}`, label: 'SCI 引用', icon: <FileText className="w-5 h-5 text-emerald-600" /> },
-              { value: `${totalSpecies}+`, label: '种属覆盖', icon: <TrendingUp className="w-5 h-5 text-violet-600" /> },
-              { value: '24h', label: 'AI 在线响应', icon: <Sparkles className="w-5 h-5 text-sky-600" /> },
+              { value: `${totalProducts.toLocaleString()}+`, label: '试剂盒', icon: <Microscope className="w-5 h-5 text-slate-500" /> },
+              { value: `${totalPapers.toLocaleString()}`, label: 'SCI 引用', icon: <FileText className="w-5 h-5 text-slate-500" /> },
+              { value: `${totalSpecies}+`, label: '种属覆盖', icon: <TrendingUp className="w-5 h-5 text-slate-500" /> },
+              { value: '24h', label: 'AI 在线响应', icon: <Sparkles className="w-5 h-5 text-slate-500" /> },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
@@ -256,9 +239,9 @@ export default async function ShopPage() {
               <Link
                 key={f.href}
                 href={f.href}
-                className="group bg-white border border-slate-200 rounded-xl p-8 hover:border-transparent hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-emerald-50/30 transition-all"
+                className="group bg-white border border-slate-200 rounded-xl p-8 hover:border-slate-300 hover:shadow-lg transition-all"
               >
-                <div className={`w-12 h-12 rounded-xl ${f.bg} ${f.color} flex items-center justify-center mb-5 group-hover:scale-105 transition-transform`}>
+                <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                   {f.icon}
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-2">{f.title}</h3>
@@ -290,11 +273,6 @@ export default async function ShopPage() {
             </Link>
           </div>
 
-          {/* Advanced Search Filter */}
-          <div className="mb-8">
-            <AdvancedSearch availableSpecies={speciesList} />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products?.map((product) => (
               <ProductCard
@@ -308,6 +286,7 @@ export default async function ShopPage() {
                   detection_range: product.detection_range,
                   stock_status: product.stock_status,
                   citation_count: product.citation_count,
+                  image_url: product.image_url,
                 }}
                 species={(product.product_species as any[])
                   ?.map((s: any) => s.species)}
@@ -377,7 +356,7 @@ export default async function ShopPage() {
             {todayKnowledge ? (
               <Link
                 href={`/knowledge/${todayKnowledge.date}`}
-                className="lg:col-span-2 group bg-white border border-slate-200 rounded-xl p-8 hover:border-transparent hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-emerald-50/30 transition-all"
+                className="lg:col-span-2 group bg-white border border-slate-200 rounded-xl p-8 hover:border-slate-300 hover:shadow-lg transition-all"
               >
                 <div className="flex items-center gap-2 mb-4">
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
@@ -405,7 +384,7 @@ export default async function ShopPage() {
             ) : recentKnowledge.length > 0 ? (
               <Link
                 href={`/knowledge/${recentKnowledge[0].date}`}
-                className="lg:col-span-2 group bg-white border border-slate-200 rounded-xl p-8 hover:border-transparent hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-emerald-50/30 transition-all"
+                className="lg:col-span-2 group bg-white border border-slate-200 rounded-xl p-8 hover:border-slate-300 hover:shadow-lg transition-all"
               >
                 <div className="flex items-center gap-2 mb-4">
                   <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
@@ -442,7 +421,7 @@ export default async function ShopPage() {
                 <Link
                   key={k.id}
                   href={`/knowledge/${k.date}`}
-                  className="block group bg-white border border-slate-200 rounded-xl p-5 hover:border-transparent hover:bg-gradient-to-br hover:from-blue-50/30 hover:to-emerald-50/20 transition-all"
+                  className="block group bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-md transition-all"
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs text-slate-400">{k.date}</span>

@@ -3,6 +3,12 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
+const DEFAULT_IMAGES = [
+  '/images/elisa/elisa_sandwich_sketch.jpg',
+  '/images/elisa/elisa_sandwich_lego.jpg',
+  '/images/elisa/elisa_sandwich_pencil.jpg',
+]
+
 interface ProductCardProps {
   product: {
     id: string
@@ -13,37 +19,37 @@ interface ProductCardProps {
     detection_range: string
     stock_status: string
     citation_count?: number
+    image_url?: string
   }
   species?: string[]
 }
 
-function extractTargetAbbrev(target: string): string {
-  if (!target) return '--'
-  // Try to extract the main target name, e.g. "Human IL-6 ELISA Kit" -> "IL-6"
-  const match = target.match(/([A-Za-z0-9\-αβγδεζηθικλμνξοπρστυφχψω]+)/)
-  if (match) {
-    const abbr = match[1]
-    return abbr.length > 8 ? abbr.slice(0, 8) : abbr
+function getDefaultImage(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return target.slice(0, 6)
+  const index = Math.abs(hash) % DEFAULT_IMAGES.length
+  return DEFAULT_IMAGES[index]
 }
 
 export default function ProductCard({ product, species = [] }: ProductCardProps) {
   const isInStock = product.stock_status === 'in_stock'
-  const targetAbbr = extractTargetAbbrev(product.target)
+  const displayImage = product.image_url || getDefaultImage(product.id)
 
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="group block bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-300 transition-colors"
+      className="group block bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 hover:shadow-md transition-all"
     >
-      {/* Product Image Placeholder — branded gradient circle */}
-      <div className="h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center group-hover:from-blue-50 group-hover:to-emerald-50 transition-colors">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg">
-          <span className="text-white font-bold text-sm text-center leading-tight px-1">
-            {targetAbbr}
-          </span>
-        </div>
+      {/* Product Image */}
+      <div className="h-48 w-full overflow-hidden bg-slate-50">
+        <img
+          src={displayImage}
+          alt={product.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
       </div>
 
       <div className="p-6">

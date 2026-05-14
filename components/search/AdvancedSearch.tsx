@@ -6,19 +6,30 @@ import { Search, X, Check } from 'lucide-react'
 import { SpeciesIcon, SPECIES_ORDER, SPECIES_LABELS } from '@/components/icons/SpeciesIcons'
 
 const GREEK_CHARS = [
-  { char: 'α', name: 'alpha', sub: 'a' },
-  { char: 'β', name: 'beta', sub: 'b' },
-  { char: 'γ', name: 'gamma', sub: 'g' },
-  { char: 'δ', name: 'delta', sub: 'd' },
-  { char: 'ε', name: 'epsilon', sub: 'e' },
-  { char: 'θ', name: 'theta', sub: 'th' },
-  { char: 'λ', name: 'lambda', sub: 'l' },
-  { char: 'μ', name: 'mu', sub: 'm' },
-  { char: 'π', name: 'pi', sub: 'pi' },
-  { char: 'σ', name: 'sigma', sub: 's' },
-  { char: 'φ', name: 'phi', sub: 'ph' },
-  { char: 'ψ', name: 'psi', sub: 'ps' },
-  { char: 'ω', name: 'omega', sub: 'o' },
+  { char: 'α', name: 'alpha' },
+  { char: 'β', name: 'beta' },
+  { char: 'γ', name: 'gamma' },
+  { char: 'δ', name: 'delta' },
+  { char: 'ε', name: 'epsilon' },
+  { char: 'ζ', name: 'zeta' },
+  { char: 'η', name: 'eta' },
+  { char: 'θ', name: 'theta' },
+  { char: 'ι', name: 'iota' },
+  { char: 'κ', name: 'kappa' },
+  { char: 'λ', name: 'lambda' },
+  { char: 'μ', name: 'mu' },
+  { char: 'ν', name: 'nu' },
+  { char: 'ξ', name: 'xi' },
+  { char: 'ο', name: 'omicron' },
+  { char: 'π', name: 'pi' },
+  { char: 'ρ', name: 'rho' },
+  { char: 'σ', name: 'sigma' },
+  { char: 'τ', name: 'tau' },
+  { char: 'υ', name: 'upsilon' },
+  { char: 'φ', name: 'phi' },
+  { char: 'χ', name: 'chi' },
+  { char: 'ψ', name: 'psi' },
+  { char: 'ω', name: 'omega' },
 ]
 
 const ROMAN_NUMERALS = [
@@ -32,16 +43,6 @@ const ROMAN_NUMERALS = [
   { char: 'Ⅷ', name: 'VIII', value: 8 },
   { char: 'Ⅸ', name: 'IX', value: 9 },
   { char: 'Ⅹ', name: 'X', value: 10 },
-  { char: 'Ⅺ', name: 'XI', value: 11 },
-  { char: 'Ⅻ', name: 'XII', value: 12 },
-  { char: 'ⅩⅢ', name: 'XIII', value: 13 },
-  { char: 'ⅩⅣ', name: 'XIV', value: 14 },
-  { char: 'ⅩⅤ', name: 'XV', value: 15 },
-  { char: 'ⅩⅥ', name: 'XVI', value: 16 },
-  { char: 'ⅩⅦ', name: 'XVII', value: 17 },
-  { char: 'ⅩⅧ', name: 'XVIII', value: 18 },
-  { char: 'ⅩⅨ', name: 'XIX', value: 19 },
-  { char: 'ⅩⅩ', name: 'XX', value: 20 },
 ]
 
 interface AdvancedSearchProps {
@@ -240,27 +241,29 @@ export default function AdvancedSearch({
         {/* Greek & Roman Panel */}
         {showGreekPanel && (
           <div
-            className="absolute z-20 mt-2 left-0 right-0 md:left-auto md:right-auto md:w-full bg-white rounded-xl shadow-lg border border-slate-200 p-3 max-h-80 overflow-y-auto"
+            className="absolute z-20 mt-2 left-0 right-0 md:left-auto md:right-auto md:w-full bg-white rounded-xl shadow-lg border border-slate-200 p-3 max-h-64 overflow-y-auto"
             onMouseDown={(e) => e.preventDefault()}
           >
             {/* Triangle */}
             <div className="absolute -top-2 left-6 w-4 h-4 bg-white border-l border-t border-slate-200 rotate-45" />
-            <div className="relative space-y-3">
+            <div className="relative space-y-2">
+              <p className="text-xs font-semibold text-slate-500">特殊符号</p>
+
               {/* Greek Letters */}
               <div>
-                <p className="text-xs font-medium text-slate-400 mb-1.5">希腊字母</p>
-                <div className="grid grid-cols-10 gap-1.5">
+                <p className="text-[10px] text-slate-400 mb-1">希腊字母</p>
+                <div className="grid grid-cols-12 gap-1">
                   {GREEK_CHARS.map((g) => (
                     <button
                       key={g.char}
+                      title={g.name}
                       onMouseDown={(e) => {
                         e.preventDefault()
                         insertGreekChar(g.char)
                       }}
-                      className="flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md border border-slate-100 bg-slate-50 hover:bg-gradient-to-r hover:from-blue-600 hover:via-emerald-500 hover:to-purple-500 hover:text-white hover:border-transparent transition-all min-h-[2.5rem]"
+                      className="w-6 h-6 flex items-center justify-center rounded border border-slate-100 bg-slate-50 hover:bg-blue-600 hover:text-white hover:border-transparent transition-all text-xs"
                     >
-                      <span className="text-lg leading-none">{g.char}</span>
-                      <span className="text-[10px] text-slate-400 leading-none mt-0.5">{g.name}</span>
+                      {g.char}
                     </button>
                   ))}
                 </div>
@@ -268,19 +271,19 @@ export default function AdvancedSearch({
 
               {/* Roman Numerals */}
               <div>
-                <p className="text-xs font-medium text-slate-400 mb-1.5">罗马数字</p>
-                <div className="grid grid-cols-10 gap-1.5">
+                <p className="text-[10px] text-slate-400 mb-1">罗马数字</p>
+                <div className="grid grid-cols-10 gap-1">
                   {ROMAN_NUMERALS.map((r) => (
                     <button
                       key={r.char}
+                      title={r.name}
                       onMouseDown={(e) => {
                         e.preventDefault()
                         insertGreekChar(r.char)
                       }}
-                      className="flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md border border-slate-100 bg-slate-50 hover:bg-gradient-to-r hover:from-blue-600 hover:via-emerald-500 hover:to-purple-500 hover:text-white hover:border-transparent transition-all min-h-[2.5rem]"
+                      className="w-6 h-6 flex items-center justify-center rounded border border-slate-100 bg-slate-50 hover:bg-blue-600 hover:text-white hover:border-transparent transition-all text-xs"
                     >
-                      <span className="text-lg leading-none">{r.char}</span>
-                      <span className="text-[10px] text-slate-400 leading-none mt-0.5">{r.name}</span>
+                      {r.char}
                     </button>
                   ))}
                 </div>

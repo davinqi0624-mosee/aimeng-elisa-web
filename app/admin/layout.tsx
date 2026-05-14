@@ -202,7 +202,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 overflow-auto pt-12 md:pt-0 bg-slate-950">
-        <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+        <div className={pathname.startsWith('/admin/pages/') && pathname.endsWith('/editor') ? 'h-full' : 'max-w-6xl mx-auto px-4 py-6 md:py-8'}>
           {children}
         </div>
       </main>

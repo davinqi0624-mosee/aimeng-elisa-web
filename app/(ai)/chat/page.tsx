@@ -116,7 +116,10 @@ export default function ChatPage() {
         signal: controller.signal,
       })
 
-      if (!res.ok) throw new Error('请求失败')
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: '请求失败', detail: '' }))
+        throw new Error(errorData.error || errorData.detail || '请求失败')
+      }
 
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
@@ -136,7 +139,9 @@ export default function ChatPage() {
           if (!match) continue
           try {
             const data = JSON.parse(match[1])
-            if (data.done) {
+            if (data.error) {
+              fullText = `服务异常: ${data.error}`
+            } else if (data.done) {
               fullText = data.fullText || fullText
             } else {
               fullText += data.text || ''

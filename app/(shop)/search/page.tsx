@@ -1,15 +1,17 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import ProductCard from '@/components/product/ProductCard'
+import AdvancedSearch from '@/components/search/AdvancedSearch'
 
 export default async function SearchPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; species?: string }>
 }) {
-  const { q: rawQuery, species: speciesFilter } = await searchParams
+  const { q: rawQuery, species: speciesParam } = await searchParams
   const query = rawQuery || ''
-  const activeSpecies = speciesFilter || 'all'
+  const speciesFilter = speciesParam ? speciesParam.split(',').filter(Boolean) : []
 
   const supabase = await createClient()
 
@@ -20,7 +22,7 @@ export default async function SearchPage({
   try {
     const { data, error } = await supabase.rpc('search_products', {
       search_query: query || null,
-      species_filter: activeSpecies !== 'all' ? activeSpecies : null,
+      species_filter: speciesFilter.length === 1 ? speciesFilter[0] : null,
     })
     if (error) throw error
     products = data
@@ -29,7 +31,7 @@ export default async function SearchPage({
     // 降级：直接使用 supabase-js 查询（不关联别名表）
     let dbQuery = supabase
       .from('products')
-      .select('id, name, slug, target, price, detection_range, stock_status')
+      .select('id, name, slug, target, price, detection_range, stock_status, citation_count, image_url')
       .eq('status', 'active')
 
     if (query) {
@@ -46,11 +48,21 @@ export default async function SearchPage({
   }
 
   // 如果按种属筛选且 RPC 降级，需要进一步过滤
-  if (rpcError && activeSpecies !== 'all' && products && products.length > 0) {
+  if (rpcError && speciesFilter.length > 0 && products && products.length > 0) {
     const { data: speciesRows } = await supabase
       .from('product_species')
       .select('product_id')
-      .eq('species', activeSpecies)
+      .in('species', speciesFilter)
+    const allowedIds = new Set(speciesRows?.map((r) => r.product_id) || [])
+    products = products.filter((p) => allowedIds.has(p.id))
+  }
+
+  // 如果 RPC 成功返回但有种属筛选，且返回了多种属结果，需要进一步过滤
+  if (!rpcError && speciesFilter.length > 0 && products && products.length > 0) {
+    const { data: speciesRows } = await supabase
+      .from('product_species')
+      .select('product_id, species')
+      .in('species', speciesFilter)
     const allowedIds = new Set(speciesRows?.map((r) => r.product_id) || [])
     products = products.filter((p) => allowedIds.has(p.id))
   }
@@ -63,6 +75,8 @@ export default async function SearchPage({
     price: number
     detection_range: string
     stock_status: string
+    citation_count?: number
+    image_url?: string
   }
   const typedProducts = (products || []) as ProductRow[]
 
@@ -91,29 +105,15 @@ export default async function SearchPage({
     ...new Set(allSpeciesRows?.map((r) => r.species) || []),
   ]
 
+  const hasFilters = query || speciesFilter.length > 0
+
   return (
     <div className="h-full bg-gray-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Search Header */}
         <div className="mb-8">
-          <form action="/search" className="flex max-w-xl mb-4">
-            <input
-              name="q"
-              type="text"
-              defaultValue={query}
-              placeholder="搜索靶标、种属、别名...（试试 IL1b、TNFa、IFNg）"
-              className="flex-1 px-4 py-3 rounded-l-lg border border-r-0 border-gray-300 outline-none focus:border-blue-500"
-            />
-            <button
-              type="submit"
-              className="px-6 py-3 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 font-medium"
-            >
-              搜索
-            </button>
-          </form>
-
-          <h1 className="text-2xl font-bold text-gray-900">
-            {query ? `「${query}」的搜索结果` : '所有产品'}
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            {hasFilters ? '筛选结果' : '所有产品'}
           </h1>
           <p className="text-gray-500 mt-1">
             共找到 {typedProducts.length} 款产品
@@ -125,31 +125,15 @@ export default async function SearchPage({
           )}
         </div>
 
-        {/* Species Filter */}
-        <div className="flex gap-3 mb-8 overflow-x-auto">
-          <Link
-            href={`/search?q=${encodeURIComponent(query)}`}
-            className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${
-              activeSpecies === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            全部
-          </Link>
-          {speciesList.map((s) => (
-            <Link
-              key={s}
-              href={`/search?q=${encodeURIComponent(query)}&species=${s}`}
-              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors ${
-                activeSpecies === s
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {s}
-            </Link>
-          ))}
+        {/* Advanced Search */}
+        <div className="mb-8">
+          <Suspense fallback={<div className="h-40 bg-white rounded-xl border border-gray-200 animate-pulse" />}>
+            <AdvancedSearch
+              availableSpecies={speciesList}
+              targetPath="/search"
+              queryParamName="q"
+            />
+          </Suspense>
         </div>
 
         {/* Results Grid */}
@@ -164,7 +148,7 @@ export default async function SearchPage({
         </div>
 
         {typedProducts.length === 0 && (
-          <div className="text-center py-20">
+          <div className="text-center py-20 bg-white rounded-xl border border-gray-200">
             <p className="text-gray-400 text-lg mb-2">未找到匹配的产品</p>
             <p className="text-gray-400 text-sm">
               试试搜索 IL-6、TNF-alpha、IL-1β 等靶标

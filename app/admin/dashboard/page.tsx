@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   BookOpen,
   Shield,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 
 interface Stats {
@@ -39,6 +41,20 @@ export default function AdminDashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [adminRole, setAdminRole] = useState<string>('admin')
+
+  // Storage cleanup state
+  const [cleaning, setCleaning] = useState(false)
+  const [cleanupResult, setCleanupResult] = useState<{
+    totalFiles: number
+    referencedFiles: number
+    orphanedFiles: number
+    deletedFiles: number
+    deletedByBucket: Record<string, number>
+  } | null>(null)
+
+  // Fix slugs state
+  const [fixingSlugs, setFixingSlugs] = useState(false)
+  const [fixSlugsResult, setFixSlugsResult] = useState<{ fixed: number; message: string } | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/me')
@@ -84,6 +100,43 @@ export default function AdminDashboardPage() {
     { label: '现货库存', value: stats.inStock, icon: <Archive className="w-4 h-4 text-sky-600" />, color: 'bg-sky-50', href: '/admin/products' },
     { label: '缺货商品', value: stats.outOfStock, icon: <AlertTriangle className="w-4 h-4 text-orange-600" />, color: 'bg-orange-50', href: '/admin/products' },
   ]
+
+  const handleCleanup = async () => {
+    if (!confirm('确定清理未引用的存储文件吗？此操作不可撤销。')) return
+    setCleaning(true)
+    try {
+      const res = await fetch('/api/admin/storage-cleanup', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setCleanupResult(data)
+      } else {
+        alert('清理失败: ' + (data.error || '未知错误'))
+      }
+    } catch {
+      alert('清理请求失败')
+    } finally {
+      setCleaning(false)
+    }
+  }
+
+  const handleFixSlugs = async () => {
+    if (!confirm('确定为所有缺失 slug 的产品自动生成 slug 吗？')) return
+    setFixingSlugs(true)
+    setFixSlugsResult(null)
+    try {
+      const res = await fetch('/api/admin/products/fix-slugs', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setFixSlugsResult(data)
+      } else {
+        alert('修复失败: ' + (data.error || '未知错误'))
+      }
+    } catch {
+      alert('修复请求失败')
+    } finally {
+      setFixingSlugs(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -141,6 +194,70 @@ export default function AdminDashboardPage() {
               </Link>
             ))}
           </div>
+
+          {adminRole === 'super' && (
+            <>
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">存储空间清理</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">删除数据库中未引用的 Storage 文件（孤儿文件）</p>
+                </div>
+                <button
+                  onClick={handleCleanup}
+                  disabled={cleaning}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 disabled:opacity-50"
+                >
+                  {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {cleaning ? '清理中...' : '开始清理'}
+                </button>
+              </div>
+              {cleanupResult && (
+                <div className="mt-4 grid grid-cols-4 gap-3 text-center">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-lg font-bold text-gray-900">{cleanupResult.totalFiles}</div>
+                    <div className="text-[10px] text-gray-500">Storage 总文件</div>
+                  </div>
+                  <div className="bg-emerald-50 rounded-lg p-3">
+                    <div className="text-lg font-bold text-emerald-700">{cleanupResult.referencedFiles}</div>
+                    <div className="text-[10px] text-emerald-600">已引用文件</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-3">
+                    <div className="text-lg font-bold text-amber-700">{cleanupResult.orphanedFiles}</div>
+                    <div className="text-[10px] text-amber-600">孤儿文件</div>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-3">
+                    <div className="text-lg font-bold text-red-600">{cleanupResult.deletedFiles}</div>
+                    <div className="text-[10px] text-red-500">已删除</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">修复缺失 Slug</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">为数据库中缺少 slug 的产品自动生成唯一 slug（修复 404）</p>
+                </div>
+                <button
+                  onClick={handleFixSlugs}
+                  disabled={fixingSlugs}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 disabled:opacity-50"
+                >
+                  {fixingSlugs ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                  {fixingSlugs ? '修复中...' : '一键修复'}
+                </button>
+              </div>
+              {fixSlugsResult && (
+                <div className="mt-4 bg-emerald-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-emerald-700">{fixSlugsResult.fixed}</div>
+                  <div className="text-[10px] text-emerald-600">{fixSlugsResult.message}</div>
+                </div>
+              )}
+            </div>
+            </>
+          )}
         </>
       )}
     </div>
