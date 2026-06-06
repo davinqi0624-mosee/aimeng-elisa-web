@@ -1,6 +1,6 @@
 import Navbar from '@/components/Navbar';
 
-export default function KnowledgeLayout({ children }: { children: React.ReactNode }) {
+export default function MemberLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />

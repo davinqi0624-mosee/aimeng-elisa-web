@@ -7,7 +7,7 @@ import {
   ChevronDown,
   FileText,
   BarChart3,
-  Beaker,
+  ImageIcon,
   Info,
   BookOpen,
   Download,
@@ -34,20 +34,12 @@ interface ProductAccordionProps {
   description?: string | null
   detectionRange?: string | null
   sensitivity?: string | null
-  sampleType: string[]
   galleryImages: { url: string; type: string; label: string }[]
   citations?: Citation[]
   datasheetUrl?: string | null
   catNo: string
 }
 
-const SAMPLE_GUIDES: Record<string, string> = {
-  '血清': '采集全血后室温静置 30 分钟，2,000×g 离心 15 分钟，取上清立即检测或分装后 -20°C 保存。避免反复冻融。',
-  '血浆': '使用 EDTA、肝素或枸橼酸钠抗凝管采集，2,000×g 离心 15 分钟，取上清。建议采集后 2 小时内完成离心。',
-  '细胞上清': '培养细胞至对数生长期，收集培养基，1,000×g 离心 10 分钟去除细胞碎片，取上清检测。',
-  '组织匀浆': '取新鲜组织，按 1:9 (w/v) 加入预冷 PBS，匀浆后 10,000×g 离心 10 分钟，取上清。',
-  '细胞裂解液': '使用 RIPA 裂解液裂解细胞，12,000×g 离心 10 分钟，取上清并用 BCA 法测定总蛋白浓度。',
-}
 
 function SectionHeader({
   id,
@@ -82,7 +74,6 @@ export default function ProductAccordion({
   description,
   detectionRange,
   sensitivity,
-  sampleType,
   galleryImages,
   citations,
   datasheetUrl,
@@ -103,6 +94,9 @@ export default function ProductAccordion({
   }
 
   const standardCurveImage = galleryImages.find((img) => img.type === 'standard_curve')
+  const productImages = galleryImages.filter((img) =>
+    ['product', 'validation', 'additional'].includes(img.type)
+  )
 
   const sections: AccordionSection[] = [
     {
@@ -155,130 +149,129 @@ export default function ProductAccordion({
         </div>
       ),
     },
-    {
-      id: 'sample',
-      title: '样本处理指南',
-      icon: <Beaker className="w-5 h-5" />,
+  ]
+
+  if (productImages.length > 0) {
+    sections.push({
+      id: 'images',
+      title: '产品图片',
+      icon: <ImageIcon className="w-5 h-5" />,
       content: (
-        <div className="px-5 pb-5 space-y-3">
-          {sampleType.length > 0 ? (
-            sampleType.map((type) => (
-              <div key={type} className="bg-slate-50 rounded-lg p-4">
-                <p className="text-sm font-semibold text-slate-900 mb-1">{type}</p>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  {SAMPLE_GUIDES[type] || '请参照说明书进行样本预处理。'}
-                </p>
+        <div className="px-5 pb-5 space-y-4">
+          {productImages.map((img) => (
+            <div key={img.type} className="space-y-2">
+              <p className="text-sm font-medium text-slate-700">{img.label}</p>
+              <div className="relative h-64 md:h-80 rounded-xl overflow-hidden border border-slate-200 bg-white">
+                <Image
+                  src={img.url}
+                  alt={img.label}
+                  fill
+                  className="object-contain"
+                  sizes="800px"
+                />
               </div>
-            ))
-          ) : (
-            <p className="text-slate-400">请参照说明书进行样本处理。</p>
-          )}
+            </div>
+          ))}
         </div>
       ),
-    },
-    {
+    })
+  }
+
+  if (standardCurveImage) {
+    sections.push({
       id: 'curve',
       title: '标准曲线示例',
       icon: <BarChart3 className="w-5 h-5" />,
       content: (
         <div className="px-5 pb-5">
-          {standardCurveImage ? (
-            <div className="relative h-64 md:h-80 rounded-xl overflow-hidden border border-slate-200 bg-white">
-              <Image
-                src={standardCurveImage.url}
-                alt="标准曲线示例"
-                fill
-                className="object-contain"
-                sizes="800px"
-              />
-            </div>
-          ) : (
-            <div className="h-64 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center">
-              <p className="text-slate-400">暂无标准曲线数据</p>
-            </div>
-          )}
+          <div className="relative h-64 md:h-80 rounded-xl overflow-hidden border border-slate-200 bg-white">
+            <Image
+              src={standardCurveImage.url}
+              alt="标准曲线示例"
+              fill
+              className="object-contain"
+              sizes="800px"
+            />
+          </div>
           <p className="text-xs text-slate-500 mt-3 text-center">
             典型标准曲线（以对数-线性拟合为例），实际数据请以实验为准
           </p>
         </div>
       ),
-    },
-    {
-      id: 'citations',
-      title: `引用文献 (${citations?.length || 0})`,
-      icon: <BookOpen className="w-5 h-5" />,
-      content: (
-        <div className="px-5 pb-5 space-y-3">
-          {citations && citations.length > 0 ? (
-            citations.map((c) => (
-              <div
-                key={c.id}
-                className="border border-slate-200 rounded-xl p-4 hover:border-indigo-200 transition-colors"
-              >
-                <h4 className="font-semibold text-slate-900 text-sm mb-1">{c.title}</h4>
-                <p className="text-xs text-slate-500 mb-2">{c.authors}</p>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                  <span className="font-medium text-slate-600">{c.journal}</span>
-                  <span>IF: {c.impact_factor || '-'}</span>
-                  <span>
-                    {c.publication_date ? new Date(c.publication_date).getFullYear() : '-'}
-                  </span>
-                  {c.doi && (
-                    <a
-                      href={`https://doi.org/${c.doi}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      DOI: {c.doi}
-                    </a>
-                  )}
-                </div>
+    })
+  }
+
+  sections.push({
+    id: 'citations',
+    title: `引用文献 (${citations?.length || 0})`,
+    icon: <BookOpen className="w-5 h-5" />,
+    content: (
+      <div className="px-5 pb-5 space-y-3">
+        {citations && citations.length > 0 ? (
+          citations.map((c) => (
+            <div
+              key={c.id}
+              className="border border-slate-200 rounded-xl p-4 hover:border-indigo-200 transition-colors"
+            >
+              <h4 className="font-semibold text-slate-900 text-sm mb-1">{c.title}</h4>
+              <p className="text-xs text-slate-500 mb-2">{c.authors}</p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <span className="font-medium text-slate-600">{c.journal}</span>
+                <span>IF: {c.impact_factor || '-'}</span>
+                <span>
+                  {c.publication_date ? new Date(c.publication_date).getFullYear() : '-'}
+                </span>
+                {c.doi && (
+                  <a
+                    href={`https://doi.org/${c.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    DOI: {c.doi}
+                  </a>
+                )}
               </div>
-            ))
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-slate-400 mb-2">暂无引用文献</p>
-              <p className="text-sm text-slate-500">
-                使用本产品发表论文？
-                <Link href="/user/citations/submit" className="text-blue-600 hover:underline ml-1">
-                  提交引用文献获得积分奖励 →
-                </Link>
-              </p>
             </div>
-          )}
-        </div>
-      ),
-    },
-    {
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-slate-400 mb-2">暂无引用文献</p>
+            <p className="text-sm text-slate-500">
+              使用本产品发表论文？
+              <Link href="/user/citations/submit" className="text-blue-600 hover:underline ml-1">
+                提交引用文献获得积分奖励 →
+              </Link>
+            </p>
+          </div>
+        )}
+      </div>
+    ),
+  })
+
+  if (datasheetUrl) {
+    sections.push({
       id: 'datasheet',
       title: '说明书下载',
       icon: <Download className="w-5 h-5" />,
       content: (
         <div className="px-5 pb-5">
-          {datasheetUrl ? (
-            <a
-              href={datasheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 px-5 py-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors"
-            >
-              <FileText className="w-5 h-5" />
-              <div>
-                <p className="font-semibold text-sm">{catNo} 说明书.pdf</p>
-                <p className="text-xs text-blue-500">点击下载 / 在线预览</p>
-              </div>
-            </a>
-          ) : (
-            <div className="flex items-center gap-3 px-5 py-3 bg-slate-50 rounded-lg border border-slate-200">
-              <FileText className="w-5 h-5 text-slate-400" />
-              <p className="text-sm text-slate-400">说明书暂缺</p>
+          <a
+            href={datasheetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-3 px-5 py-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors"
+          >
+            <FileText className="w-5 h-5" />
+            <div>
+              <p className="font-semibold text-sm">{catNo} 说明书.pdf</p>
+              <p className="text-xs text-blue-500">点击下载 / 在线预览</p>
             </div>
-          )}
+          </a>
         </div>
       ),
-    },
-  ]
+    })
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">

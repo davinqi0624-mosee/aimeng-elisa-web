@@ -1,0 +1,214 @@
+'use client';
+
+import { useState } from 'react';
+import Navbar from '@/components/Navbar';
+import {
+  TrendingUp, Calculator, LineChart, FileSpreadsheet,
+  Upload, Download, Play, RotateCcw, CheckCircle,
+  Table, BarChart3, Sigma
+} from 'lucide-react';
+
+export default function AnalysisPage() {
+  const [odValues, setOdValues] = useState('');
+  const [activeTab, setActiveTab] = useState<'input' | 'curve' | 'report'>('input');
+
+  return (
+    <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B]">
+      <Navbar />
+      <div className="pt-20 pb-12 px-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#1E293B]">实验数据分析工作台</h1>
+            </div>
+            <p className="text-[#94A3B8]">从原始OD值到专业实验报告，一站式完成数据分析</p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6">
+            {[
+              { id: 'input' as const, label: '数据输入', icon: Table },
+              { id: 'curve' as const, label: '标准曲线', icon: LineChart },
+              { id: 'report' as const, label: '报告生成', icon: FileSpreadsheet },
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-[#475569] hover:bg-blue-50 border border-gray-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Content */}
+          {activeTab === 'input' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-[#1E293B] flex items-center gap-2">
+                      <Table className="w-4 h-4 text-blue-600" /> OD 值输入
+                    </h3>
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F6F8FB] text-[#475569] hover:bg-blue-50 border border-gray-200 flex items-center gap-1">
+                        <Upload className="w-3 h-3" /> 导入 CSV
+                      </button>
+                      <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F6F8FB] text-[#475569] hover:bg-blue-50 border border-gray-200 flex items-center gap-1">
+                        <RotateCcw className="w-3 h-3" /> 清空
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={odValues}
+                    onChange={e => setOdValues(e.target.value)}
+                    placeholder={`示例格式（标准品 + 未知样本）：
+标准品浓度(pg/mL)\tOD450
+500\t2.845
+250\t1.923
+125\t1.156
+62.5\t0.687
+31.25\t0.412
+15.625\t0.251
+7.812\t0.148
+0\t0.052
+
+未知样本\tOD450
+Sample-1\t0.892
+Sample-2\t1.234`}
+                    className="w-full h-80 p-4 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm font-mono text-[#1E293B] outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 resize-none"
+                  />
+                  <div className="flex gap-3 mt-4">
+                    <button className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                      <Play className="w-4 h-4" /> 开始 4PL 拟合
+                    </button>
+                    <button className="px-4 py-3 rounded-xl border border-gray-200 text-[#475569] font-medium hover:bg-blue-50 transition-all flex items-center gap-2">
+                      <Sigma className="w-4 h-4" /> 线性拟合
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <h3 className="font-semibold text-[#1E293B] mb-4">参数设置</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs text-[#94A3B8] mb-1 block">拟合模型</label>
+                      <select className="w-full px-3 py-2 rounded-lg bg-[#F6F8FB] border border-gray-200 text-sm outline-none">
+                        <option>四参数 Logistic (4PL)</option>
+                        <option>五参数 Logistic (5PL)</option>
+                        <option>线性拟合</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-[#94A3B8] mb-1 block">权重方法</label>
+                      <select className="w-full px-3 py-2 rounded-lg bg-[#F6F8FB] border border-gray-200 text-sm outline-none">
+                        <option>无权重</option>
+                        <option>1/Y</option>
+                        <option>1/Y²</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="blank" className="rounded" defaultChecked />
+                      <label htmlFor="blank" className="text-sm text-[#475569]">扣除空白孔</label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="cv" className="rounded" defaultChecked />
+                      <label htmlFor="cv" className="text-sm text-[#475569]">计算复孔 CV 值</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                  <h3 className="font-semibold text-[#1E293B] mb-4">使用指南</h3>
+                  <div className="space-y-3 text-sm text-[#94A3B8]">
+                    <p className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      输入标准品浓度和对应 OD 值
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      系统自动进行 4PL 回归拟合
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      计算未知样本浓度和置信区间
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      一键导出 PDF 实验报告
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'curve' && (
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+                <LineChart className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-[#1E293B] mb-2">标准曲线预览</h3>
+              <p className="text-[#94A3B8] mb-6">请先输入 OD 值数据并点击"开始 4PL 拟合"</p>
+              <div className="bg-[#F6F8FB] rounded-xl p-8 border border-gray-100 inline-block">
+                <svg viewBox="0 0 600 300" className="w-full max-w-2xl h-auto">
+                  <defs>
+                    <pattern id="grid2" width="50" height="30" patternUnits="userSpaceOnUse">
+                      <path d="M 50 0 L 0 0 0 30" fill="none" stroke="#E2E8F0" strokeWidth="1"/>
+                    </pattern>
+                    <linearGradient id="curveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#3b82f6"/>
+                      <stop offset="100%" stopColor="#22d3ee"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="600" height="300" fill="url(#grid2)"/>
+                  <line x1="60" y1="260" x2="580" y2="260" stroke="#94a3b8" strokeWidth="1"/>
+                  <line x1="60" y1="260" x2="60" y2="20" stroke="#94a3b8" strokeWidth="1"/>
+                  <text x="320" y="290" textAnchor="middle" fill="#94a3b8" fontSize="12">Concentration (pg/mL) - Log Scale</text>
+                  <text x="15" y="150" textAnchor="middle" fill="#94a3b8" fontSize="12" transform="rotate(-90 15 150)">OD450</text>
+                  <path d="M 60 240 Q 150 220 250 160 Q 380 80 500 35 Q 550 20 580 15" fill="none" stroke="url(#curveGrad)" strokeWidth="3" strokeLinecap="round"/>
+                  <circle cx="120" cy="228" r="5" fill="#3b82f6" stroke="white" strokeWidth="2"/>
+                  <circle cx="200" cy="195" r="5" fill="#3b82f6" stroke="white" strokeWidth="2"/>
+                  <circle cx="280" cy="145" r="5" fill="#3b82f6" stroke="white" strokeWidth="2"/>
+                  <circle cx="380" cy="85" r="5" fill="#3b82f6" stroke="white" strokeWidth="2"/>
+                  <circle cx="480" cy="45" r="5" fill="#3b82f6" stroke="white" strokeWidth="2"/>
+                  <circle cx="550" cy="25" r="5" fill="#3b82f6" stroke="white" strokeWidth="2"/>
+                  <circle cx="320" cy="105" r="6" fill="#f59e0b" stroke="white" strokeWidth="2"/>
+                  <text x="320" y="95" textAnchor="middle" fill="#f59e0b" fontSize="10" fontWeight="bold">Unknown</text>
+                </svg>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'report' && (
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
+                <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-[#1E293B] mb-2">实验报告生成</h3>
+              <p className="text-[#94A3B8] mb-6">完成数据分析后，可在此生成包含标准曲线、数据表的专业 PDF 报告</p>
+              <button className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-medium hover:shadow-lg transition-all flex items-center gap-2 mx-auto">
+                <Download className="w-4 h-4" /> 生成 PDF 报告
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

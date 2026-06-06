@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react'
-import { fit4PL, calculateSamples, formatEquation, getFitQuality } from '@/lib/elisa-4pl-core'
 
 interface StandardPoint {
   concentration: number
@@ -38,12 +37,6 @@ interface FitResult {
 
 type TabType = 'input' | 'curve' | 'report'
 
-// 内联的4PL公式计算（用于SVG曲线绘制和报告生成）
-const fourPL = (x: number, A: number, B: number, C: number, D: number): number => {
-  if (x <= 0) x = 1e-6
-  return D + (A - D) / (1 + Math.pow(x / C, B))
-}
-
 export default function ElisaAnalysisPage() {
   const [activeTab, setActiveTab] = useState<TabType>('input')
   const [rawInput, setRawInput] = useState<string>(
@@ -67,6 +60,158 @@ export default function ElisaAnalysisPage() {
   const [error, setError] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
+
+  // ============ 4PL 核心算法 ============
+  const fourPL = (x: number, A: number, B: number, C: number, D: number): number => {
+    if (x <= 0) x = 1e-6
+    return D + (A - D) / (1 + Math.pow(x / C, B))
+  }
+
+  const inverseFourPL = (y: number, A: number, B: number, C: number, D: number): number => {
+    if (y >= A) return 0
+    if (y <= D) return Infinity
+    return C * Math.pow((A - D) / (y - D) - 1, 1 / B)
+  }
+
+  const linearFit = (data: StandardPoint[]) => {
+    const n = data.length
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
+    for (const d of data) {
+      const lx = Math.log10(d.concentration + 1e-6)
+      sumX += lx
+      sumY += d.od
+      sumXY += lx * d.od
+      sumX2 += lx * lx
+    }
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+    const intercept = (sumY - slope * sumX) / n
+
+    const points = data.map((d) => {
+      const lx = Math.log10(d.concentration + 1e-6)
+      return { x: d.concentration, y: d.od, predicted: slope * lx + intercept }
+    })
+
+    const meanY = sumY / n
+    const ssTot = data.reduce((s, d) => s + Math.pow(d.od - meanY, 2), 0)
+    const ssRes = points.reduce((s, p) => s + Math.pow(p.y - p.predicted, 2), 0)
+    const r2 = 1 - ssRes / ssTot
+
+    return { A: 0, B: slope, C: 0, D: intercept, r2, type: 'linear' as const, points }
+  }
+
+  const fit4PL = (data: StandardPoint[]) => {
+    const ys = data.map((d) => d.od)
+    let A = Math.max(...ys) * 1.02
+    let D = Math.min(...ys) * 0.98
+    if (D < 0) D = 0.001
+
+    const midY = (A + D) / 2
+    let C = data[Math.floor(data.length / 2)].concentration
+    for (let i = 0; i < data.length - 1; i++) {
+      if ((data[i].od - midY) * (data[i + 1].od - midY) <= 0) {
+        C = (data[i].concentration + data[i + 1].concentration) / 2
+        break
+      }
+    }
+    let B = 1.0
+
+    let lambda = 0.001
+    const maxIter = 200
+
+    for (let iter = 0; iter < maxIter; iter++) {
+      const residuals: number[] = []
+      const jacobian: number[][] = []
+
+      for (const d of data) {
+        const pred = fourPL(d.concentration, A, B, C, D)
+        const r = d.od - pred
+        residuals.push(r)
+
+        const eps = 1e-6
+        const dA = (fourPL(d.concentration, A + eps, B, C, D) - pred) / eps
+        const dB = (fourPL(d.concentration, A, B + eps, C, D) - pred) / eps
+        const dC = (fourPL(d.concentration, A, B, C + eps, D) - pred) / eps
+        const dD = (fourPL(d.concentration, A, B, C, D + eps) - pred) / eps
+        jacobian.push([dA, dB, dC, dD])
+      }
+
+      const jtj = Array.from({ length: 4 }, () => [0, 0, 0, 0])
+      const jtr = [0, 0, 0, 0]
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          for (let k = 0; k < data.length; k++) {
+            jtj[i][j] += jacobian[k][i] * jacobian[k][j]
+          }
+        }
+        jtj[i][i] += lambda
+        for (let k = 0; k < data.length; k++) {
+          jtr[i] += jacobian[k][i] * residuals[k]
+        }
+      }
+
+      const delta = solve4x4(jtj, jtr)
+      const newA = A + delta[0]
+      const newB = B + delta[1]
+      const newC = C + delta[2]
+      const newD = D + delta[3]
+
+      const oldRSS = residuals.reduce((s, r) => s + r * r, 0)
+      const newRSS = data.reduce(
+        (s, d) => s + Math.pow(d.od - fourPL(d.concentration, newA, newB, newC, newD), 2),
+        0
+      )
+
+      if (newRSS < oldRSS && newA > newD && newC > 0 && newB > 0) {
+        A = newA
+        B = newB
+        C = newC
+        D = newD
+        lambda *= 0.1
+      } else {
+        lambda *= 10
+      }
+    }
+
+    const points = data.map((d) => ({
+      x: d.concentration,
+      y: d.od,
+      predicted: fourPL(d.concentration, A, B, C, D),
+    }))
+
+    const meanY = ys.reduce((a, b) => a + b, 0) / ys.length
+    const ssTot = ys.reduce((s, y) => s + Math.pow(y - meanY, 2), 0)
+    const ssRes = points.reduce((s, p) => s + Math.pow(p.y - p.predicted, 2), 0)
+    const r2 = 1 - ssRes / ssTot
+
+    return { A, B, C, D, r2, type: '4pl' as const, points }
+  }
+
+  const solve4x4 = (A: number[][], b: number[]): number[] => {
+    const n = 4
+    const M = A.map((row, i) => [...row, b[i]])
+    for (let i = 0; i < n; i++) {
+      let max = Math.abs(M[i][i])
+      let maxRow = i
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(M[k][i]) > max) {
+          max = Math.abs(M[k][i])
+          maxRow = k
+        }
+      }
+      ;[M[i], M[maxRow]] = [M[maxRow], M[i]]
+      for (let k = i + 1; k < n; k++) {
+        const factor = M[k][i] / M[i][i]
+        for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j]
+      }
+    }
+    const x = [0, 0, 0, 0]
+    for (let i = n - 1; i >= 0; i--) {
+      x[i] = M[i][n]
+      for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j]
+      x[i] /= M[i][i]
+    }
+    return x
+  }
 
   // ============ 数据解析 ============
   const parseData = useCallback(() => {
@@ -126,7 +271,6 @@ export default function ElisaAnalysisPage() {
     return { stds, unks }
   }, [rawInput])
 
-  // ============ 4PL 拟合（调用修复后的核心算法） ============
   const handle4PL = () => {
     setError('')
     setIsLoading(true)
@@ -139,35 +283,14 @@ export default function ElisaAnalysisPage() {
       }
       stds.sort((a, b) => a.concentration - b.concentration)
       setStandards(stds)
+      setUnknowns(unks)
 
-      // 调用修复后的核心算法
-      const concentrations = stds.map(s => s.concentration)
-      const odValues = stds.map(s => s.od)
-      const coreResult = fit4PL(concentrations, odValues)
+      const result = fit4PL(stds)
+      setFitResult(result)
 
-      // 适配原有的 FitResult 接口
-      const fitResult: FitResult = {
-        A: coreResult.A,
-        B: coreResult.B,
-        C: coreResult.C,
-        D: coreResult.D,
-        r2: coreResult.r2,
-        type: '4pl',
-        points: stds.map((s, i) => ({
-          x: s.concentration,
-          y: s.od,
-          predicted: coreResult.yPredicted[i]
-        }))
-      }
-      setFitResult(fitResult)
-
-      // 计算样本浓度
-      const samples = unks.map(u => ({ name: u.name, od: u.od }))
-      const sampleResults = calculateSamples(samples, coreResult, concentrations)
-      const calculated = sampleResults.map(s => ({
-        name: s.name,
-        od: s.od,
-        concentration: s.concentration === Infinity ? undefined : s.concentration
+      const calculated = unks.map((u) => ({
+        ...u,
+        concentration: inverseFourPL(u.od, result.A, result.B, result.C, result.D),
       }))
       setUnknowns(calculated)
       setActiveTab('curve')
@@ -178,7 +301,6 @@ export default function ElisaAnalysisPage() {
     }
   }
 
-  // ============ 线性拟合 ============
   const handleLinear = () => {
     setError('')
     setIsLoading(true)
@@ -193,29 +315,7 @@ export default function ElisaAnalysisPage() {
       setStandards(stds)
       setUnknowns(unks)
 
-      const n = stds.length
-      let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
-      for (const d of stds) {
-        const lx = Math.log10(d.concentration + 1e-6)
-        sumX += lx
-        sumY += d.od
-        sumXY += lx * d.od
-        sumX2 += lx * lx
-      }
-      const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
-      const intercept = (sumY - slope * sumX) / n
-
-      const points = stds.map((d) => {
-        const lx = Math.log10(d.concentration + 1e-6)
-        return { x: d.concentration, y: d.od, predicted: slope * lx + intercept }
-      })
-
-      const meanY = sumY / n
-      const ssTot = stds.reduce((s, d) => s + Math.pow(d.od - meanY, 2), 0)
-      const ssRes = points.reduce((s, p) => s + Math.pow(p.y - p.predicted, 2), 0)
-      const r2 = 1 - ssRes / ssTot
-
-      const result: FitResult = { A: 0, B: slope, C: 0, D: intercept, r2, type: 'linear', points }
+      const result = linearFit(stds)
       setFitResult(result)
 
       const calculated = unks.map((u) => {
@@ -265,16 +365,16 @@ export default function ElisaAnalysisPage() {
       '【拟合参数】',
       ...(fitResult.type === '4pl'
         ? [
-            'A (Bottom): ' + fitResult.A.toFixed(4),
+            'A (Top): ' + fitResult.A.toFixed(4),
             'B (Hill Slope): ' + fitResult.B.toFixed(4),
             'C (EC50): ' + fitResult.C.toFixed(4),
-            'D (Top): ' + fitResult.D.toFixed(4),
+            'D (Bottom): ' + fitResult.D.toFixed(4),
           ]
         : [
             'Slope: ' + fitResult.B.toFixed(4),
             'Intercept: ' + fitResult.D.toFixed(4),
           ]),
-      'R² = ' + fitResult.r2.toFixed(6),
+      'R² = ' + fitResult.r2.toFixed(4),
       '',
       '【标准品数据】',
       '浓度(pg/mL)\tOD450\t预测值',
@@ -484,7 +584,7 @@ export default function ElisaAnalysisPage() {
             </div>
             <h1 className="text-2xl font-bold text-[#1E293B]">实验数据分析工作台</h1>
           </div>
-          <p className="text-sm text-[#94A3B8]">从原始 OD 值到专业实验报告，一站式完成数据分析（参考 ELISA Calc 计算逻辑）</p>
+          <p className="text-sm text-[#94A3B8]">从原始 OD 值到专业实验报告，一站式完成数据分析</p>
         </div>
 
         <div className="flex gap-2 mb-6">
@@ -610,7 +710,7 @@ export default function ElisaAnalysisPage() {
                 {fitResult.type === '4pl' ? (
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-[#94A3B8]">A (Bottom)</span>
+                      <span className="text-[#94A3B8]">A (Top)</span>
                       <span className="font-mono font-medium">{fitResult.A.toFixed(4)}</span>
                     </div>
                     <div className="flex justify-between">
@@ -622,7 +722,7 @@ export default function ElisaAnalysisPage() {
                       <span className="font-mono font-medium">{fitResult.C.toFixed(4)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#94A3B8]">D (Top)</span>
+                      <span className="text-[#94A3B8]">D (Bottom)</span>
                       <span className="font-mono font-medium">{fitResult.D.toFixed(4)}</span>
                     </div>
                   </div>
@@ -638,37 +738,20 @@ export default function ElisaAnalysisPage() {
                     </div>
                   </div>
                 )}
-                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#94A3B8] text-sm">R² 决定系数</span>
-                    <span
-                      className={`font-mono font-bold text-lg ${
-                        fitResult.r2 > 0.99
-                          ? 'text-emerald-600'
-                          : fitResult.r2 > 0.95
-                          ? 'text-blue-600'
-                          : 'text-amber-600'
-                      }`}
-                    >
-                      {fitResult.r2.toFixed(6)}
-                    </span>
-                  </div>
-                  {fitResult.type === '4pl' && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-[#94A3B8] text-sm">拟合质量</span>
-                      <span className="text-sm font-semibold text-emerald-600">
-                        {getFitQuality(fitResult.r2)}
-                      </span>
-                    </div>
-                  )}
+                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                  <span className="text-[#94A3B8] text-sm">R² 决定系数</span>
+                  <span
+                    className={`font-mono font-bold text-lg ${
+                      fitResult.r2 > 0.99
+                        ? 'text-emerald-600'
+                        : fitResult.r2 > 0.95
+                        ? 'text-blue-600'
+                        : 'text-amber-600'
+                    }`}
+                  >
+                    {fitResult.r2.toFixed(4)}
+                  </span>
                 </div>
-                {fitResult.type === '4pl' && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-xs text-blue-700 font-mono break-all">
-                      {formatEquation({ A: fitResult.A, B: fitResult.B, C: fitResult.C, D: fitResult.D, r2: fitResult.r2, yPredicted: [], params: [] })}
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
@@ -731,7 +814,7 @@ export default function ElisaAnalysisPage() {
                   </div>
                   <div>
                     <span className="text-[#94A3B8]">R²：</span>
-                    <span className="font-mono font-semibold">{fitResult.r2.toFixed(6)}</span>
+                    <span className="font-mono font-semibold">{fitResult.r2.toFixed(4)}</span>
                   </div>
                   <div>
                     <span className="text-[#94A3B8]">标准品数量：</span>

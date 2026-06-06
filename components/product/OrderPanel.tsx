@@ -2,43 +2,49 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { FileText, MessageSquare, Check, Truck, Receipt, Clock } from 'lucide-react'
+import { FileText, MessageSquare, Check, Clock } from 'lucide-react'
 
 interface OrderPanelProps {
   catNo: string
   name: string
   target: string
-  basePrice: number
+  species?: string | null
+  price48t?: number | null
+  price96t?: number | null
   stockStatus: string
   datasheetUrl?: string | null
-}
-
-const SIZE_PRICES: Record<string, number> = {
-  '48T': 1800,
-  '96T': 2400,
 }
 
 export default function OrderPanel({
   catNo,
   name,
   target,
-  basePrice,
+  species,
+  price48t,
+  price96t,
   stockStatus,
   datasheetUrl,
 }: OrderPanelProps) {
   const availableSizes = ['48T', '96T']
   const [selectedSize, setSelectedSize] = useState<string>('96T')
 
-  const currentPrice = SIZE_PRICES[selectedSize]
+  const sizePrices: Record<string, number | undefined> = {
+    '48T': price48t || 1800,
+    '96T': price96t || 2400,
+  }
+
+  const currentPrice = sizePrices[selectedSize] || 0
   const inStock = stockStatus === 'in_stock'
 
   return (
     <div className="bg-blue-50 rounded-xl border border-blue-100 p-6 space-y-6">
-      {/* Catalog Number */}
+      {/* Product Info */}
       <div>
-        <p className="text-xs text-slate-500 mb-1">货号</p>
-        <p className="text-2xl font-bold text-slate-900">{catNo}</p>
-        <p className="text-sm text-slate-600 mt-1">{name}</p>
+        <p className="text-lg font-bold text-slate-900">{name}</p>
+        <p className="text-sm text-slate-600 mt-1">货号: {catNo}</p>
+        {species && (
+          <p className="text-sm text-slate-500 mt-1">种属: {species}</p>
+        )}
       </div>
 
       {/* Size Selector */}
@@ -56,7 +62,7 @@ export default function OrderPanel({
               }`}
             >
               <span className="block text-base font-bold">{size}</span>
-              <span className="text-xs text-slate-400">¥{SIZE_PRICES[size]}</span>
+              <span className="text-xs text-slate-400">¥{sizePrices[size]}</span>
             </button>
           ))}
         </div>
@@ -102,7 +108,7 @@ export default function OrderPanel({
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
             <FileText className="w-4 h-4" />
-            查看说明书PDF
+            下载说明书
           </a>
         ) : (
           <button
@@ -113,32 +119,24 @@ export default function OrderPanel({
             说明书暂缺
           </button>
         )}
-        <Link
-          href="/chat"
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-slate-700 border border-slate-200 rounded-lg font-semibold hover:border-slate-300 transition-colors"
-        >
-          <MessageSquare className="w-4 h-4" />
-          联系客服咨询
-        </Link>
-      </div>
+        <div className="mt-3 space-y-2">
+          {/* 联系客服按钮 */}
+          <a
+             href="weixin://dl/officialaccounts"
+             target="_blank"
+             rel="noopener noreferrer"
+             className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium transition-colors"
+         >
+             <MessageSquare className="w-4 h-4" />
+             联系客服咨询
+           </a>
 
-      {/* Service Tags */}
-      <div className="pt-4 border-t border-blue-200/60">
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1">
-            <Receipt className="w-3.5 h-3.5" />
-            增值税专用发票
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Truck className="w-3.5 h-3.5" />
-            当日发货
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Check className="w-3.5 h-3.5" />
-            支持对公转账
-          </span>
-        </div>
-      </div>
-    </div>
+           {/* 新增提示文字 */}
+           <p className="text-center text-xs text-orange-500 font-medium mt-2">
+             ⚡ 今天 15:00 前下单，订单将于明天发出
+           </p>
+         </div>
+       </div> 
+     </div>
   )
 }

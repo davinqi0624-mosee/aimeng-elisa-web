@@ -1,6 +1,6 @@
 import Navbar from '@/components/Navbar';
 
-export default function AILayout({ children }: { children: React.ReactNode }) {
+export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />

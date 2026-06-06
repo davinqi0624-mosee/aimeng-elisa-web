@@ -1,22 +1,18 @@
-import { FlaskConical, Droplets, Gauge, Ruler, Clock } from 'lucide-react'
+import { FlaskConical, Droplets, Gauge, Ruler } from 'lucide-react'
 import { SpeciesIcon, SPECIES_LABELS } from '@/components/icons/SpeciesIcons'
 
 interface ProductInfoCardsProps {
   detectionMethod?: string | null
   speciesList: string[]
-  sampleType: string[]
   sensitivity?: string | null
   detectionRange?: string | null
-  assayTime?: string | null
 }
 
 export default function ProductInfoCards({
   detectionMethod,
   speciesList,
-  sampleType,
   sensitivity,
   detectionRange,
-  assayTime,
 }: ProductInfoCardsProps) {
   const items = [
     {
@@ -32,7 +28,7 @@ export default function ProductInfoCards({
     {
       icon: <Droplets className="w-5 h-5 text-sky-600" />,
       label: '样本类型',
-      value: sampleType?.join(' / ') || '-',
+      value: '体液、组织、细胞样本',
     },
     {
       icon: <Gauge className="w-5 h-5 text-violet-600" />,
@@ -44,15 +40,10 @@ export default function ProductInfoCards({
       label: '检测范围',
       value: detectionRange || '-',
     },
-    {
-      icon: <Clock className="w-5 h-5 text-rose-600" />,
-      label: '检测时间',
-      value: assayTime || '4h 30m',
-    },
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {items.map((item) => (
         <div
           key={item.label}

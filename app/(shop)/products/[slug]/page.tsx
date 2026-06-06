@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Breadcrumb from '@/components/ui/Breadcrumb'
-import ProductImageGallery from '@/components/product/ProductImageGallery'
 import OrderPanel from '@/components/product/OrderPanel'
 import ProductInfoCards from '@/components/product/ProductInfoCards'
 import ProductAccordion from '@/components/product/ProductAccordion'
+import ProductImageGallery from '@/components/product/ProductImageGallery'
 
 export default async function ProductDetailPage({
   params,
@@ -14,15 +14,34 @@ export default async function ProductDetailPage({
   const { slug } = await params
   const supabase = await createClient()
 
-  // Fetch product with all related data
-  const { data: product } = await supabase
+  // Fetch product with all related data (defensive: try new columns, fall back if missing)
+  let productQuery = supabase
     .from('products')
     .select(
-      '*, product_species(species, species_name_zh, is_primary), product_aliases(alias, alias_type), product_images(image_url, image_type, display_order), cat_no, citation_count'
+      '*, product_species(species, species_name_zh, is_primary), product_aliases(alias, alias_type), product_images(image_url, image_type, display_order), cat_no, citation_count, product_image, standard_curve_image, validation_image, additional_image, datasheet_pdf, price_48t, price_96t, species, catalog_number'
     )
     .eq('slug', slug)
     .eq('status', 'active')
-    .single()
+
+  let { data: product, error: productError } = await productQuery.single()
+
+  // If new columns don't exist yet, fall back to base query
+  if (productError && (productError.message?.includes('price_48t') || productError.message?.includes('price_96t') || productError.message?.includes('species'))) {
+    const { data: fallbackProduct, error: fallbackError } = await supabase
+      .from('products')
+      .select(
+        '*, product_species(species, species_name_zh, is_primary), product_aliases(alias, alias_type), product_images(image_url, image_type, display_order), cat_no, citation_count, product_image, standard_curve_image, validation_image, additional_image, datasheet_pdf, prices, catalog_number'
+      )
+      .eq('slug', slug)
+      .eq('status', 'active')
+      .single()
+
+    if (fallbackError || !fallbackProduct) {
+      notFound()
+    }
+
+    product = fallbackProduct as any
+  }
 
   if (!product) {
     notFound()
@@ -30,7 +49,6 @@ export default async function ProductDetailPage({
 
   const speciesRows = (product.product_species || []) as any[]
   const aliasRows = (product.product_aliases || []) as any[]
-  const imageRows = (product.product_images || []) as any[]
 
   const speciesList = speciesRows.map((s) => s.species) as string[]
   const aliasList = aliasRows.map((a) => a.alias) as string[]
@@ -40,24 +58,10 @@ export default async function ProductDetailPage({
   const primarySpecies = primarySpeciesRow?.species || speciesList[0]
   const primarySpeciesLabel = primarySpeciesRow?.species_name_zh || primarySpecies
 
-  // Build gallery images
-  const galleryImages = imageRows
-    .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-    .map((img) => ({
-      url: img.image_url,
-      type: img.image_type,
-      label: img.image_type,
-    }))
-
-  // Fallback if no product_images
-  if (galleryImages.length === 0) {
-    const fallbackImage = product.image_url || '/images/elisa/elisa_sandwich_lego.jpg'
-    galleryImages.push({
-      url: fallbackImage,
-      type: 'principle',
-      label: '检测原理',
-    })
-  }
+  // Fallback values when new columns don't exist yet
+  const displaySpecies = product.species || primarySpecies || undefined
+  const displayPrice48t = product.price_48t ?? product.prices?.['48T'] ?? undefined
+  const displayPrice96t = product.price_96t ?? product.prices?.['96T'] ?? undefined
 
   // Fetch citations
   const { data: citations } = await supabase
@@ -90,12 +94,17 @@ export default async function ProductDetailPage({
           <Breadcrumb items={breadcrumbItems} />
         </div>
 
-        {/* Main Content: Left Image + Right Order Panel */}
+        {/* Main Content: Left Images + Right Order Panel */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left: Image Gallery (60%) */}
+          {/* Left: Product Images (60%) */}
           <div className="w-full lg:w-[58%]">
             <ProductImageGallery
-              images={galleryImages}
+              images={[
+                ...(product.product_image ? [{ url: product.product_image, label: '产品照片', type: 'product' }] : []),
+                ...(product.standard_curve_image ? [{ url: product.standard_curve_image, label: '标准曲线', type: 'standard_curve' }] : []),
+                ...(product.validation_image ? [{ url: product.validation_image, label: '验证数据', type: 'validation' }] : []),
+                ...(product.additional_image ? [{ url: product.additional_image, label: '其他图片', type: 'additional' }] : []),
+              ]}
               productName={product.name}
             />
           </div>
@@ -103,12 +112,14 @@ export default async function ProductDetailPage({
           {/* Right: Order Panel (40%) */}
           <div className="w-full lg:w-[42%]">
             <OrderPanel
-              catNo={product.cat_no || '-'}
+              catNo={product.catalog_number || product.cat_no || '-'}
               name={product.name}
               target={product.target || ''}
-              basePrice={product.price || 0}
+              species={displaySpecies}
+              price48t={displayPrice48t}
+              price96t={displayPrice96t}
               stockStatus={product.stock_status || 'out_of_stock'}
-              datasheetUrl={product.datasheet_url}
+              datasheetUrl={product.datasheet_pdf}
             />
           </div>
         </div>
@@ -117,11 +128,9 @@ export default async function ProductDetailPage({
         <section>
           <ProductInfoCards
             detectionMethod={product.detection_method}
-            speciesList={speciesList}
-            sampleType={product.sample_type || []}
+            speciesList={product.species ? [product.species] : speciesList}
             sensitivity={product.sensitivity}
             detectionRange={product.detection_range}
-            assayTime={product.assay_time}
           />
         </section>
 
@@ -131,8 +140,12 @@ export default async function ProductDetailPage({
             description={product.description}
             detectionRange={product.detection_range}
             sensitivity={product.sensitivity}
-            sampleType={product.sample_type || []}
-            galleryImages={galleryImages}
+            galleryImages={[
+              ...(product.product_image ? [{ url: product.product_image, type: 'product', label: '产品照片' }] : []),
+              ...(product.standard_curve_image ? [{ url: product.standard_curve_image, type: 'standard_curve', label: '标准曲线' }] : []),
+              ...(product.validation_image ? [{ url: product.validation_image, type: 'validation', label: '验证数据' }] : []),
+              ...(product.additional_image ? [{ url: product.additional_image, type: 'additional', label: '其他图片' }] : []),
+            ]}
             citations={
               citations?.map((c) => ({
                 id: c.id,
@@ -144,8 +157,8 @@ export default async function ProductDetailPage({
                 publication_date: c.publication_date,
               })) || []
             }
-            datasheetUrl={product.datasheet_url}
-            catNo={product.cat_no || '-'}
+            datasheetUrl={product.datasheet_pdf}
+            catNo={product.catalog_number || product.cat_no || '-'}
           />
         </section>
       </div>

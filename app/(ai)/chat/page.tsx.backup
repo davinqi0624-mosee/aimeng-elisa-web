@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import {
   Send,
   Square,
@@ -15,7 +14,6 @@ import {
   BookOpen,
   Sparkles,
 } from 'lucide-react'
-import Navbar from '@/components/Navbar'
 
 type MessageRole = 'user' | 'assistant'
 
@@ -36,32 +34,29 @@ interface ChatMessage {
 
 type ChatMode = 'pre-sales' | 'after-sales' | 'protocol'
 
-const MODE_CONFIG: Record<ChatMode, { label: string; icon: any; desc: string; gradient: string }> = {
+const MODE_CONFIG: Record<ChatMode, { label: string; icon: any; desc: string; color: string }> = {
   'pre-sales': {
     label: '售前咨询',
     icon: ShoppingCart,
     desc: '产品选型、价格咨询、货期查询',
-    gradient: 'from-blue-500 to-cyan-400',
+    color: 'bg-blue-600',
   },
   'after-sales': {
     label: '售后支持',
     icon: Wrench,
     desc: '实验问题排查、技术支持',
-    gradient: 'from-emerald-500 to-teal-400',
+    color: 'bg-emerald-600',
   },
   protocol: {
     label: '实验方案',
     icon: FlaskConical,
     desc: '实验设计、方案优化',
-    gradient: 'from-violet-500 to-purple-400',
+    color: 'bg-violet-600',
   },
 }
 
 export default function ChatPage() {
-  const searchParams = useSearchParams()
-  const urlMode = searchParams.get('mode') as ChatMode | null
-
-  const [mode, setMode] = useState<ChatMode>(urlMode && MODE_CONFIG[urlMode] ? urlMode : 'pre-sales')
+  const [mode, setMode] = useState<ChatMode>('pre-sales')
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -75,19 +70,6 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const sessionId = useRef(`session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`)
-
-  useEffect(() => {
-    if (urlMode && MODE_CONFIG[urlMode] && urlMode !== mode) {
-      setMode(urlMode)
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'assistant',
-          content: `已切换到【${MODE_CONFIG[urlMode].label}】模式。${MODE_CONFIG[urlMode].desc}。`,
-        },
-      ])
-    }
-  }, [urlMode])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -210,6 +192,7 @@ export default function ChatPage() {
     setMessages((prev) =>
       prev.map((m) => (m.id === msgId ? { ...m, rating } : m))
     )
+    // Could also send to analytics API
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -220,83 +203,57 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B] flex flex-col">
-      <Navbar />
-      
-      <div className="pt-16 bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3CB5C0] to-[#2563EB] flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-[#1E293B]">RAG AI 智能客服</h1>
-              <p className="text-xs text-[#94A3B8]">DeepSeek 大模型驱动 · 专业 ELISA 咨询服务</p>
-            </div>
-          </div>
-          
-          <div className="flex gap-2 flex-wrap">
-            {(Object.keys(MODE_CONFIG) as ChatMode[]).map((m) => {
-              const config = MODE_CONFIG[m]
-              const Icon = config.icon
-              const active = mode === m
-              return (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m)
-                    setMessages([
-                      {
-                        id: 'welcome',
-                        role: 'assistant',
-                        content: `已切换到【${config.label}】模式。${config.desc}。`,
-                      },
-                    ])
-                    setShowSources(null)
-                  }}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    active
-                      ? `bg-gradient-to-r ${config.gradient} text-white shadow-md`
-                      : 'bg-[#F6F8FB] text-[#475569] hover:bg-blue-50 border border-gray-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{config.label}</span>
-                </button>
-              )
-            })}
-          </div>
-          
-          <p className="text-xs text-[#94A3B8] mt-2">
-            当前模式：{MODE_CONFIG[mode].label} — {MODE_CONFIG[mode].desc}
-          </p>
+    <div className="flex flex-col h-full bg-gray-50">
+      {/* Mode Selector */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center gap-3 mb-1">
+          <Sparkles className="w-5 h-5 text-blue-600" />
+          <h1 className="text-lg font-semibold text-gray-900">RAG AI 智能客服</h1>
         </div>
-      </div>
-
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600'
-                    : 'bg-gradient-to-br from-[#3CB5C0] to-[#2563EB]'
+        <div className="flex gap-3 mt-3">
+          {(Object.keys(MODE_CONFIG) as ChatMode[]).map((m) => {
+            const config = MODE_CONFIG[m]
+            const Icon = config.icon
+            const active = mode === m
+            return (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  active
+                    ? `${config.color} text-white shadow-md`
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {msg.role === 'user' ? (
-                  <User className="w-5 h-5 text-white" />
-                ) : (
-                  <Bot className="w-5 h-5 text-white" />
-                )}
+                <Icon className="w-4 h-4" />
+                <span>{config.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          当前模式：{MODE_CONFIG[mode].label} — {MODE_CONFIG[mode].desc}
+        </p>
+      </div>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex gap-3 max-w-3xl ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
-              
-              <div className={`max-w-[80%] space-y-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              <div className={`space-y-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`px-5 py-3.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                     msg.role === 'user'
                       ? 'bg-blue-600 text-white rounded-br-md'
-                      : 'bg-white border border-gray-200 text-[#1E293B] rounded-bl-md shadow-sm'
+                      : 'bg-white border border-gray-200 text-gray-800 rounded-bl-md shadow-sm'
                   }`}
                 >
                   {msg.content}
@@ -310,29 +267,21 @@ export default function ChatPage() {
                     {msg.sources && msg.sources.length > 0 && (
                       <button
                         onClick={() => setShowSources(showSources === msg.id ? null : msg.id)}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
                       >
-                        <BookOpen className="w-3.5 h-3.5" />
+                        <BookOpen className="w-3 h-3" />
                         参考来源 ({msg.sources.length})
                       </button>
                     )}
                     <button
                       onClick={() => handleRate(msg.id, 'up')}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        msg.rating === 'up'
-                          ? 'text-emerald-600 bg-emerald-50'
-                          : 'text-[#94A3B8] hover:text-[#475569] hover:bg-gray-100'
-                      }`}
+                      className={`p-1 rounded ${msg.rating === 'up' ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       <ThumbsUp className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleRate(msg.id, 'down')}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        msg.rating === 'down'
-                          ? 'text-red-600 bg-red-50'
-                          : 'text-[#94A3B8] hover:text-[#475569] hover:bg-gray-100'
-                      }`}
+                      className={`p-1 rounded ${msg.rating === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-gray-600'}`}
                     >
                       <ThumbsDown className="w-3.5 h-3.5" />
                     </button>
@@ -340,31 +289,27 @@ export default function ChatPage() {
                 )}
 
                 {showSources === msg.id && msg.sources && (
-                  <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-2">
-                    <div className="text-xs font-semibold text-[#1E293B] flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-                      知识库参考
-                    </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
+                    <div className="text-xs font-medium text-gray-700">知识库参考：</div>
                     {msg.sources.map((s, i) => (
-                      <div key={s.id} className="text-xs text-[#475569] flex items-center gap-2">
-                        <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
-                          [{i + 1}]
-                        </span>
-                        <span className="flex-1">{s.title}</span>
-                        <span className="text-[#94A3B8]">{(s.similarity * 100).toFixed(1)}%</span>
+                      <div key={s.id} className="text-xs text-gray-600 flex items-center gap-2">
+                        <span className="text-gray-400">[{i + 1}]</span>
+                        <span>{s.title}</span>
+                        <span className="text-gray-400">({(s.similarity * 100).toFixed(1)}%)</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
-      <div className="bg-white border-t border-gray-200 px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-end gap-3">
-          <div className="flex-1">
+      {/* Input */}
+      <div className="bg-white border-t border-gray-200 px-6 py-4">
+        <div className="flex items-end gap-3 max-w-4xl mx-auto">
+          <div className="flex-1 relative">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -373,38 +318,34 @@ export default function ChatPage() {
                 mode === 'pre-sales'
                   ? '推荐一款检测小鼠 IL-6 的高灵敏度试剂盒'
                   : mode === 'after-sales'
-                  ? '标准曲线线性不好，R²只有0.95，如何优化？'
-                  : '如何设计 ELISA 实验方案，样本处理有什么注意事项？'
+                  ? '标准曲线线性不好，R²只有0.95，怎么改进？'
+                  : '我要检测细胞上清中的 TNF-α，请设计实验方案'
               }`}
-              rows={1}
-              className="w-full px-4 py-3 bg-[#F6F8FB] border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              style={{ minHeight: '48px', maxHeight: '120px' }}
+              className="w-full px-4 py-3 pr-10 bg-gray-100 border-0 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all"
+              rows={2}
+              disabled={isLoading}
             />
           </div>
-          
           {isLoading ? (
             <button
               onClick={handleStop}
-              className="px-4 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors flex items-center gap-2 shrink-0"
+              className="px-4 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors shrink-0"
             >
-              <Square className="w-4 h-4 fill-current" />
-              <span className="text-sm font-medium">停止</span>
+              <Square className="w-5 h-5" />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className="px-4 py-3 bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 shadow-md"
+              className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             >
-              <Send className="w-4 h-4" />
-              <span className="text-sm font-medium">发送</span>
+              <Send className="w-5 h-5" />
             </button>
           )}
         </div>
-        
-        <p className="text-xs text-[#94A3B8] text-center mt-2">
-          AI 生成内容仅供参考，实验操作请以实际protocol为准
-        </p>
+        <div className="text-center mt-2 text-xs text-gray-400">
+          AI 生成内容仅供参考，实验决策请以实际情况为准
+        </div>
       </div>
     </div>
   )

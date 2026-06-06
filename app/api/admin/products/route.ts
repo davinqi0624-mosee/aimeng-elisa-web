@@ -33,8 +33,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      catalog_number, name, target, detection_range, sensitivity, size,
-      price, status = 'active', stock_status = 'in_stock',
+      catalog_number, name, target, species, detection_range, sensitivity, size,
+      price, price_48t, price_96t, status = 'active', stock_status = 'in_stock',
       product_image, standard_curve_image, validation_image,
       additional_image, datasheet_pdf,
     } = body
@@ -45,18 +45,46 @@ export async function POST(request: NextRequest) {
 
     const slug = generateProductSlug(name, target, catalog_number)
 
-    const { data, error: dbError } = await supabase
+    const insertData: any = {
+      catalog_number, name, target, detection_range, sensitivity, size,
+      price, status, stock_status,
+      product_image, standard_curve_image, validation_image,
+      additional_image, datasheet_pdf,
+      slug,
+    }
+    if (species !== undefined) insertData.species = species
+    if (price_48t !== undefined) insertData.price_48t = price_48t
+    if (price_96t !== undefined) insertData.price_96t = price_96t
+
+    let { data, error: dbError } = await supabase
       .from('products')
-      .insert({
-        catalog_number, name, target, detection_range, sensitivity, size, price, status, stock_status,
-        product_image, standard_curve_image, validation_image,
-        additional_image, datasheet_pdf,
-        slug,
-      })
+      .insert(insertData)
       .select('id')
       .single()
 
-    if (dbError) throw dbError
+    // Retry without new columns if they don't exist yet
+    if (dbError && (dbError.message?.includes('price_48t') || dbError.message?.includes('price_96t') || dbError.message?.includes('species'))) {
+      const fallbackData: any = {
+        catalog_number, name, target, detection_range, sensitivity, size,
+        price, status, stock_status,
+        product_image, standard_curve_image, validation_image,
+        additional_image, datasheet_pdf,
+        slug,
+      }
+      const { data: fallbackResult, error: fallbackError } = await supabase
+        .from('products')
+        .insert(fallbackData)
+        .select('id')
+        .single()
+      if (fallbackError) throw fallbackError
+      data = fallbackResult
+    } else if (dbError) {
+      throw dbError
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: '创建失败' }, { status: 500 })
+    }
 
     await logAudit({
       admin_id: admin!.id,
@@ -111,8 +139,19 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { error: dbError } = await supabase.from('products').update(updates).eq('id', id)
-    if (dbError) throw dbError
+    let { error: dbError } = await supabase.from('products').update(updates).eq('id', id)
+
+    // Retry without new columns if they don't exist yet
+    if (dbError && (dbError.message?.includes('price_48t') || dbError.message?.includes('price_96t') || dbError.message?.includes('species'))) {
+      const fallbackUpdates = { ...updates }
+      delete fallbackUpdates.species
+      delete fallbackUpdates.price_48t
+      delete fallbackUpdates.price_96t
+      const { error: fallbackError } = await supabase.from('products').update(fallbackUpdates).eq('id', id)
+      if (fallbackError) throw fallbackError
+    } else if (dbError) {
+      throw dbError
+    }
 
     await logAudit({
       admin_id: admin!.id,

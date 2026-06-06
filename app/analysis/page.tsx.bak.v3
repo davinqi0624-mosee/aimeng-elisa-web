@@ -1,0 +1,793 @@
+'use client'
+
+import { useState, useRef, useCallback } from 'react'
+import {
+  BarChart3,
+  TrendingUp,
+  FileText,
+  Play,
+  Sigma,
+  Download,
+  Trash2,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react'
+
+interface StandardPoint {
+  concentration: number
+  od: number
+}
+
+interface UnknownSample {
+  name: string
+  od: number
+  concentration?: number
+  outOfRange?: boolean
+}
+
+interface FitResult {
+  A: number
+  B: number
+  C: number
+  D: number
+  r2: number
+  type: '4pl' | 'linear'
+  points: { x: number; y: number; predicted: number }[]
+}
+
+type TabType = 'input' | 'curve' | 'report'
+
+export default function AnalysisPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('input')
+  const [rawInput, setRawInput] = useState<string>(
+    "标准品浓度(pg/mL)	OD450
+500	2.845
+250	1.923
+125	1.156
+62.5	0.687
+31.25	0.412
+15.625	0.251
+7.812	0.148
+0	0.052
+
+未知样本	OD450
+Sample-1	0.892
+Sample-2	1.234
+Sample-3	1.450"
+  )
+  const [standards, setStandards] = useState<StandardPoint[]>([])
+  const [unknowns, setUnknowns] = useState<UnknownSample[]>([])
+  const [fitResult, setFitResult] = useState<FitResult | null>(null)
+  const [error, setError] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(false)
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  // ============ 4PL 核心算法（修复版）============
+  const fourPL = (x: number, A: number, B: number, C: number, D: number): number => {
+    if (x <= 0) x = 1e-10
+    return D + (A - D) / (1 + Math.pow(x / C, B))
+  }
+
+  const inverseFourPL = (y: number, A: number, B: number, C: number, D: number): number => {
+    if (y >= A) return C * 1e6
+    if (y <= D) return C * 1e-6
+    return C * Math.pow((A - D) / (y - D) - 1, 1 / B)
+  }
+
+  const linearFit = (data: StandardPoint[]) => {
+    const n = data.length
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0
+    for (const d of data) {
+      const lx = Math.log10(d.concentration + 1e-10)
+      sumX += lx
+      sumY += d.od
+      sumXY += lx * d.od
+      sumX2 += lx * lx
+    }
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
+    const intercept = (sumY - slope * sumX) / n
+    const points = data.map((d) => {
+      const lx = Math.log10(d.concentration + 1e-10)
+      return { x: d.concentration, y: d.od, predicted: slope * lx + intercept }
+    })
+    const meanY = sumY / n
+    const ssTot = data.reduce((s, d) => s + Math.pow(d.od - meanY, 2), 0)
+    const ssRes = points.reduce((s, p) => s + Math.pow(p.y - p.predicted, 2), 0)
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1
+    return { A: 0, B: slope, C: 0, D: intercept, r2, type: 'linear' as const, points }
+  }
+
+  // 更稳健的 4PL 拟合：分阶段优化 + 约束
+  const fit4PL = (data: StandardPoint[]) => {
+    const ys = data.map((d) => d.od)
+    const xs = data.map((d) => d.concentration)
+
+    // 初始值估计
+    let A = Math.max(...ys) * 1.05
+    let D = Math.min(...ys) * 0.95
+    if (D < 0) D = 0.01
+
+    // 估计 C：找 OD 在 (A+D)/2 附近的浓度
+    const midY = (A + D) / 2
+    let C = xs[Math.floor(xs.length / 2)]
+    let minDist = Infinity
+    for (let i = 0; i < data.length; i++) {
+      const dist = Math.abs(data[i].od - midY)
+      if (dist < minDist) {
+        minDist = dist
+        C = data[i].concentration
+      }
+    }
+    C = Math.max(C, 1e-6)
+
+    // 估计 B：用两点法估算斜率
+    const idx1 = Math.floor(data.length * 0.25)
+    const idx2 = Math.floor(data.length * 0.75)
+    const x1 = data[idx1].concentration
+    const x2 = data[idx2].concentration
+    const y1 = data[idx1].od
+    const y2 = data[idx2].od
+    let B = 1.0
+    if (y1 > D && y2 > D && y1 < A && y2 < A && x1 > 0 && x2 > 0) {
+      const logRatio = Math.log10(x2 / x1)
+      const inner1 = (A - D) / (y1 - D) - 1
+      const inner2 = (A - D) / (y2 - D) - 1
+      if (inner1 > 0 && inner2 > 0) {
+        B = Math.log10(inner2 / inner1) / logRatio
+        if (B < 0.1) B = 0.1
+        if (B > 10) B = 10
+      }
+    }
+
+    // 阶段1：粗略网格搜索，找到好的初始值
+    let bestRSS = Infinity
+    let bestA = A, bestB = B, bestC = C, bestD = D
+
+    for (let aFactor = 0.95; aFactor <= 1.15; aFactor += 0.05) {
+      for (let bTest = 0.3; bTest <= 3.0; bTest += 0.3) {
+        for (let cFactor = 0.1; cFactor <= 10; cFactor *= 2) {
+          for (let dFactor = 0.8; dFactor <= 1.2; dFactor += 0.1) {
+            const testA = Math.max(...ys) * aFactor
+            const testD = Math.max(0.001, Math.min(...ys) * dFactor)
+            const testC = C * cFactor
+            const testB = bTest
+            let rss = 0
+            for (const d of data) {
+              const pred = fourPL(d.concentration, testA, testB, testC, testD)
+              rss += Math.pow(d.od - pred, 2)
+            }
+            if (rss < bestRSS && testA > testD && testC > 0) {
+              bestRSS = rss
+              bestA = testA; bestB = testB; bestC = testC; bestD = testD
+            }
+          }
+        }
+      }
+    }
+    A = bestA; B = bestB; C = bestC; D = bestD
+
+    // 阶段2：Levenberg-Marquardt 精细优化
+    let lambda = 0.01
+    const maxIter = 300
+
+    for (let iter = 0; iter < maxIter; iter++) {
+      const residuals: number[] = []
+      const jacobian: number[][] = []
+
+      for (const d of data) {
+        const pred = fourPL(d.concentration, A, B, C, D)
+        const r = d.od - pred
+        residuals.push(r)
+
+        const eps = 1e-5
+        const dA = (fourPL(d.concentration, A + eps, B, C, D) - pred) / eps
+        const dB = (fourPL(d.concentration, A, B + eps, C, D) - pred) / eps
+        const dC = (fourPL(d.concentration, A, B, C + eps, D) - pred) / eps
+        const dD = (fourPL(d.concentration, A, B, C, D + eps) - pred) / eps
+        jacobian.push([dA, dB, dC, dD])
+      }
+
+      const jtj = Array.from({ length: 4 }, () => [0, 0, 0, 0])
+      const jtr = [0, 0, 0, 0]
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          for (let k = 0; k < data.length; k++) {
+            jtj[i][j] += jacobian[k][i] * jacobian[k][j]
+          }
+        }
+        jtj[i][i] += lambda
+        for (let k = 0; k < data.length; k++) {
+          jtr[i] += jacobian[k][i] * residuals[k]
+        }
+      }
+
+      const delta = solve4x4(jtj, jtr)
+      const newA = A + delta[0]
+      const newB = B + delta[1]
+      const newC = C + delta[2]
+      const newD = D + delta[3]
+
+      const oldRSS = residuals.reduce((s, r) => s + r * r, 0)
+      let newRSS = 0
+      for (const d of data) {
+        const pred = fourPL(d.concentration, newA, newB, newC, newD)
+        newRSS += Math.pow(d.od - pred, 2)
+      }
+
+      // 约束检查
+      const valid = newA > newD && newC > 0 && newB > 0.01 && newB < 20 && newA > 0 && newD >= 0
+
+      if (valid && newRSS < oldRSS) {
+        A = newA; B = newB; C = newC; D = newD
+        lambda *= 0.1
+      } else {
+        lambda *= 10
+      }
+
+      if (lambda > 1e6) break
+    }
+
+    const points = data.map((d) => ({
+      x: d.concentration,
+      y: d.od,
+      predicted: fourPL(d.concentration, A, B, C, D),
+    }))
+
+    const meanY = ys.reduce((a, b) => a + b, 0) / ys.length
+    const ssTot = ys.reduce((s, y) => s + Math.pow(y - meanY, 2), 0)
+    const ssRes = points.reduce((s, p) => s + Math.pow(p.y - p.predicted, 2), 0)
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1
+
+    return { A, B, C, D, r2, type: '4pl' as const, points }
+  }
+
+  const solve4x4 = (A: number[][], b: number[]): number[] => {
+    const n = 4
+    const M = A.map((row, i) => [...row, b[i]])
+    for (let i = 0; i < n; i++) {
+      let max = Math.abs(M[i][i])
+      let maxRow = i
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(M[k][i]) > max) { max = Math.abs(M[k][i]); maxRow = k }
+      }
+      ;[M[i], M[maxRow]] = [M[maxRow], M[i]]
+      for (let k = i + 1; k < n; k++) {
+        const factor = M[k][i] / M[i][i]
+        for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j]
+      }
+    }
+    const x = [0, 0, 0, 0]
+    for (let i = n - 1; i >= 0; i--) {
+      x[i] = M[i][n]
+      for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j]
+      x[i] /= M[i][i]
+    }
+    return x
+  }
+
+  // ============ 数据解析 ============
+  const parseData = useCallback(() => {
+    const lines = rawInput.trim().split('
+')
+    const stds: StandardPoint[] = []
+    const unks: UnknownSample[] = []
+    let section: 'std' | 'unk' | null = null
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      if (trimmed.includes('标准品') || trimmed.includes('浓度')) {
+        section = 'std'
+        continue
+      }
+      if (trimmed.includes('未知') || trimmed.includes('样本')) {
+        section = 'unk'
+        continue
+      }
+
+      const parts = trimmed.split(/	|\s+/)
+      if (parts.length >= 2) {
+        const val1 = parseFloat(parts[0].replace(/,/g, ''))
+        const val2 = parseFloat(parts[1].replace(/,/g, ''))
+
+        if (section === 'std' && !isNaN(val1) && !isNaN(val2)) {
+          stds.push({ concentration: val1, od: val2 })
+        } else if (section === 'unk' && !isNaN(val2)) {
+          unks.push({ name: parts[0], od: val2 })
+        }
+      }
+    }
+
+    if (stds.length === 0) {
+      let foundZero = false
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.includes('浓度') || trimmed.includes('样本')) continue
+        const parts = trimmed.split(/	|\s+/)
+        if (parts.length >= 2) {
+          const v1 = parseFloat(parts[0])
+          const v2 = parseFloat(parts[1])
+          if (!isNaN(v1) && !isNaN(v2)) {
+            if (v1 === 0) foundZero = true
+            if (foundZero || v1 > 0) {
+              if (v1 >= 0 && stds.length < 10) {
+                stds.push({ concentration: v1, od: v2 })
+              } else {
+                unks.push({ name: parts[0], od: v2 })
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { stds, unks }
+  }, [rawInput])
+
+  const handle4PL = () => {
+    setError('')
+    setIsLoading(true)
+    try {
+      const { stds, unks } = parseData()
+      if (stds.length < 4) {
+        setError('标准品数据不足，至少需要 4 个浓度点')
+        setIsLoading(false)
+        return
+      }
+      stds.sort((a, b) => a.concentration - b.concentration)
+      setStandards(stds)
+      setUnknowns(unks)
+
+      const result = fit4PL(stds)
+      setFitResult(result)
+
+      // 计算未知样本浓度，标记是否超出量程
+      const calculated = unks.map((u) => {
+        const conc = inverseFourPL(u.od, result.A, result.B, result.C, result.D)
+        const outOfRange = conc > result.C * 1000 || conc < result.C * 1e-4 || conc <= 0 || !isFinite(conc)
+        return {
+          ...u,
+          concentration: conc,
+          outOfRange,
+        }
+      })
+      setUnknowns(calculated)
+      setActiveTab('curve')
+    } catch (err: any) {
+      setError('4PL 拟合失败：' + (err.message || '未知错误'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLinear = () => {
+    setError('')
+    setIsLoading(true)
+    try {
+      const { stds, unks } = parseData()
+      if (stds.length < 3) {
+        setError('标准品数据不足，至少需要 3 个浓度点')
+        setIsLoading(false)
+        return
+      }
+      stds.sort((a, b) => a.concentration - b.concentration)
+      setStandards(stds)
+      setUnknowns(unks)
+
+      const result = linearFit(stds)
+      setFitResult(result)
+
+      const calculated = unks.map((u) => {
+        const lx = (u.od - result.D) / result.B
+        const conc = Math.pow(10, lx)
+        const outOfRange = !isFinite(conc) || conc <= 0
+        return { ...u, concentration: conc, outOfRange }
+      })
+      setUnknowns(calculated)
+      setActiveTab('curve')
+    } catch (err: any) {
+      setError('线性拟合失败：' + (err.message || '未知错误'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleClear = () => {
+    setRawInput('')
+    setStandards([])
+    setUnknowns([])
+    setFitResult(null)
+    setError('')
+  }
+
+  const handleImportCSV = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.csv,.txt'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => { setRawInput((ev.target?.result as string) || '') }
+      reader.readAsText(file)
+    }
+    input.click()
+  }
+
+  const exportReport = () => {
+    if (!fitResult) return
+    const lines = [
+      'ELISA 实验数据分析报告',
+      '生成时间: ' + new Date().toLocaleString(),
+      '',
+      '【拟合方法】' + (fitResult.type === '4pl' ? '四参数逻辑斯蒂拟合 (4PL)' : '线性拟合 (Log-Log)'),
+      '【拟合参数】',
+      ...(fitResult.type === '4pl'
+        ? ['A (Top): ' + fitResult.A.toFixed(4), 'B (Hill Slope): ' + fitResult.B.toFixed(4), 'C (EC50): ' + fitResult.C.toFixed(4), 'D (Bottom): ' + fitResult.D.toFixed(4)]
+        : ['Slope: ' + fitResult.B.toFixed(4), 'Intercept: ' + fitResult.D.toFixed(4)]),
+      'R² = ' + fitResult.r2.toFixed(4),
+      '',
+      '【标准品数据】',
+      '浓度(pg/mL)	OD450	预测值',
+      ...standards.map((s) => {
+        const pred = fitResult.type === '4pl'
+          ? fourPL(s.concentration, fitResult.A, fitResult.B, fitResult.C, fitResult.D)
+          : fitResult.B * Math.log10(s.concentration) + fitResult.D
+        return s.concentration + '	' + s.od.toFixed(3) + '	' + pred.toFixed(3)
+      }),
+      '',
+      '【未知样本浓度】',
+      '样本名称	OD450	浓度(pg/mL)	状态',
+      ...unknowns.map((u) => u.name + '	' + u.od.toFixed(3) + '	' + (u.concentration ? u.concentration.toFixed(3) : 'N/A') + '	' + (u.outOfRange ? '超出量程' : '正常')),
+    ]
+    const blob = new Blob([lines.join('
+')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'ELISA_Report_' + Date.now() + '.txt'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ============ SVG 曲线绘制（修复版）============
+  const renderCurve = () => {
+    if (!fitResult || standards.length === 0) return null
+
+    const width = 720
+    const height = 420
+    const padding = { top: 30, right: 50, bottom: 70, left: 80 }
+    const chartW = width - padding.left - padding.right
+    const chartH = height - padding.top - padding.bottom
+
+    // 收集所有需要显示的点（标准品 + 未知样本）
+    const allXValues = standards.map((s) => s.concentration)
+    const allYValues = standards.map((s) => s.od)
+
+    // 未知样本也加入范围计算（即使超出量程也显示）
+    unknowns.forEach((u) => {
+      allYValues.push(u.od)
+      if (u.concentration && isFinite(u.concentration) && u.concentration > 0) {
+        allXValues.push(u.concentration)
+      }
+    })
+
+    const xMin = Math.min(...allXValues.filter((x) => x > 0)) * 0.3
+    const xMax = Math.max(...allXValues) * 2.0
+    const yMin = 0
+    const yMax = Math.max(...allYValues) * 1.15
+
+    const xScale = (x: number) => {
+      if (x <= 0) x = xMin
+      return padding.left + ((Math.log10(x) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin))) * chartW
+    }
+    const yScale = (y: number) => padding.top + chartH - ((y - yMin) / (yMax - yMin)) * chartH
+
+    // 生成拟合曲线点
+    const curvePoints: string[] = []
+    const steps = 200
+    for (let i = 0; i <= steps; i++) {
+      const logX = Math.log10(xMin) + (i / steps) * (Math.log10(xMax) - Math.log10(xMin))
+      const x = Math.pow(10, logX)
+      const y = fitResult.type === '4pl'
+        ? fourPL(x, fitResult.A, fitResult.B, fitResult.C, fitResult.D)
+        : fitResult.B * Math.log10(x) + fitResult.D
+      if (y >= yMin - 0.1 && y <= yMax) {
+        curvePoints.push(`${xScale(x)},${yScale(y)}`)
+      }
+    }
+
+    // 网格线
+    const gridLinesX: number[] = []
+    const startPow = Math.floor(Math.log10(xMin))
+    const endPow = Math.ceil(Math.log10(xMax))
+    for (let p = startPow; p <= endPow; p++) {
+      gridLinesX.push(Math.pow(10, p))
+      if (p < endPow) {
+        gridLinesX.push(Math.pow(10, p) * 2)
+        gridLinesX.push(Math.pow(10, p) * 5)
+      }
+    }
+    const filteredGridX = gridLinesX.filter((v) => v >= xMin && v <= xMax)
+    const gridLinesY = Array.from({ length: 6 }, (_, i) => (yMax / 5) * i)
+
+    return (
+      <svg ref={svgRef} width={width} height={height} className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        {/* 背景网格 */}
+        {filteredGridX.map((v) => (
+          <line key={`gx-${v}`} x1={xScale(v)} y1={padding.top} x2={xScale(v)} y2={padding.top + chartH} stroke="#E2E8F0" strokeDasharray="3,3" />
+        ))}
+        {gridLinesY.map((v, i) => (
+          <line key={`gy-${i}`} x1={padding.left} y1={yScale(v)} x2={padding.left + chartW} y2={yScale(v)} stroke="#E2E8F0" strokeDasharray="3,3" />
+        ))}
+
+        {/* 坐标轴 */}
+        <line x1={padding.left} y1={padding.top + chartH} x2={padding.left + chartW} y2={padding.top + chartH} stroke="#64748B" strokeWidth={2} />
+        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + chartH} stroke="#64748B" strokeWidth={2} />
+
+        {/* X轴标签 */}
+        {filteredGridX.filter((v) => {
+          const log = Math.log10(v)
+          return Math.abs(log - Math.round(log)) < 0.01 || v === Math.pow(10, Math.round(log))
+        }).map((v) => (
+          <text key={`lx-${v}`} x={xScale(v)} y={padding.top + chartH + 22} textAnchor="middle" fontSize={12} fill="#64748B" fontWeight={500}>
+            {v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v.toFixed(v < 1 ? 3 : 0)}
+          </text>
+        ))}
+        <text x={padding.left + chartW / 2} y={height - 15} textAnchor="middle" fontSize={14} fill="#475569" fontWeight={600}>
+          浓度 (pg/mL) — 对数刻度
+        </text>
+
+        {/* Y轴标签 */}
+        {gridLinesY.map((v, i) => (
+          <text key={`ly-${i}`} x={padding.left - 10} y={yScale(v) + 4} textAnchor="end" fontSize={12} fill="#64748B" fontWeight={500}>
+            {v.toFixed(2)}
+          </text>
+        ))}
+        <text x={20} y={padding.top + chartH / 2} textAnchor="middle" fontSize={14} fill="#475569" fontWeight={600} transform={`rotate(-90, 20, ${padding.top + chartH / 2})`}>
+          OD450
+        </text>
+
+        {/* 拟合曲线 */}
+        {curvePoints.length > 1 && (
+          <polyline points={curvePoints.join(' ')} fill="none" stroke="#3B82F6" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+        )}
+
+        {/* 标准品数据点 */}
+        {standards.map((s, i) => (
+          <g key={`std-${i}`}>
+            <circle cx={xScale(s.concentration)} cy={yScale(s.od)} r={7} fill="#3B82F6" stroke="white" strokeWidth={2} />
+            <text x={xScale(s.concentration)} y={yScale(s.od) - 14} textAnchor="middle" fontSize={11} fill="#1E293B" fontWeight={600}>
+              {s.od.toFixed(2)}
+            </text>
+          </g>
+        ))}
+
+        {/* 未知样本点 — 全部显示，超出量程的用虚线边框标记 */}
+        {unknowns.map((u, i) => {
+          let cx: number, cy: number
+
+          if (u.concentration && isFinite(u.concentration) && u.concentration > 0) {
+            cx = xScale(u.concentration)
+          } else {
+            // 超出量程的样本：根据OD值在Y轴上定位，X放在右侧边缘
+            cx = padding.left + chartW * 0.95
+          }
+          cy = yScale(u.od)
+
+          // 确保在图表范围内
+          cx = Math.max(padding.left + 5, Math.min(padding.left + chartW - 5, cx))
+          cy = Math.max(padding.top + 5, Math.min(padding.top + chartH - 5, cy))
+
+          return (
+            <g key={`unk-${i}`}>
+              <circle cx={cx} cy={cy} r={7} fill="#EF4444" stroke={u.outOfRange ? "#EF4444" : "white"} strokeWidth={u.outOfRange ? 3 : 2} strokeDasharray={u.outOfRange ? "4,2" : "0"} />
+              <text x={cx} y={cy + 22} textAnchor="middle" fontSize={11} fill="#EF4444" fontWeight={600}>
+                {u.name}
+              </text>
+              {u.outOfRange && (
+                <text x={cx} y={cy + 36} textAnchor="middle" fontSize={9} fill="#EF4444">
+                  超出量程
+                </text>
+              )}
+            </g>
+          )
+        })}
+      </svg>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B]">
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3CB5C0] to-[#2563EB] flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-[#1E293B]">实验数据分析工作台</h1>
+          </div>
+          <p className="text-sm text-[#94A3B8]">从原始 OD 值到专业实验报告，一站式完成数据分析</p>
+        </div>
+        <div className="flex gap-2 mb-6">
+          {[
+            { key: 'input' as TabType, label: '数据输入', icon: BarChart3 },
+            { key: 'curve' as TabType, label: '标准曲线', icon: TrendingUp },
+            { key: 'report' as TabType, label: '报告生成', icon: FileText },
+          ].map((tab) => {
+            const Icon = tab.icon
+            const active = activeTab === tab.key
+            return (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white shadow-md' : 'bg-white text-[#475569] hover:bg-blue-50 border border-gray-200'}`}>
+                <Icon className="w-4 h-4" />{tab.label}
+              </button>
+            )
+          })}
+        </div>
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />{error}
+          </div>
+        )}
+        {activeTab === 'input' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                <h2 className="text-base font-semibold">OD 值输入</h2>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleImportCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#475569] bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                  <Upload className="w-3.5 h-3.5" />导入 CSV
+                </button>
+                <button onClick={handleClear} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" />清空
+                </button>
+              </div>
+            </div>
+            <textarea value={rawInput} onChange={(e) => setRawInput(e.target.value)} rows={18}
+              className="w-full px-4 py-3 bg-[#F8FAFC] border border-gray-200 rounded-xl text-sm font-mono leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder={'标准品浓度(pg/mL)	OD450
+500	2.845
+250	1.923
+...
+
+未知样本	OD450
+Sample-1	0.892'} />
+            <div className="flex items-center gap-3 mt-5">
+              <button onClick={handle4PL} disabled={isLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 font-medium shadow-md">
+                <Play className="w-4 h-4" />{isLoading ? '拟合中...' : '开始 4PL 拟合'}
+              </button>
+              <button onClick={handleLinear} disabled={isLoading}
+                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-[#475569] rounded-xl hover:bg-gray-50 border border-gray-200 transition-colors font-medium">
+                <Sigma className="w-4 h-4" />线性拟合
+              </button>
+            </div>
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium mb-1">数据格式说明</p>
+                <p>标准品：第一列为浓度（pg/mL），第二列为 OD450，支持制表符或空格分隔。</p>
+                <p>未知样本：第一列为样本名称，第二列为 OD450。</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'curve' && fitResult && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-600" />标准曲线</h2>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500" />标准品</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500" />未知样本</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500 border-2 border-red-500 border-dashed" />超出量程</span>
+                </div>
+              </div>
+              <div className="flex justify-center overflow-x-auto">{renderCurve()}</div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-3">拟合参数</h3>
+                {fitResult.type === '4pl' ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-[#94A3B8]">A (Top)</span><span className="font-mono font-medium">{fitResult.A.toFixed(4)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#94A3B8]">B (Hill Slope)</span><span className="font-mono font-medium">{fitResult.B.toFixed(4)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#94A3B8]">C (EC50)</span><span className="font-mono font-medium">{fitResult.C.toFixed(4)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#94A3B8]">D (Bottom)</span><span className="font-mono font-medium">{fitResult.D.toFixed(4)}</span></div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-[#94A3B8]">Slope</span><span className="font-mono font-medium">{fitResult.B.toFixed(4)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#94A3B8]">Intercept</span><span className="font-mono font-medium">{fitResult.D.toFixed(4)}</span></div>
+                  </div>
+                )}
+                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                  <span className="text-[#94A3B8] text-sm">R² 决定系数</span>
+                  <span className={`font-mono font-bold text-lg ${fitResult.r2 > 0.99 ? 'text-emerald-600' : fitResult.r2 > 0.95 ? 'text-blue-600' : 'text-amber-600'}`}>{fitResult.r2.toFixed(4)}</span>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-3">未知样本浓度</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {unknowns.length === 0 ? <p className="text-sm text-[#94A3B8]">未检测到未知样本数据</p> : unknowns.map((u, i) => (
+                    <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50 last:border-0">
+                      <span className="text-sm font-medium">{u.name}</span>
+                      <div className="text-right">
+                        <div className={`text-sm font-mono font-semibold ${u.outOfRange ? 'text-amber-600' : 'text-blue-600'}`}>
+                          {u.outOfRange ? '超出量程' : u.concentration ? `${u.concentration.toFixed(2)} pg/mL` : '计算失败'}
+                        </div>
+                        <div className="text-xs text-[#94A3B8]">OD: {u.od.toFixed(3)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'curve' && !fitResult && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+            <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-[#94A3B8]">请先完成数据拟合</p>
+          </div>
+        )}
+        {activeTab === 'report' && fitResult && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold flex items-center gap-2"><FileText className="w-5 h-5 text-blue-600" />实验报告</h2>
+              <button onClick={exportReport} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white rounded-xl hover:opacity-90 transition-opacity text-sm font-medium shadow-md">
+                <Download className="w-4 h-4" />导出报告
+              </button>
+            </div>
+            <div className="space-y-6">
+              <div className="p-4 bg-[#F8FAFC] rounded-xl">
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-2">拟合信息</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="text-[#94A3B8]">方法：</span>{fitResult.type === '4pl' ? '四参数逻辑斯蒂拟合 (4PL)' : '线性拟合 (Log-Log)'}</div>
+                  <div><span className="text-[#94A3B3B8]">R²：</span><span className="font-mono font-semibold">{fitResult.r2.toFixed(4)}</span></div>
+                  <div><span className="text-[#94A3B8]">标准品数量：</span>{standards.length}</div>
+                  <div><span className="text-[#94A3B8]">未知样本数量：</span>{unknowns.length}</div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-3">标准品拟合详情</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-gray-200"><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">浓度 (pg/mL)</th><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">实测 OD</th><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">预测 OD</th><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">残差</th></tr></thead>
+                    <tbody>
+                      {standards.map((s, i) => {
+                        const pred = fitResult.type === '4pl' ? fourPL(s.concentration, fitResult.A, fitResult.B, fitResult.C, fitResult.D) : fitResult.B * Math.log10(s.concentration) + fitResult.D
+                        return <tr key={i} className="border-b border-gray-50 last:border-0"><td className="py-2 px-3 font-mono">{s.concentration}</td><td className="py-2 px-3 font-mono">{s.od.toFixed(3)}</td><td className="py-2 px-3 font-mono text-blue-600">{pred.toFixed(3)}</td><td className="py-2 px-3 font-mono">{(s.od - pred).toFixed(4)}</td></tr>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#1E293B] mb-3">未知样本浓度结果</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-gray-200"><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">样本名称</th><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">OD450</th><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">浓度 (pg/mL)</th><th className="text-left py-2 px-3 text-[#94A3B8] font-medium">状态</th></tr></thead>
+                    <tbody>
+                      {unknowns.map((u, i) => <tr key={i} className="border-b border-gray-50 last:border-0"><td className="py-2 px-3 font-medium">{u.name}</td><td className="py-2 px-3 font-mono">{u.od.toFixed(3)}</td><td className="py-2 px-3 font-mono font-semibold text-blue-600">{u.concentration ? u.concentration.toFixed(2) : 'N/A'}</td><td className="py-2 px-3"><span className={`text-xs px-2 py-0.5 rounded-full ${u.outOfRange ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{u.outOfRange ? '超出量程' : '正常'}</span></td></tr>)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'report' && !fitResult && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
+            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-[#94A3B8]">请先完成数据拟合</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

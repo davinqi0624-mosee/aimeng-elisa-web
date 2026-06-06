@@ -8,8 +8,9 @@ import {
   Globe, ExternalLink, TrendingUp, Calculator, FileSpreadsheet, Coins, ShoppingBag,
   CheckCircle, BarChart3, LineChart, Sigma, Edit3, X, Save, Check
 } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
-// ── Supabase Client (Browser-side) ─────────────────────────
+// ── Supabase Client ─────────────────────────
 import { createClient } from '@supabase/supabase-js';
 
 let supabase: any = null;
@@ -29,7 +30,7 @@ function saveToLocal(data: Record<string, any>) {
   localStorage.setItem(LS_KEY, JSON.stringify(data));
 }
 
-// ── InlineEdit (true inline editing) ────────────────────────
+// ── InlineEdit ──────────────────────────────
 function InlineEdit({ isEditMode, value, onChange, className = '', multiline = false }: {
   isEditMode: boolean; value: string; onChange: (v: string) => void;
   className?: string; multiline?: boolean;
@@ -52,13 +53,13 @@ function InlineEdit({ isEditMode, value, onChange, className = '', multiline = f
   );
 }
 
-// ── EditModeToggle ──────────────────────────────────────────
+// ── EditModeToggle ──────────────────────────
 function EditModeToggle({ isEditMode, onToggle, hasChanges, saveStatus, onSave }: {
   isEditMode: boolean; onToggle: () => void; hasChanges: boolean;
   saveStatus: string; onSave: () => void;
 }) {
   return (
-    <div className="fixed top-20 left-4 z-50 flex items-center gap-2">
+    <div className="fixed top-20 left-4 z-40 flex items-center gap-2">
       <button onClick={onToggle} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium shadow-lg transition-all ${isEditMode ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}>
         {isEditMode ? <><X className="w-4 h-4" /> 退出编辑</> : <><Edit3 className="w-4 h-4" /> 编辑模式</>}
       </button>
@@ -73,7 +74,7 @@ function EditModeToggle({ isEditMode, onToggle, hasChanges, saveStatus, onSave }
   );
 }
 
-// ── DEFAULT CONTENT ─────────────────────────────────────────
+// ── DEFAULT CONTENT ─────────────────────────
 const DEFAULT_CONTENT: Record<string, any> = {
   hero_tag: 'AI-POWERED BIOTECH PLATFORM',
   hero_title: 'AI赋能科研',
@@ -94,7 +95,7 @@ const DEFAULT_CONTENT: Record<string, any> = {
   footer_copyright: '© 2025 Animal Union 爱萌优宁. All rights reserved.',
 };
 
-// ── MAIN PAGE ───────────────────────────────────────────────
+// ── MAIN PAGE ───────────────────────────────
 export default function HomePage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [content, setContent] = useState(DEFAULT_CONTENT);
@@ -143,52 +144,25 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B] relative">
+      <Navbar />
       <EditModeToggle isEditMode={isEditMode} onToggle={toggleEditMode} hasChanges={hasChanges} saveStatus={saveStatus} onSave={handleSave} />
-      <NavBar />
-      <HeroSection content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
-      <StatsBar content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
-      <FeatureCards isEditMode={isEditMode} />
-      <DataAnalysisWorkbench isEditMode={isEditMode} />
-      <PointsEcosystem isEditMode={isEditMode} />
-      <SmartProductSearch isEditMode={isEditMode} />
-      <ProcessFlow content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
-      <VideoTutorials isEditMode={isEditMode} />
-      <ElisaMethods isEditMode={isEditMode} />
-      <DailyKnowledge content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
-      <CommunitySection isEditMode={isEditMode} />
+
+      <main className="pt-16">
+        <HeroSection content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+        <StatsBar content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+        <FeatureCards />
+        <DataAnalysisWorkbench />
+        <PointsEcosystem />
+        <SmartProductSearch />
+        <ProcessFlow content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+        <VideoTutorials />
+        <ElisaMethods />
+        <DailyKnowledge content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+        <CommunitySection />
+      </main>
+
       <Footer content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
     </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// NAVBAR
-// ═══════════════════════════════════════════
-function NavBar() {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-40 bg-[#F2F6FA]/90 backdrop-blur-md border-b border-gray-200/60">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#3CB5C0] to-[#2563EB] flex items-center justify-center shadow-sm">
-            <span className="text-white font-bold text-lg">A</span>
-          </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] bg-clip-text text-transparent">AIMENG UNING</span>
-        </Link>
-        <div className="hidden md:flex items-center gap-6">
-          <Link href="/" className="text-sm font-semibold text-blue-600">HOME</Link>
-          <Link href="#analysis" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">数据分析</Link>
-          <Link href="#points" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">积分系统</Link>
-          <Link href="#search" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">产品搜索</Link>
-          <Link href="#videos" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">视频教程</Link>
-          <Link href="#knowledge" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">每日分享</Link>
-          <Link href="#community" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">社区</Link>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="px-4 py-2 rounded-full border border-[#cbd5e1] text-[#475569] text-sm font-medium hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">登录</Link>
-          <Link href="/register" className="px-4 py-2 rounded-full text-sm font-medium text-white" style={{background:'linear-gradient(90deg,#2563EB,#0891B2)'}}>注册</Link>
-        </div>
-      </div>
-    </nav>
   );
 }
 
@@ -236,7 +210,7 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
       particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fillStyle = `rgba(37,99,235,${p.alpha})`; ctx.fill(); });
       bacterias.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-        ctx.beginPath(); ctx.roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2);
+        ctx.beginPath(); (ctx as any).roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2);
         ctx.fillStyle = 'rgba(16,185,129,0.12)'; ctx.fill();
         ctx.strokeStyle = 'rgba(16,185,129,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.restore();
@@ -301,11 +275,12 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
   }, []);
 
   return (
-    <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+    <section className="relative pt-24 pb-20 px-4 overflow-hidden">
       <canvas id="bioCanvas" className="absolute inset-0 w-full h-full" style={{ opacity: 0.65 }} />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg,rgba(242,246,250,0.8) 0%,rgba(242,246,250,0.6) 40%,rgba(242,246,250,0.25) 100%)' }} />
       <div className="absolute top-20 right-0 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-cyan-100/30 rounded-full blur-3xl pointer-events-none" />
+
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="mb-6">
           <span className="text-blue-600 text-sm font-semibold tracking-widest uppercase bg-blue-50 px-3 py-1 rounded-full">
@@ -317,13 +292,13 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
           <InlineEdit isEditMode={isEditMode} value={content.hero_title_highlight} onChange={(v: string) => onUpdate('hero_title_highlight', v)} className="block bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-400 bg-clip-text text-transparent" />
         </h1>
         <div className="max-w-xl mb-8">
-          <InlineEdit isEditMode={isEditMode} value={content.hero_subtitle} onChange={(v: string) => onUpdate('hero_subtitle', v)} className="text-[#64748B] text-lg leading-relaxed" multiline />
+          <InlineEdit isEditMode={isEditMode} value={content.hero_subtitle} onChange={(v: string) => onUpdate('hero_subtitle', v)} className="text-[#64748B] text-lg leading-relaxed block" multiline />
         </div>
         <div className="flex items-center gap-4 mb-10">
-          <Link href="/ai-chat" className="px-8 py-3 rounded-full text-white font-medium hover:shadow-lg transition-all flex items-center gap-2" style={{ background: 'linear-gradient(90deg,#2563EB,#0891B2)' }}>
+          <Link href="/ai-chat?mode=experiment" className="px-8 py-3 rounded-full text-white font-medium hover:shadow-lg transition-all flex items-center gap-2 bg-gradient-to-r from-[#2563EB] to-[#0891B2]">
             <InlineEdit isEditMode={isEditMode} value={content.hero_button1} onChange={(v: string) => onUpdate('hero_button1', v)} />
           </Link>
-          <Link href="#videos" className="px-8 py-3 rounded-full border border-[#cbd5e1] text-[#475569] font-medium hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center gap-2">
+          <Link href="/videos" className="px-8 py-3 rounded-full border border-[#cbd5e1] text-[#475569] font-medium hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center gap-2">
             <Video className="w-4 h-4 text-blue-500" />
             <InlineEdit isEditMode={isEditMode} value={content.hero_button2} onChange={(v: string) => onUpdate('hero_button2', v)} />
           </Link>
@@ -364,18 +339,18 @@ function StatsBar({ content, isEditMode, onUpdate }: any) {
 }
 
 // ═══════════════════════════════════════════
-// FEATURE CARDS (8 cards)
+// FEATURE CARDS (8 cards) — 链接已更新到对应内页
 // ═══════════════════════════════════════════
-function FeatureCards({ isEditMode }: { isEditMode: boolean }) {
+function FeatureCards() {
   const cards = [
-    { icon: FlaskConical, title: '实验方案设计', desc: 'AI根据您的实验需求，智能生成最优ELISA实验方案', color: 'from-blue-500 to-cyan-400', link: '/ai-chat' },
-    { icon: Video, title: '操作视频教程', desc: '详细的实验操作视频，从准备到结果分析全流程指导', color: 'from-purple-500 to-pink-400', link: '#videos' },
-    { icon: MessageCircle, title: 'AI智能客服', desc: '7x24小时在线解答，DeepSeek大模型专业回复', color: 'from-emerald-500 to-teal-400', link: '/ai-chat' },
-    { icon: FileBarChart, title: '实验报告生成', desc: '4PL拟合、标准曲线绘制、一键生成报告', color: 'from-amber-500 to-orange-400', link: '/ai-chat' },
-    { icon: BookOpen, title: '文献积分系统', desc: '发表文献即可兑换积分，积分可兑换商城礼品', color: 'from-rose-500 to-red-400', link: '/points' },
+    { icon: FlaskConical, title: '实验方案设计', desc: 'AI根据您的实验需求，智能生成最优ELISA实验方案', color: 'from-blue-500 to-cyan-400', link: '/chat?mode=protocol' },
+    { icon: Video, title: '操作视频教程', desc: '详细的实验操作视频，从准备到结果分析全流程指导', color: 'from-purple-500 to-pink-400', link: '/videos' },
+    { icon: MessageCircle, title: 'AI智能客服', desc: '7x24小时在线解答，DeepSeek大模型专业回复', color: 'from-emerald-500 to-teal-400', link: '/chat?mode=pre-sales' },
+    { icon: FileBarChart, title: '实验报告生成', desc: '4PL拟合、标准曲线绘制、一键生成报告', color: 'from-amber-500 to-orange-400', link: '/analysis' },
+    { icon: BookOpen, title: '文献积分系统', desc: '发表文献即可兑换积分，积分可兑换商城礼品', color: 'from-rose-500 to-red-400', link: '/publications' },
     { icon: Gift, title: '积分商城', desc: '丰富科研周边礼品，积分免费兑换', color: 'from-indigo-500 to-violet-400', link: '/points' },
     { icon: Search, title: '产品搜索', desc: '快速搜索ELISA试剂盒，按靶标、种属、应用筛选', color: 'from-sky-500 to-blue-400', link: '/products' },
-    { icon: Globe, title: '科研社区', desc: '加入科研社区，与同行交流实验经验和心得', color: 'from-violet-500 to-purple-400', link: '#community' },
+    { icon: Globe, title: '科研社区', desc: '加入科研社区，与同行交流实验经验和心得', color: 'from-violet-500 to-purple-400', link: '/community' },
   ];
   return (
     <section className="py-16 px-4 bg-[#EDF2F7]">
@@ -405,9 +380,9 @@ function FeatureCards({ isEditMode }: { isEditMode: boolean }) {
 }
 
 // ═══════════════════════════════════════════
-// DATA ANALYSIS WORKBENCH (4PL + Curve)
+// DATA ANALYSIS WORKBENCH (首页展示区块)
 // ═══════════════════════════════════════════
-function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
+function DataAnalysisWorkbench() {
   return (
     <section id="analysis" className="py-20 px-4 bg-[#F2F6FA]">
       <div className="max-w-7xl mx-auto">
@@ -426,7 +401,7 @@ function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
                   </div>
                   <div><h3 className="text-[#1E293B] font-semibold">4PL 拟合 & 标准曲线</h3><p className="text-[#94A3B8] text-xs">四参数Logistic回归，R&sup2; &gt; 0.99</p></div>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium border border-emerald-200">在线工具</span>
+                <Link href="/analysis" className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium border border-emerald-200 hover:bg-emerald-100 transition-colors">进入工作台</Link>
               </div>
               <div className="bg-[#F6F8FB] rounded-xl p-4 border border-gray-100">
                 <svg viewBox="0 0 600 200" className="w-full h-auto">
@@ -463,7 +438,7 @@ function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-400 flex items-center justify-center"><FileSpreadsheet className="w-5 h-5 text-white" /></div>
                   <div><h3 className="text-[#1E293B] font-semibold">实验报告自动生成</h3><p className="text-[#94A3B8] text-xs">一键生成专业PDF实验报告</p></div>
                 </div>
-                <Link href="/ai-chat" className="px-4 py-2 rounded-lg text-white text-sm font-medium hover:shadow-lg transition-all" style={{background:'linear-gradient(90deg,#2563EB,#0891B2)'}}>开始分析</Link>
+                <Link href="/analysis" className="px-4 py-2 rounded-lg text-white text-sm font-medium hover:shadow-lg transition-all bg-gradient-to-r from-[#2563EB] to-[#0891B2]">开始分析</Link>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {['实验信息','标准曲线','样本浓度','PDF报告'].map((item,i) => (
@@ -511,7 +486,7 @@ function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
 // ═══════════════════════════════════════════
 // POINTS ECOSYSTEM
 // ═══════════════════════════════════════════
-function PointsEcosystem({ isEditMode }: { isEditMode: boolean }) {
+function PointsEcosystem() {
   const steps = [
     { icon: FileBarChart, title: '发表文献', desc: '使用我们的产品发表科研论文', color: 'from-blue-500 to-cyan-400', points: '+100~500', status: '积分' },
     { icon: CheckCircle, title: '提交审核', desc: '上传论文信息等待审核', color: 'from-emerald-500 to-teal-400', points: '审核中', status: '审核' },
@@ -563,7 +538,7 @@ function PointsEcosystem({ isEditMode }: { isEditMode: boolean }) {
             ); })}
           </div>
           <div className="mt-6 flex items-center justify-center gap-4">
-            <Link href="/points" className="px-6 py-3 rounded-full text-white font-medium hover:shadow-lg transition-all flex items-center gap-2" style={{background:'linear-gradient(90deg,#2563EB,#0891B2)'}}><Award className="w-4 h-4" />提交论文获取积分</Link>
+            <Link href="/publications" className="px-6 py-3 rounded-full text-white font-medium hover:shadow-lg transition-all flex items-center gap-2 bg-gradient-to-r from-[#2563EB] to-[#0891B2]"><Award className="w-4 h-4" />提交论文获取积分</Link>
             <Link href="/points" className="px-6 py-3 rounded-full border border-[#cbd5e1] text-[#475569] font-medium hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center gap-2"><ShoppingBag className="w-4 h-4" />浏览积分商城</Link>
           </div>
         </div>
@@ -575,7 +550,7 @@ function PointsEcosystem({ isEditMode }: { isEditMode: boolean }) {
 // ═══════════════════════════════════════════
 // SMART PRODUCT SEARCH
 // ═══════════════════════════════════════════
-function SmartProductSearch({ isEditMode }: { isEditMode: boolean }) {
+function SmartProductSearch() {
   const species = [
     { name: '人', latin: 'Human', icon: 'fa-user', count: '1,200+' },
     { name: '小鼠', latin: 'Mouse', icon: 'fa-mouse', count: '980+' },
@@ -687,7 +662,7 @@ function ProcessFlow({ content, isEditMode, onUpdate }: any) {
 // ═══════════════════════════════════════════
 // VIDEO TUTORIALS
 // ═══════════════════════════════════════════
-function VideoTutorials({ isEditMode }: { isEditMode: boolean }) {
+function VideoTutorials() {
   const videos = [
     { title: 'ELISA实验基础操作', duration: '15:30', views: '2.3k', bg: 'from-blue-100 to-cyan-100' },
     { title: '双抗夹心法详解', duration: '22:15', views: '1.8k', bg: 'from-purple-100 to-pink-100' },
@@ -725,7 +700,7 @@ function VideoTutorials({ isEditMode }: { isEditMode: boolean }) {
 // ═══════════════════════════════════════════
 // ELISA METHODS
 // ═══════════════════════════════════════════
-function ElisaMethods({ isEditMode }: { isEditMode: boolean }) {
+function ElisaMethods() {
   const methods = [
     { name: '双抗夹心法', en: 'Sandwich ELISA', desc: '最常用方法，灵敏度高，特异性强', icon: Microscope },
     { name: '竞争法', en: 'Competitive ELISA', desc: '适用于小分子检测', icon: FlaskConical },
@@ -757,7 +732,7 @@ function ElisaMethods({ isEditMode }: { isEditMode: boolean }) {
 }
 
 // ═══════════════════════════════════════════
-// DAILY KNOWLEDGE (with InlineEdit)
+// DAILY KNOWLEDGE
 // ═══════════════════════════════════════════
 function DailyKnowledge({ content, isEditMode, onUpdate }: any) {
   const items = [
@@ -819,7 +794,7 @@ function DailyKnowledge({ content, isEditMode, onUpdate }: any) {
 // ═══════════════════════════════════════════
 // COMMUNITY
 // ═══════════════════════════════════════════
-function CommunitySection({ isEditMode }: { isEditMode: boolean }) {
+function CommunitySection() {
   const discussions = [
     { name: '张博士', initial: 'Z', tag: '实验方案', tagColor: 'blue', title: '小鼠IL-6检测实验方案优化讨论', replies: 23, time: '2小时前' },
     { name: '李研究员', initial: 'L', tag: '技术交流', tagColor: 'blue', title: '双抗夹心法标准曲线构建经验分享', replies: 45, time: '5小时前' },
@@ -843,7 +818,7 @@ function CommunitySection({ isEditMode }: { isEditMode: boolean }) {
                 ))}
               </div>
             </div>
-            <Link href="#" className="block w-full py-3 rounded-xl text-center text-white font-medium hover:shadow-lg transition-all" style={{background:'linear-gradient(90deg,#2563EB,#0891B2)'}}>加入社区讨论</Link>
+            <Link href="/community" className="block w-full py-3 rounded-xl text-center text-white font-medium hover:shadow-lg transition-all bg-gradient-to-r from-[#2563EB] to-[#0891B2]">加入社区讨论</Link>
           </div>
           <div className="lg:col-span-2 space-y-4">
             <h4 className="text-[#1E293B] font-semibold mb-4">热门讨论</h4>
@@ -896,8 +871,8 @@ function Footer({ content, isEditMode, onUpdate }: any) {
           <div>
             <h4 className="text-white font-semibold text-sm tracking-wider uppercase mb-5">Quick Links</h4>
             <ul className="space-y-3">
-              {['AI Lab','Video Library','AI Assistant','Report Generator','Points Mall'].map(l => (
-                <li key={l}><Link href="#" className="text-slate-400 text-sm hover:text-blue-400 transition-colors">{l}</Link></li>
+              {['AI服务中心','视频教程','每日知识','积分商城','科研社区'].map(l => (
+                <li key={l}><Link href={`/${l === 'AI服务中心' ? 'ai-chat' : l === '视频教程' ? 'videos' : l === '每日知识' ? 'knowledge' : l === '积分商城' ? 'points' : 'community'}`} className="text-slate-400 text-sm hover:text-blue-400 transition-colors">{l}</Link></li>
               ))}
             </ul>
           </div>
@@ -905,8 +880,8 @@ function Footer({ content, isEditMode, onUpdate }: any) {
           <div>
             <h4 className="text-white font-semibold text-sm tracking-wider uppercase mb-5">Resources</h4>
             <ul className="space-y-3">
-              {['Daily Tips','Literature Hub','Community','Help Center'].map(l => (
-                <li key={l}><Link href="#" className="text-slate-400 text-sm hover:text-blue-400 transition-colors">{l}</Link></li>
+              {['产品搜索','数据分析','文献引用','帮助中心'].map(l => (
+                <li key={l}><Link href={`/${l === '产品搜索' ? 'products' : l === '数据分析' ? 'analysis' : l === '文献引用' ? 'publications' : '#'}`} className="text-slate-400 text-sm hover:text-blue-400 transition-colors">{l}</Link></li>
               ))}
             </ul>
           </div>

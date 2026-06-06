@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import Navbar from "@/components/ui/Navbar";
+import AiChatBot from '@/components/product/AiChatBot';
 
 export const metadata: Metadata = {
   title: "Animal Union | 爱萌优宁 - ELISA 试剂盒专家",
@@ -34,6 +35,7 @@ export default async function RootLayout({
         <div className="flex-1 min-h-0 overflow-auto bg-white">
           {children}
         </div>
+        <AiChatBot />
       </body>
     </html>
   );
