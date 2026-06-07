@@ -9,17 +9,30 @@ import {
   CheckCircle, BarChart3, LineChart, Sigma, Edit3, X, Save, Check
 } from 'lucide-react';
 
-// ── Supabase Client (Browser-side) ─────────────────────────
-import { createClient } from '@supabase/supabase-js';
-
+// ── Supabase Client (initialized lazily in useEffect) ──────
 let supabase: any = null;
-try {
-  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (sbUrl && sbKey && sbUrl !== 'your-supabase-url') {
-    supabase = createClient(sbUrl, sbKey);
+function initSupabase() {
+  if (supabase) return supabase;
+  if (typeof window === 'undefined') return null;
+  try {
+    // Try @supabase/ssr (original project uses this)
+    // @ts-ignore
+    const mod = require('@supabase/ssr');
+    const createClient = mod.createBrowserClient || mod.createClient;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key) supabase = createClient(url, key);
+  } catch {
+    try {
+      // @ts-ignore
+      const mod = require('@supabase/supabase-js');
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (url && key) supabase = mod.createClient(url, key);
+    } catch { /* supabase not available */ }
   }
-} catch (e) { /* no supabase */ }
+  return supabase;
+}
 
 const LS_KEY = 'aimeng_homepage_content';
 function loadFromLocal(): Record<string, any> | null {
@@ -103,12 +116,15 @@ export default function HomePage() {
 
   useEffect(() => {
     async function load() {
-      if (supabase) {
+      // Try Supabase first
+      const sb = initSupabase();
+      if (sb) {
         try {
-          const { data } = await supabase.from('site_settings').select('homepage_content').eq('id', 1).single();
+          const { data } = await sb.from('site_settings').select('homepage_content').eq('id', 1).single();
           if (data?.homepage_content) { setContent({ ...DEFAULT_CONTENT, ...data.homepage_content }); return; }
         } catch { /* fallback */ }
       }
+      // Fallback to localStorage
       const local = loadFromLocal();
       if (local) setContent({ ...DEFAULT_CONTENT, ...local });
     }
@@ -122,14 +138,17 @@ export default function HomePage() {
 
   const handleSave = async () => {
     setSaveStatus('saving');
-    if (supabase) {
+    // Try Supabase first
+    const sb = initSupabase();
+    if (sb) {
       try {
-        const { error } = await supabase.from('site_settings').upsert({
+        const { error } = await sb.from('site_settings').upsert({
           id: 1, homepage_content: content, updated_at: new Date().toISOString(),
         });
         if (!error) { setSaveStatus('saved'); setHasChanges(false); setTimeout(() => setSaveStatus('idle'), 2000); return; }
       } catch { /* fallback */ }
     }
+    // Fallback to localStorage
     saveToLocal(content);
     setSaveStatus('saved');
     setHasChanges(false);
@@ -143,19 +162,46 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B] relative">
+      {/* Edit Toggle */}
       <EditModeToggle isEditMode={isEditMode} onToggle={toggleEditMode} hasChanges={hasChanges} saveStatus={saveStatus} onSave={handleSave} />
+
+      {/* ═══ NAVBAR ═══ */}
       <NavBar />
+
+      {/* ═══ HERO ═══ */}
       <HeroSection content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+
+      {/* ═══ STATS ═══ */}
       <StatsBar content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+
+      {/* ═══ FEATURE CARDS ═══ */}
       <FeatureCards isEditMode={isEditMode} />
+
+      {/* ═══ DATA ANALYSIS WORKBENCH ═══ */}
       <DataAnalysisWorkbench isEditMode={isEditMode} />
+
+      {/* ═══ POINTS ECOSYSTEM ═══ */}
       <PointsEcosystem isEditMode={isEditMode} />
+
+      {/* ═══ SMART PRODUCT SEARCH ═══ */}
       <SmartProductSearch isEditMode={isEditMode} />
+
+      {/* ═══ PROCESS FLOW ═══ */}
       <ProcessFlow content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+
+      {/* ═══ VIDEO TUTORIALS ═══ */}
       <VideoTutorials isEditMode={isEditMode} />
+
+      {/* ═══ ELISA METHODS ═══ */}
       <ElisaMethods isEditMode={isEditMode} />
+
+      {/* ═══ DAILY KNOWLEDGE ═══ */}
       <DailyKnowledge content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
+
+      {/* ═══ COMMUNITY ═══ */}
       <CommunitySection isEditMode={isEditMode} />
+
+      {/* ═══ FOOTER ═══ */}
       <Footer content={content} isEditMode={isEditMode} onUpdate={handleUpdate} />
     </div>
   );
@@ -168,12 +214,17 @@ function NavBar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-40 bg-[#F2F6FA]/90 backdrop-blur-md border-b border-gray-200/60">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#3CB5C0] to-[#2563EB] flex items-center justify-center shadow-sm">
             <span className="text-white font-bold text-lg">A</span>
           </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] bg-clip-text text-transparent">AIMENG UNING</span>
+          <span className="text-lg font-bold bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] bg-clip-text text-transparent">
+            AIMENG UNING
+          </span>
         </Link>
+
+        {/* Nav Links */}
         <div className="hidden md:flex items-center gap-6">
           <Link href="/" className="text-sm font-semibold text-blue-600">HOME</Link>
           <Link href="#analysis" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">数据分析</Link>
@@ -183,9 +234,15 @@ function NavBar() {
           <Link href="#knowledge" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">每日分享</Link>
           <Link href="#community" className="text-sm text-[#475569] hover:text-blue-600 transition-colors">社区</Link>
         </div>
+
+        {/* Auth Buttons */}
         <div className="flex items-center gap-3">
-          <Link href="/login" className="px-4 py-2 rounded-full border border-[#cbd5e1] text-[#475569] text-sm font-medium hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">登录</Link>
-          <Link href="/register" className="px-4 py-2 rounded-full text-sm font-medium text-white" style={{background:'linear-gradient(90deg,#2563EB,#0891B2)'}}>注册</Link>
+          <Link href="/login" className="px-4 py-2 rounded-full border border-[#cbd5e1] text-[#475569] text-sm font-medium hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
+            登录
+          </Link>
+          <Link href="/register" className="px-4 py-2 rounded-full text-sm font-medium text-white" style={{background:'linear-gradient(90deg,#2563EB,#0891B2)'}}>
+            注册
+          </Link>
         </div>
       </div>
     </nav>
@@ -196,6 +253,7 @@ function NavBar() {
 // HERO with Canvas Animation
 // ═══════════════════════════════════════════
 function HeroSection({ content, isEditMode, onUpdate }: any) {
+  // Canvas animation effect
   useEffect(() => {
     const canvas = document.getElementById('bioCanvas') as HTMLCanvasElement;
     if (!canvas) return;
@@ -212,28 +270,36 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
     resize();
     window.addEventListener('resize', resize);
 
+    // Particles
     for (let i = 0; i < 50; i++) {
       particles.push({ x: Math.random() * 2000, y: Math.random() * 800, r: Math.random() * 2.5 + 1, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, alpha: Math.random() * 0.4 + 0.2 });
     }
+    // Cells
     for (let i = 0; i < 8; i++) {
       cells.push({ x: Math.random() * 2000, y: Math.random() * 800, r: Math.random() * 35 + 30, vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15, nucleusR: Math.random() * 10 + 8, hue: Math.random() > 0.5 ? 210 : 185 });
     }
+    // Antibodies
     for (let i = 0; i < 14; i++) {
       antibodies.push({ x: Math.random() * 2000, y: Math.random() * 800, size: Math.random() * 14 + 12, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25, rot: Math.random() * 6.28, vRot: (Math.random() - 0.5) * 0.005 });
     }
+    // Mitochondria
     for (let i = 0; i < 10; i++) {
       mitochondrias.push({ x: Math.random() * 2000, y: Math.random() * 800, w: Math.random() * 28 + 20, h: Math.random() * 14 + 12, vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2, rot: Math.random() * 6.28, vRot: (Math.random() - 0.5) * 0.003 });
     }
+    // Virus
     for (let i = 0; i < 6; i++) {
       viruses.push({ x: Math.random() * 2000, y: Math.random() * 800, r: Math.random() * 12 + 10, vx: (Math.random() - 0.5) * 0.2, vy: (Math.random() - 0.5) * 0.2, spikes: Math.floor(Math.random() * 4) + 6 });
     }
+    // Bacteria
     for (let i = 0; i < 8; i++) {
       bacterias.push({ x: Math.random() * 2000, y: Math.random() * 800, w: Math.random() * 20 + 15, h: Math.random() * 6 + 5, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, rot: Math.random() * 6.28, vRot: (Math.random() - 0.5) * 0.005 });
     }
 
     function draw() {
       ctx.clearRect(0, 0, W, H);
+      // Particles
       particles.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fillStyle = `rgba(37,99,235,${p.alpha})`; ctx.fill(); });
+      // Bacteria
       bacterias.forEach(b => {
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
         ctx.beginPath(); ctx.roundRect(-b.w / 2, -b.h / 2, b.w, b.h, b.h / 2);
@@ -241,6 +307,7 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
         ctx.strokeStyle = 'rgba(16,185,129,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.restore();
       });
+      // Cells
       cells.forEach(c => {
         const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
         g.addColorStop(0, `hsla(${c.hue},80%,70%,0.3)`); g.addColorStop(0.5, `hsla(${c.hue},70%,60%,0.15)`); g.addColorStop(1, `hsla(${c.hue},60%,50%,0)`);
@@ -249,6 +316,7 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
         ctx.beginPath(); ctx.arc(c.x, c.y, c.nucleusR, 0, 6.28); ctx.fillStyle = `hsla(${c.hue},50%,50%,0.35)`; ctx.fill();
         ctx.strokeStyle = `hsla(${c.hue},50%,45%,0.5)`; ctx.lineWidth = 1; ctx.stroke();
       });
+      // Mitochondria
       mitochondrias.forEach(m => {
         ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.rot);
         ctx.beginPath(); ctx.ellipse(0, 0, m.w / 2, m.h / 2, 0, 0, 6.28);
@@ -258,6 +326,7 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
         for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(-m.w * 0.25, i * m.h * 0.12); ctx.quadraticCurveTo(0, i * m.h * 0.12 + m.h * 0.1, m.w * 0.25, i * m.h * 0.12); ctx.stroke(); }
         ctx.restore();
       });
+      // Virus
       viruses.forEach(v => {
         ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(Date.now() * 0.0004);
         ctx.beginPath(); ctx.arc(0, 0, v.r * 0.5, 0, 6.28);
@@ -270,6 +339,7 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
         }
         ctx.restore();
       });
+      // Antibodies
       antibodies.forEach(a => {
         ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.rot);
         const s = a.size;
@@ -302,10 +372,13 @@ function HeroSection({ content, isEditMode, onUpdate }: any) {
 
   return (
     <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+      {/* Canvas background */}
       <canvas id="bioCanvas" className="absolute inset-0 w-full h-full" style={{ opacity: 0.65 }} />
+      {/* White overlay for readability */}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg,rgba(242,246,250,0.8) 0%,rgba(242,246,250,0.6) 40%,rgba(242,246,250,0.25) 100%)' }} />
       <div className="absolute top-20 right-0 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-cyan-100/30 rounded-full blur-3xl pointer-events-none" />
+
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="mb-6">
           <span className="text-blue-600 text-sm font-semibold tracking-widest uppercase bg-blue-50 px-3 py-1 rounded-full">
@@ -417,6 +490,7 @@ function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
           <p className="text-[#94A3B8] max-w-2xl mx-auto">从原始OD值到专业实验报告，一站式完成4PL拟合、标准曲线绘制和报告生成</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left */}
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white rounded-2xl p-6" style={{ border: '1px solid #E2E8F0' }}>
               <div className="flex items-center justify-between mb-6">
@@ -428,6 +502,7 @@ function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
                 </div>
                 <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium border border-emerald-200">在线工具</span>
               </div>
+              {/* SVG Curve */}
               <div className="bg-[#F6F8FB] rounded-xl p-4 border border-gray-100">
                 <svg viewBox="0 0 600 200" className="w-full h-auto">
                   <defs><pattern id="grid" width="50" height="25" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 25" fill="none" stroke="#E2E8F0" strokeWidth="1"/></pattern>
@@ -478,6 +553,7 @@ function DataAnalysisWorkbench({ isEditMode }: { isEditMode: boolean }) {
             </div>
           </div>
 
+          {/* Right - Flow */}
           <div className="lg:col-span-5">
             <div className="bg-white rounded-2xl p-6 h-full" style={{ border: '1px solid #E2E8F0' }}>
               <h3 className="text-[#1E293B] font-semibold mb-6">分析流程</h3>
@@ -781,6 +857,7 @@ function DailyKnowledge({ content, isEditMode, onUpdate }: any) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Featured */}
           <div className="lg:col-span-3 bg-white rounded-2xl p-8 transition-all hover:-translate-y-1" style={{ border: '1px solid #E2E8F0' }}>
             <div className="flex items-center gap-3 mb-6">
               <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-semibold border border-emerald-200 flex items-center gap-1"><Zap className="w-3 h-3" />最新知识</span>
@@ -799,6 +876,7 @@ function DailyKnowledge({ content, isEditMode, onUpdate }: any) {
             </div>
           </div>
 
+          {/* List */}
           <div className="lg:col-span-2 space-y-4">
             {items.map((item, i) => (
               <div key={i} className="bg-white rounded-xl p-5 cursor-pointer transition-all hover:bg-[#F6F8FB]" style={{ border: '1px solid #E2E8F0' }}>
