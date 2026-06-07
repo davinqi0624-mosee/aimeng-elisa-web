@@ -9,30 +9,9 @@ import {
   CheckCircle, BarChart3, LineChart, Sigma, Edit3, X, Save, Check
 } from 'lucide-react';
 
-// ── Supabase Client (initialized lazily in useEffect) ──────
-let supabase: any = null;
-function initSupabase() {
-  if (supabase) return supabase;
-  if (typeof window === 'undefined') return null;
-  try {
-    // Try @supabase/ssr (original project uses this)
-    // @ts-ignore
-    const mod = require('@supabase/ssr');
-    const createClient = mod.createBrowserClient || mod.createClient;
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (url && key) supabase = createClient(url, key);
-  } catch {
-    try {
-      // @ts-ignore
-      const mod = require('@supabase/supabase-js');
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (url && key) supabase = mod.createClient(url, key);
-    } catch { /* supabase not available */ }
-  }
-  return supabase;
-}
+// ── Supabase placeholder (edit mode saves to localStorage) ──
+// To enable Supabase: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local
+const supabaseEnabled = false;
 
 const LS_KEY = 'aimeng_homepage_content';
 function loadFromLocal(): Record<string, any> | null {
@@ -115,20 +94,11 @@ export default function HomePage() {
   const [saveStatus, setSaveStatus] = useState<'idle'|'saving'|'saved'>('idle');
 
   useEffect(() => {
-    async function load() {
-      // Try Supabase first
-      const sb = initSupabase();
-      if (sb) {
-        try {
-          const { data } = await sb.from('site_settings').select('homepage_content').eq('id', 1).single();
-          if (data?.homepage_content) { setContent({ ...DEFAULT_CONTENT, ...data.homepage_content }); return; }
-        } catch { /* fallback */ }
-      }
-      // Fallback to localStorage
-      const local = loadFromLocal();
-      if (local) setContent({ ...DEFAULT_CONTENT, ...local });
+    // Load from localStorage
+    const local = loadFromLocal();
+    if (local && Object.keys(local).length > 0) {
+      setContent({ ...DEFAULT_CONTENT, ...local });
     }
-    load();
   }, []);
 
   const handleUpdate = useCallback((key: string, value: string) => {
@@ -136,19 +106,9 @@ export default function HomePage() {
     setHasChanges(true);
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setSaveStatus('saving');
-    // Try Supabase first
-    const sb = initSupabase();
-    if (sb) {
-      try {
-        const { error } = await sb.from('site_settings').upsert({
-          id: 1, homepage_content: content, updated_at: new Date().toISOString(),
-        });
-        if (!error) { setSaveStatus('saved'); setHasChanges(false); setTimeout(() => setSaveStatus('idle'), 2000); return; }
-      } catch { /* fallback */ }
-    }
-    // Fallback to localStorage
+    // Save to localStorage
     saveToLocal(content);
     setSaveStatus('saved');
     setHasChanges(false);
