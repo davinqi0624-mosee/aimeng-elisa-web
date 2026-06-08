@@ -443,7 +443,7 @@ export default function ElisaAnalysisPage() {
         {standards.map((s, i) => (
           <g key={`s-${i}`}>
             <circle cx={xScale(s.concentration)} cy={yScale(s.od)} r={6} fill="#3B82F6" stroke="white" strokeWidth={2} />
-            <text x={xScale(s.concentration)} y={yScale(s.od) - 12} textAnchor="middle" fontSize={11} fill="#1E293B" fontWeight={600">{s.od.toFixed(3)}</text>
+            <text x={xScale(s.concentration)} y={yScale(s.od) - 12} textAnchor="middle" fontSize={11} fill="#1E293B" fontWeight={600}>{s.od.toFixed(3)}</text>
           </g>
         ))}
         {unknowns.map((u, i) => {
@@ -451,7 +451,7 @@ export default function ElisaAnalysisPage() {
           return (
             <g key={`u-${i}`}>
               <circle cx={xScale(u.concentration)} cy={yScale(u.od)} r={6} fill="#EF4444" stroke="white" strokeWidth={2} />
-              <text x={xScale(u.concentration)} y={yScale(u.od) + 20} textAnchor="middle" fontSize={10} fill="#EF4444" fontWeight={600">{u.name}</text>
+              <text x={xScale(u.concentration)} y={yScale(u.od) + 20} textAnchor="middle" fontSize={10} fill="#EF4444" fontWeight={600}>{u.name}</text>
             </g>
           )
         })}
