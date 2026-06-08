@@ -73,7 +73,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-2 text-blue-600 font-bold text-xl">
               <FlaskConical className="w-6 h-6" />
-              <span>Animal Union</span>
+              <span>AIMENG UNING</span>
             </Link>
             <p className="text-sm text-[#94A3B8] mt-2">创建您的新账户</p>
           </div>

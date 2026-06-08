@@ -319,7 +319,7 @@ export default function DatasheetAdminPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h1 className="text-xl font-bold text-gray-900">
-                        Animal Union 爱萌优宁
+                        AIMENG UNING 爱萌优宁
                       </h1>
                       <p className="text-sm text-gray-600 mt-0.5">
                         ELISA 试剂盒产品说明书
@@ -347,7 +347,7 @@ export default function DatasheetAdminPage() {
 
                 {/* Footer for print */}
                 <div className="print-footer hidden print:block border-t border-gray-300 pt-4 mt-8 text-xs text-gray-500 text-center">
-                  <p>Animal Union 爱萌优宁 · www.animalunion.cn</p>
+                  <p>AIMENG UNING 爱萌优宁 · www.animalunion.cn</p>
                   <p className="mt-0.5">本说明书仅供科研使用，请仔细阅读后操作。</p>
                 </div>
               </div>

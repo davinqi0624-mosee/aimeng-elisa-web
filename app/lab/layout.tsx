@@ -12,7 +12,7 @@ export default function LabLayout({
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2 text-blue-600 font-bold text-lg">
             <Home className="w-5 h-5" />
-            <span>Animal Union</span>
+            <span>AIMENG UNING</span>
           </Link>
           <div className="flex-1" />
           <Link

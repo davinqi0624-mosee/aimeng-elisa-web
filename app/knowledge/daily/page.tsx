@@ -98,7 +98,7 @@ export default function DailyKnowledgePage() {
             <span className="text-gray-300">|</span>
             <span>ELISA 每日一课</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Animal Union ELISA 知识库</h1>
+          <h1 className="text-3xl font-bold text-gray-900">AIMENG UNING ELISA 知识库</h1>
           <p className="text-sm text-gray-500 mt-2">
             每日更新实验技巧、 troubleshooting 与前沿动态
           </p>

@@ -92,7 +92,7 @@ const DEFAULT_CONTENT: Record<string, any> = {
   dk_featured_title: '实验重复性差？从这 3 个环节排查',
   dk_featured_desc: '系统性提升 ELISA 实验重复性的关键控制点。从加样操作到孵育条件，全面解析影响重复性的核心因素。',
   process_title: '平台使用流程',
-  footer_copyright: '© 2025 Animal Union 爱萌优宁. All rights reserved.',
+  footer_copyright: '© 2025 AIMENG UNING 爱萌优宁. All rights reserved.',
 };
 
 // ── MAIN PAGE ───────────────────────────────

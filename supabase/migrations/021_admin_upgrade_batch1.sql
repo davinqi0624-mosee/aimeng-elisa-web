@@ -90,9 +90,9 @@ CREATE POLICY pages_select_public ON pages FOR SELECT TO PUBLIC USING (is_active
 
 -- 6. pages 预设数据（5条）
 INSERT INTO pages (slug, title, meta_title, meta_description, content, is_active) VALUES
-('contact', '联系我们', '联系我们 - Animal Union 爱萌优宁', '联系 Animal Union 爱萌优宁，获取 ELISA 试剂盒产品咨询与技术支持。', '', true),
-('about', '关于我们', '关于我们 - Animal Union 爱萌优宁', '了解 Animal Union 爱萌优宁的公司背景、研发团队与使命愿景。', '', true),
-('privacy', '隐私政策', '隐私政策 - Animal Union 爱萌优宁', 'Animal Union 爱萌优宁隐私政策，说明我们如何收集、使用和保护您的个人信息。', '', true),
-('terms', '服务条款', '服务条款 - Animal Union 爱萌优宁', 'Animal Union 爱萌优宁服务条款，使用本网站前请仔细阅读。', '', true),
-('faq', '常见问题', '常见问题 - Animal Union 爱萌优宁', 'ELISA 试剂盒常见问题解答，帮助您快速找到答案。', '', true)
+('contact', '联系我们', '联系我们 - AIMENG UNING 爱萌优宁', '联系 AIMENG UNING 爱萌优宁，获取 ELISA 试剂盒产品咨询与技术支持。', '', true),
+('about', '关于我们', '关于我们 - AIMENG UNING 爱萌优宁', '了解 AIMENG UNING 爱萌优宁的公司背景、研发团队与使命愿景。', '', true),
+('privacy', '隐私政策', '隐私政策 - AIMENG UNING 爱萌优宁', 'AIMENG UNING 爱萌优宁隐私政策，说明我们如何收集、使用和保护您的个人信息。', '', true),
+('terms', '服务条款', '服务条款 - AIMENG UNING 爱萌优宁', 'AIMENG UNING 爱萌优宁服务条款，使用本网站前请仔细阅读。', '', true),
+('faq', '常见问题', '常见问题 - AIMENG UNING 爱萌优宁', 'ELISA 试剂盒常见问题解答，帮助您快速找到答案。', '', true)
 ON CONFLICT (slug) DO NOTHING;

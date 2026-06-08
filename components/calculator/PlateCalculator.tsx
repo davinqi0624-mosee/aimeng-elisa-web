@@ -78,7 +78,7 @@ export default function PlateCalculator() {
         </div>
         <div>
           <h3 className="text-lg font-bold text-slate-900">酶标板孔数计算器</h3>
-          <p className="text-xs text-slate-500">基于 Animal Union 产品说明书（8 点标准曲线：S1-S7 + Blank）</p>
+          <p className="text-xs text-slate-500">基于 AIMENG UNING 产品说明书（8 点标准曲线：S1-S7 + Blank）</p>
         </div>
       </div>
 

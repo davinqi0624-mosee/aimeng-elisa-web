@@ -46,7 +46,7 @@ export default function PublicationsPage() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-[#1E293B] mb-2">文献引用</h1>
-            <p className="text-[#94A3B8]">发表文献引用 Animal Union 产品，即可获得积分奖励</p>
+            <p className="text-[#94A3B8]">发表文献引用 AIMENG UNING 产品，即可获得积分奖励</p>
           </div>
 
           {/* Stats */}
@@ -101,7 +101,7 @@ export default function PublicationsPage() {
           <div className="mt-8 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl border border-blue-100 p-8 text-center">
             <Award className="w-10 h-10 text-blue-600 mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-[#1E293B] mb-2">发表文献获取积分</h3>
-            <p className="text-sm text-[#94A3B8] mb-4">使用 Animal Union 产品发表 SCI 论文，每篇可获得 100-500 积分</p>
+            <p className="text-sm text-[#94A3B8] mb-4">使用 AIMENG UNING 产品发表 SCI 论文，每篇可获得 100-500 积分</p>
             <button className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
               提交文献信息
             </button>

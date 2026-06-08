@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = `你是一位资深的 ELISA 实验方案设计专家。请根据用户提供的产品信息和实验目的，设计一份详细、可执行的 ELISA 实验方案。
 
-【酶标板孔数计算规则 - 基于 Animal Union 产品说明书】
+【酶标板孔数计算规则 - 基于 AIMENG UNING 产品说明书】
 标准品设计：8 个浓度点（S1-S7 + Blank）
 计算公式：总需求孔数 = 标准品孔数 + 空白对照孔 + 样本数 × 样本平行次数
 - 标准品孔数：单孔操作 = 8 孔；双孔操作（推荐）= 16 孔

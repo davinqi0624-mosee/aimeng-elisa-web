@@ -6,8 +6,8 @@ INSERT INTO daily_knowledge (
 (
   '2026-05-02',
   'ELISA 酶标板孔数精确计算：8 点标准曲线方案',
-  '基于 Animal Union 产品说明书，详解 8 点标准曲线（S1-S7 + Blank）的酶标板孔数计算方法，帮助实验人员精准采购。',
-  '## Animal Union 产品说明书确认的标准品设计
+  '基于 AIMENG UNING 产品说明书，详解 8 点标准曲线（S1-S7 + Blank）的酶标板孔数计算方法，帮助实验人员精准采购。',
+  '## AIMENG UNING 产品说明书确认的标准品设计
 
 - **8 个浓度点**：S1、S2、S3、S4、S5、S6、S7 + Blank
 - **说明书推荐**：标准品和样本均做双孔检测
@@ -45,7 +45,7 @@ INSERT INTO daily_knowledge (
 
 ## 在线计算器
 
-Animal Union 官网已上线「酶标板孔数计算器」：
+AIMENG UNING 官网已上线「酶标板孔数计算器」：
 - 自动计算标准品、空白、样本所需孔数
 - 智能推荐 48T / 96T 购买方案
 - 显示余量和分批建议

@@ -12,7 +12,7 @@ export default function AboutPage() {
             <section className="bg-slate-900 py-24 md:py-32">
               <div className="max-w-7xl mx-auto px-6 md:px-8 text-center">
                 <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
-                  关于 Animal Union
+                  关于 AIMENG UNING
                 </h1>
                 <p className="text-lg text-slate-400 max-w-2xl mx-auto">
                   专注 ELISA 试剂盒研发与服务，为科研工作者提供高质量的产品与专业的技术支持

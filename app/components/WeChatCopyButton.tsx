@@ -35,7 +35,7 @@ ${summary ? `\n${summary}\n` : ''}
 ${formatted}
 
 ——
-🧪 本文内容由 Animal Union（爱萌优宁）ELISA 技术团队原创整理
+🧪 本文内容由 AIMENG UNING（爱萌优宁）ELISA 技术团队原创整理
 🛒 访问 aimeng-elisa-web.vercel.app 搜索 3,484+ 款试剂盒
 📖 每日学习一点 ELISA 专业知识，让实验更精准`;
     return wechatText;

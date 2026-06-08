@@ -31,5 +31,5 @@ CREATE POLICY pages_admin_all ON pages
 
 -- 默认内容
 INSERT INTO pages (slug, title, meta_title, meta_description, content, is_active) VALUES
-('contact', '联系我们', '联系我们 - Animal Union 爱萌优宁', '联系 Animal Union 爱萌优宁，获取 ELISA 试剂盒产品咨询与技术支持。', '', true)
+('contact', '联系我们', '联系我们 - AIMENG UNING 爱萌优宁', '联系 AIMENG UNING 爱萌优宁，获取 ELISA 试剂盒产品咨询与技术支持。', '', true)
 ON CONFLICT (slug) DO NOTHING;

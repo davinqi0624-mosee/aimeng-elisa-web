@@ -512,7 +512,7 @@ export default async function ShopPage() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-400 flex items-center justify-center">
                   <FlaskConical className="w-4.5 h-4.5 text-white" />
                 </div>
-                <span className="text-white font-black text-lg tracking-tight">Animal Union</span>
+                <span className="text-white font-black text-lg tracking-tight">AIMENG UNING</span>
               </div>
               <p className="text-sm leading-relaxed max-w-sm">
                 AI 驱动的 ELISA 试剂盒平台，为科研工作者提供智能搜索、实验设计与数据分析服务。
@@ -538,7 +538,7 @@ export default async function ShopPage() {
             </div>
           </div>
           <div className="pt-8 border-t border-slate-800 text-sm text-center">
-            &copy; {new Date().getFullYear()} Animal Union 爱萌优宁. All rights reserved.
+            &copy; {new Date().getFullYear()} AIMENG UNING 爱萌优宁. All rights reserved.
           </div>
         </div>
       </footer>

@@ -74,7 +74,7 @@ export default function ContactPage() {
             <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 mb-1">
-                  Animal Union
+                  AIMENG UNING
                 </h2>
                 <p className="text-sm text-slate-500">上海爱萌优宁生物技术有限公司</p>
               </div>
