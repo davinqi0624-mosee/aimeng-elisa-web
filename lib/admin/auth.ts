@@ -4,9 +4,14 @@ import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.ADMIN_JWT_SECRET || 'aimeng-elisa-admin-default-secret-key-2026'
-)
+// fail-closed：ADMIN_JWT_SECRET 缺失时拒绝签发/验证令牌，禁止回退到默认密钥
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.ADMIN_JWT_SECRET
+  if (!secret) {
+    throw new Error('ADMIN_JWT_SECRET 未配置，管理员登录/鉴权已禁用（fail-closed）。')
+  }
+  return new TextEncoder().encode(secret)
+}
 
 const COOKIE_NAME = 'admin_session'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
@@ -38,12 +43,12 @@ export async function signAdminToken(payload: AdminPayload): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(JWT_SECRET)
+    .sign(getJwtSecret())
 }
 
 export async function verifyAdminToken(token: string): Promise<AdminPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET, { clockTolerance: 60 })
+    const { payload } = await jwtVerify(token, getJwtSecret(), { clockTolerance: 60 })
     return payload as unknown as AdminPayload
   } catch {
     return null

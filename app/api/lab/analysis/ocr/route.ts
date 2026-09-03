@@ -6,6 +6,23 @@ export const runtime = 'nodejs'
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
+// OCR 走 OpenAI 视觉模型，成本敏感：每 IP 每小时最多 10 次
+const OCR_RATE_LIMIT = 10
+const OCR_RATE_WINDOW_MS = 60 * 60 * 1000
+const ocrHits = new Map<string, number[]>()
+
+function isOcrRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hits = (ocrHits.get(ip) || []).filter((t) => now - t < OCR_RATE_WINDOW_MS)
+  if (hits.length >= OCR_RATE_LIMIT) {
+    ocrHits.set(ip, hits)
+    return true
+  }
+  hits.push(now)
+  ocrHits.set(ip, hits)
+  return false
+}
+
 function isMissingOrPlaceholderKey(apiKey: string | undefined) {
   if (!apiKey) return true
   const normalized = apiKey.trim().toLowerCase()
@@ -53,6 +70,15 @@ function cleanTableText(text: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (isOcrRateLimited(clientIp)) {
+      return NextResponse.json(
+        { error: '截图识别请求过于频繁，请一小时后再试。' },
+        { status: 429 },
+      )
+    }
+
     if (isMissingOrPlaceholderKey(process.env.OPENAI_API_KEY)) {
       return NextResponse.json({ error: '服务器暂未配置 OPENAI_API_KEY，无法进行截图识别。' }, { status: 500 })
     }
