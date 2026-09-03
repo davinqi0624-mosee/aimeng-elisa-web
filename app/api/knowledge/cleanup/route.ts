@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai/llm'
+import { requireSuper } from '@/lib/admin/auth'
 
 export async function POST(request: NextRequest) {
+  // 安全加固：知识库清理仅限超级管理员手动触发
+  const { error: authError } = await requireSuper(request)
+  if (authError) return authError
+
   const supabase = await createClient()
 
-  // This endpoint can be called by Vercel Cron or admin
   try {
     const report = {
       total_scanned: 0,

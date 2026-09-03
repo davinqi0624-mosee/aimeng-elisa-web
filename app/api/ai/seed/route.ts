@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEmbedding } from '@/lib/ai/llm'
+import { requireSuper } from '@/lib/admin/auth'
 
 const ELISA_ARTICLES = [
   {
@@ -37,6 +38,10 @@ const ELISA_ARTICLES = [
 
 export async function POST(request: NextRequest) {
   try {
+    // 安全加固：种子数据写入/重置仅限超级管理员
+    const { error: authError } = await requireSuper(request)
+    if (authError) return authError
+
     const body = await request.json().catch(() => ({}))
     const reset = body.reset === true
 

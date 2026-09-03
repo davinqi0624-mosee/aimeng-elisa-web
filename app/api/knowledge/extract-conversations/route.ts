@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { chatCompletion } from '@/lib/ai/llm'
+import { requireSuper } from '@/lib/admin/auth'
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message || fallback : fallback
@@ -63,6 +64,10 @@ const EXTRACT_PROMPT = `你是一个知识提取专家。请分析下面的客�
 注意：只输出 JSON，不要输出其他内容。`
 
 export async function POST(request: NextRequest) {
+  // 安全加固：批量提取用户会话属敏感操作，仅限超级管理员
+  const { error: authError } = await requireSuper(request)
+  if (authError) return authError
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceRoleKey) {

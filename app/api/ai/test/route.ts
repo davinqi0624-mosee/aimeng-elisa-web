@@ -1,12 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { chatCompletion } from '@/lib/ai/llm'
 import { getAiModelEnvStatus, getAiModelSettings } from '@/lib/ai/model-settings'
+import { requireAdminSession } from '@/lib/admin/auth'
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message || fallback : fallback
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // 安全加固：AI 连通性测试需要管理员会话，防止匿名消耗模型额度
+  const { error: authError } = await requireAdminSession(request)
+  if (authError) return authError
+
   try {
     const settings = await getAiModelSettings({ refresh: true })
     const reply = await chatCompletion(
