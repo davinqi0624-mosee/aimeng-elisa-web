@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyPassword, signAdminToken, setAdminCookie } from '@/lib/admin/auth'
 import { verifyTurnstileToken } from '@/lib/security/turnstile'
 import { checkAdminLoginLock, clearAdminLoginFailures, recordAdminLoginFailure } from '@/lib/security/admin-login-security'
@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: turnstile.error || '人机验证失败' }, { status: 403 })
     }
 
-    const supabase = await createClient()
+    // 安全修复：管理员表查询改用 service-role 客户端（服务端私有），
+    // 使数据库可移除面向 anon 的 admin_accounts 读取策略，密码哈希不再暴露给公网 API
+    const supabase = createAdminClient()
 
     const { data: account } = await supabase
       .from('admin_accounts')

@@ -5,6 +5,26 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message || fallback : fallback
 }
 
+// 安全加固：匿名可反馈是产品设计，但必须限流防刷 + 限制输入长度
+// （反馈只会进入管理员待审核队列 knowledge_candidates，不直接生效）
+const FEEDBACK_RATE_LIMIT = 10
+const FEEDBACK_RATE_WINDOW_MS = 60 * 60 * 1000
+const feedbackHits = new Map<string, number[]>()
+
+function isFeedbackRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const hits = (feedbackHits.get(ip) || []).filter((t) => now - t < FEEDBACK_RATE_WINDOW_MS)
+  if (hits.length >= FEEDBACK_RATE_LIMIT) {
+    feedbackHits.set(ip, hits)
+    return true
+  }
+  hits.push(now)
+  feedbackHits.set(ip, hits)
+  return false
+}
+
+const MAX_TEXT_LENGTH = 5000
+
 type FeedbackConversation = {
   id: string
   question: string
@@ -13,6 +33,12 @@ type FeedbackConversation = {
 }
 
 export async function POST(request: NextRequest) {
+  // 限流：每 IP 每小时最多 10 次反馈
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (isFeedbackRateLimited(clientIp)) {
+    return NextResponse.json({ error: '反馈提交过于频繁，请一小时后再试。' }, { status: 429 })
+  }
+
   const body = await request.json()
   const { conversationId, feedback, correction, question, answer, sourceType } = body as {
     conversationId?: string
@@ -22,9 +48,9 @@ export async function POST(request: NextRequest) {
     answer?: string
     sourceType?: string
   }
-  const feedbackNote = typeof correction === 'string' ? correction.trim() : ''
-  const fallbackQuestion = typeof question === 'string' ? question.trim() : ''
-  const fallbackAnswer = typeof answer === 'string' ? answer.trim() : ''
+  const feedbackNote = typeof correction === 'string' ? correction.trim().slice(0, MAX_TEXT_LENGTH) : ''
+  const fallbackQuestion = typeof question === 'string' ? question.trim().slice(0, MAX_TEXT_LENGTH) : ''
+  const fallbackAnswer = typeof answer === 'string' ? answer.trim().slice(0, MAX_TEXT_LENGTH) : ''
 
   if ((!conversationId && (!fallbackQuestion || !fallbackAnswer)) || !feedback || !['upvote', 'downvote'].includes(feedback)) {
     return NextResponse.json({ error: '缺少参数或无效反馈类型' }, { status: 400 })

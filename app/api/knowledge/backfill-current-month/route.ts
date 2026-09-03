@@ -122,8 +122,9 @@ function articleFor(date: string, index: number) {
 }
 
 function assertCronAllowed(request: NextRequest) {
+  // fail-closed：未配置 CRON_SECRET 时拒绝所有调用，而不是放行
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) return false
 
   const auth = request.headers.get('authorization')
   const token = request.nextUrl.searchParams.get('token')

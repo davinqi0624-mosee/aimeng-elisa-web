@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireSuper, hashPassword } from '@/lib/admin/auth'
 
 const ALL_PERMISSIONS = [
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const { error } = await requireSuper(request)
   if (error) return error
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: accounts, error: dbError } = await supabase
     .from('admin_accounts')
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '只有超级管理员能创建超级管理员' }, { status: 403 })
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const passwordHash = await hashPassword(password)
 
     const { data: newAdmin, error: insertErr } = await supabase
@@ -134,7 +134,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '不能取消自己的超级管理员权限' }, { status: 403 })
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const updateData: any = {}
     if (username !== undefined) {
@@ -203,7 +203,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '不能删除自己' }, { status: 403 })
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { error: deleteErr } = await supabase
       .from('admin_accounts')
