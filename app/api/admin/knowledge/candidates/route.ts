@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { requireAdminOrSuper } from '@/lib/admin/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message || fallback : fallback
+}
 
 export async function GET(request: NextRequest) {
   const { error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status') || 'pending'
 
@@ -19,8 +23,8 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
     return NextResponse.json({ candidates: data || [] })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: getErrorMessage(err, '知识候选加载失败') }, { status: 500 })
   }
 }
 
@@ -28,7 +32,7 @@ export async function POST(request: NextRequest) {
   const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   try {
     const body = await request.json()
@@ -49,55 +53,63 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'approve') {
-      // Publish to daily_knowledge
+      const title = edits?.title || candidate.suggested_title
+      const content = edits?.content || candidate.content || candidate.answer
+      const category = edits?.category || candidate.category
+      const tags = edits?.tags || candidate.tags
+
+      // 收录到 AI 客服检索用知识库。daily_knowledge 的 date 有唯一约束，
+      // 不适合作为大量客服反馈候选的主入库位置。
       const { data: published, error: pubErr } = await supabase
-        .from('daily_knowledge')
+        .from('knowledge_base')
         .insert({
-          date: new Date().toISOString().split('T')[0],
-          title: edits?.title || candidate.suggested_title,
-          summary: candidate.question.slice(0, 200),
-          content: edits?.content || candidate.content,
-          category: edits?.category || candidate.category,
-          tags: edits?.tags || candidate.tags,
-          quality_score: candidate.ai_quality_score,
-          source_type: 'ai_extracted',
-          lifecycle_status: 'active',
-          expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+          title,
+          content,
+          category,
+          tags,
         })
         .select('id')
         .single()
 
       if (pubErr) throw pubErr
 
-      // Update candidate
-      await supabase.from('knowledge_candidates').update({
+      const { error: updateError } = await supabase.from('knowledge_candidates').update({
         status: 'approved',
-        reviewer_id: admin!.id,
-        review_note: note || '一键发布',
-        merged_into_id: published.id,
+        review_note: note || `收录到 AI 知识库：${admin!.display_name || admin!.username}；knowledge_base_id=${published.id}`,
         reviewed_at: new Date().toISOString(),
       }).eq('id', id)
 
-      return NextResponse.json({ message: '已发布', knowledge_id: published.id })
+      if (updateError) throw updateError
+
+      return NextResponse.json({ message: '已收录到 AI 知识库', knowledge_id: published.id })
     }
 
     if (action === 'reject') {
       await supabase.from('knowledge_candidates').update({
         status: 'rejected',
-        reviewer_id: admin!.id,
-        review_note: note || '不符合要求',
+        review_note: note || `不符合要求：${admin!.display_name || admin!.username}`,
         reviewed_at: new Date().toISOString(),
       }).eq('id', id)
 
       return NextResponse.json({ message: '已拒绝' })
     }
 
+    if (action === 'delete') {
+      const { error: deleteError } = await supabase
+        .from('knowledge_candidates')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) throw deleteError
+
+      return NextResponse.json({ message: '已删除' })
+    }
+
     if (action === 'merge') {
       // Mark as merge pending - admin needs to specify target knowledge_id
       await supabase.from('knowledge_candidates').update({
         status: 'merge_pending',
-        reviewer_id: admin!.id,
-        review_note: note || '等待合并',
+        review_note: note || `等待合并：${admin!.display_name || admin!.username}`,
         reviewed_at: new Date().toISOString(),
       }).eq('id', id)
 
@@ -105,8 +117,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: '未知操作' }, { status: 400 })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[admin/knowledge/candidates]', err)
-    return NextResponse.json({ error: err.message || '操作失败' }, { status: 500 })
+    return NextResponse.json({ error: getErrorMessage(err, '操作失败') }, { status: 500 })
   }
 }

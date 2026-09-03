@@ -1,32 +1,31 @@
 import { NextResponse } from 'next/server'
 import { chatCompletion } from '@/lib/ai/llm'
+import { getAiModelEnvStatus, getAiModelSettings } from '@/lib/ai/model-settings'
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message || fallback : fallback
+}
 
 export async function GET() {
   try {
+    const settings = await getAiModelSettings({ refresh: true })
     const reply = await chatCompletion(
-      [{ role: 'user', content: 'Say "Hello from DeepSeek" in Chinese, only the greeting.' }],
-      { temperature: 0.3, maxTokens: 50 }
+      [{ role: 'user', content: '请只回复一句中文：AI 模型已成功接入爱萌优宁网站。' }],
+      { task: 'chat', temperature: 0.3, maxTokens: 80 }
     )
     return NextResponse.json({
       success: true,
       reply,
-      env: {
-        keyExists: !!process.env.DEEPSEEK_API_KEY,
-        keyPrefix: process.env.DEEPSEEK_API_KEY ? process.env.DEEPSEEK_API_KEY.slice(0, 10) + '...' : 'MISSING',
-        baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
-      },
+      settings,
+      env: getAiModelEnvStatus(),
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         success: false,
-        error: err.message,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-        env: {
-          keyExists: !!process.env.DEEPSEEK_API_KEY,
-          keyPrefix: process.env.DEEPSEEK_API_KEY ? process.env.DEEPSEEK_API_KEY.slice(0, 10) + '...' : 'MISSING',
-          baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
-        },
+        error: getErrorMessage(err, 'AI 测试失败'),
+        stack: process.env.NODE_ENV === 'development' && err instanceof Error ? err.stack : undefined,
+        env: getAiModelEnvStatus(),
       },
       { status: 500 }
     )

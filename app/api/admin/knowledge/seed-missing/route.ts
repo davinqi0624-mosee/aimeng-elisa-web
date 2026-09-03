@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireSuper } from '@/lib/admin/auth'
 
 export async function POST(request: NextRequest) {
+  const { error: authError } = await requireSuper(request)
+  if (authError) return authError
+
   const body = await request.json()
   const { articles } = body as {
     articles: Array<{

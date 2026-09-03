@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { History, RotateCcw, Package, MapPin, Loader2, CheckCircle, XCircle } from 'lucide-react'
 
 interface Batch {
@@ -21,40 +21,64 @@ interface Batch {
   }
 }
 
+type BatchesResponse = {
+  batches?: Batch[]
+  error?: string
+  needsSetup?: boolean
+}
+
 export default function BulkImportsPage() {
   const [batches, setBatches] = useState<Batch[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'products' | 'agents'>('products')
   const [rollingBackId, setRollingBackId] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
-  const fetchBatches = () => {
+  const fetchBatches = useCallback(() => {
     setLoading(true)
+    setError('')
     fetch(`/api/admin/bulk-import-batches?type=${activeTab}`)
       .then((r) => r.json())
-      .then((d) => setBatches(d.batches || []))
-      .catch(() => setBatches([]))
+      .then((d: BatchesResponse) => {
+        if (d.error) {
+          setBatches([])
+          setError(d.needsSetup ? `${d.error} 这个功能用于记录批量导入历史和支持回滚。` : d.error)
+        } else {
+          setBatches(d.batches || [])
+        }
+      })
+      .catch((err: unknown) => {
+        setBatches([])
+        setError(err instanceof Error ? err.message : '批量导入记录加载失败')
+      })
       .finally(() => setLoading(false))
-  }
+  }, [activeTab])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始/切换分类时需要同步触发一次后台数据请求。
     fetchBatches()
-  }, [activeTab])
+  }, [fetchBatches])
 
   const handleRollback = async (batch: Batch) => {
     if (!confirm(`确定回滚该批次？\n类型：${batch.type === 'products' ? '商品' : '代理商'}\n数量：${batch.product_count}\n\n回滚将删除该批次导入的所有记录。`)) {
       return
     }
     setRollingBackId(batch.id)
+    setError('')
     try {
       const res = await fetch(`/api/admin/bulk-import-batches?id=${batch.id}`, { method: 'DELETE' })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({})) as { deleted?: number; failed?: number; error?: string }
       if (res.ok) {
-        alert(`回滚完成：删除 ${data.deleted} 条，失败 ${data.failed} 条`)
+        alert(`回滚完成：删除 ${data.deleted ?? 0} 条，失败 ${data.failed ?? 0} 条`)
       } else {
-        alert(data.error || '回滚失败')
+        const message = data.error || '回滚失败'
+        setError(message)
+        alert(message)
       }
-    } catch {
-      alert('回滚请求失败')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '回滚请求失败'
+      setError(message)
+      alert(message)
     }
     setRollingBackId(null)
     fetchBatches()
@@ -73,6 +97,12 @@ export default function BulkImportsPage() {
         </h1>
         <p className="text-sm text-slate-400 mt-1">查看和管理商品、代理商的批量导入批次，支持回滚操作</p>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-2">

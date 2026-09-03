@@ -29,16 +29,8 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         window.location.reload()
       }
     } else {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-      if (signUpError) {
-        setError(signUpError.message)
-      } else {
-        onClose()
-        window.location.reload()
-      }
+      window.location.href = `/register?email=${encodeURIComponent(email)}`
+      return
     }
 
     setLoading(false)
@@ -54,6 +46,7 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
           ✕
         </button>
         <h2 className="text-2xl font-bold mb-4">{isLogin ? '登录' : '注册'}</h2>
+        {!isLogin && <p className="mb-4 text-sm text-amber-600">注册会员即送50积分</p>}
         {error && <p className="text-red-500 mb-4 text-sm">{error}</p>}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input

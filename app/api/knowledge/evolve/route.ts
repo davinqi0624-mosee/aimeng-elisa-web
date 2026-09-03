@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai/llm'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
+
+type EvolutionResult = {
+  needs_update?: boolean
+  reason?: string
+  change_summary?: string
+  updated_content?: string
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message || fallback : fallback
+}
+
+function parseEvolutionResult(text: string): EvolutionResult | null {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text) as unknown
+    return parsed && typeof parsed === 'object' ? (parsed as EvolutionResult) : null
+  } catch {
+    return null
+  }
+}
 
 const EVOLVE_PROMPT = `你是一位 ELISA 技术专家。请审阅下面这篇知识文章，判断其内容是否有过时、遗漏或需要更新的地方。
 
@@ -21,6 +43,13 @@ const EVOLVE_PROMPT = `你是一位 ELISA 技术专家。请审阅下面这篇�
 }`
 
 export async function POST(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+  const cronHeader = request.headers.get('x-cron-secret')
+  if (!cronSecret || cronHeader !== cronSecret) {
+    const { error: authError } = await requireAdminOrSuper(request)
+    if (authError) return authError
+  }
+
   const supabase = await createClient()
 
   try {
@@ -48,14 +77,11 @@ export async function POST(request: NextRequest) {
           { role: 'system', content: EVOLVE_PROMPT },
           { role: 'user', content: `标题：${article.title}\n\n正文：\n${article.content}` },
         ],
-        { temperature: 0.3 }
+        { task: 'longform', temperature: 0.3 }
       )
 
-      let result: any
-      try {
-        const jsonMatch = analysis.match(/\{[\s\S]*\}/)
-        result = JSON.parse(jsonMatch ? jsonMatch[0] : analysis)
-      } catch {
+      const result = parseEvolutionResult(analysis)
+      if (!result) {
         results.push({ id: article.id, title: article.title, status: 'parse_error' })
         continue
       }
@@ -82,12 +108,12 @@ export async function POST(request: NextRequest) {
         content: article.content,
         category: article.category,
         change_type: 'ai_evolve',
-        change_summary: result.change_summary,
+        change_summary: result.change_summary || '',
       })
 
       // Update article
       await supabase.from('daily_knowledge').update({
-        content: result.updated_content,
+        content: result.updated_content || article.content,
         quality_score: Math.min(0.95, article.quality_score + 0.02),
       }).eq('id', article.id)
 
@@ -96,7 +122,7 @@ export async function POST(request: NextRequest) {
         title: article.title,
         status: 'updated',
         version: nextVersion,
-        change_summary: result.change_summary,
+        change_summary: result.change_summary || '',
       })
     }
 
@@ -106,8 +132,8 @@ export async function POST(request: NextRequest) {
       updated: results.filter((r) => r.status === 'updated').length,
       results,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[knowledge/evolve]', err)
-    return NextResponse.json({ error: err.message || '进化失败' }, { status: 500 })
+    return NextResponse.json({ error: getErrorMessage(err, '进化失败') }, { status: 500 })
   }
 }

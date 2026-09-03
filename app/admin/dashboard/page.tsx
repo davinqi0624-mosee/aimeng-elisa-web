@@ -44,12 +44,31 @@ export default function AdminDashboardPage() {
 
   // Storage cleanup state
   const [cleaning, setCleaning] = useState(false)
+  const [cleanupFilter, setCleanupFilter] = useState<'all' | 'delete' | 'review'>('all')
   const [cleanupResult, setCleanupResult] = useState<{
+    mode: 'preview' | 'delete'
+    deleteScope?: 'recommended' | 'all'
     totalFiles: number
     referencedFiles: number
     orphanedFiles: number
+    recommendedDeleteFiles?: number
+    reviewRequiredFiles?: number
     deletedFiles: number
     deletedByBucket: Record<string, number>
+    orphanFiles?: Array<{
+      bucket: string
+      path: string
+      publicUrl: string
+      fileName: string
+      riskLevel: 'low' | 'medium'
+      recommendation: 'delete' | 'review'
+      confidence: number
+      actionLabel: string
+      reason: string
+    }>
+    orphanPreviewLimit?: number
+    checkedReferenceSources?: string[]
+    warning?: string
   } | null>(null)
 
   // Fix slugs state
@@ -63,9 +82,9 @@ export default function AdminDashboardPage() {
       .catch(() => {})
 
     Promise.all([
-      fetch('/api/admin/products').then((r) => r.json()),
+      fetch('/api/admin/products?pageSize=1').then((r) => r.json()),
       fetch('/api/admin/shop').then((r) => r.json()),
-      fetch('/api/admin/orders').then((r) => r.json()),
+      fetch('/api/admin/orders?limit=1').then((r) => r.json()),
       fetch('/api/admin/citations?status=pending').then((r) => r.json()),
       fetch('/api/admin/dashboard/stats').then((r) => r.json()).catch(() => ({
         todayProducts: 0, todayDatasheets: 0, inStock: 0, outOfStock: 0,
@@ -73,9 +92,9 @@ export default function AdminDashboardPage() {
     ])
       .then(([products, shop, orders, papers, dash]) => {
         setStats({
-          products: products.products?.length || 0,
+          products: products.total ?? products.products?.length ?? 0,
           shopItems: shop.items?.length || 0,
-          orders: orders.orders?.length || 0,
+          orders: orders.total ?? orders.orders?.length ?? 0,
           pendingPapers: papers.papers?.length || 0,
           todayProducts: dash.todayProducts || 0,
           todayDatasheets: dash.todayDatasheets || 0,
@@ -101,11 +120,15 @@ export default function AdminDashboardPage() {
     { label: '缺货商品', value: stats.outOfStock, icon: <AlertTriangle className="w-4 h-4 text-orange-600" />, color: 'bg-orange-50', href: '/admin/products' },
   ]
 
-  const handleCleanup = async () => {
-    if (!confirm('确定清理未引用的存储文件吗？此操作不可撤销。')) return
+  const handleCleanupScan = async () => {
     setCleaning(true)
+    setCleanupFilter('all')
     try {
-      const res = await fetch('/api/admin/storage-cleanup', { method: 'POST' })
+      const res = await fetch('/api/admin/storage-cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDelete: false }),
+      })
       const data = await res.json()
       if (res.ok) {
         setCleanupResult(data)
@@ -118,6 +141,40 @@ export default function AdminDashboardPage() {
       setCleaning(false)
     }
   }
+
+  const handleCleanupDelete = async () => {
+    const recommendedCount = cleanupResult?.recommendedDeleteFiles || 0
+    if (!cleanupResult || recommendedCount === 0) return
+    const confirmed = confirm(
+      `即将删除系统建议可删除的 ${recommendedCount} 个低风险 Storage 文件。\n\n需要人工确认的文件会保留，不会被本次操作删除。此操作不可撤销，是否继续？`
+    )
+    if (!confirmed) return
+
+    setCleaning(true)
+    try {
+      const res = await fetch('/api/admin/storage-cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDelete: true, deleteScope: 'recommended' }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCleanupResult(data)
+      } else {
+        alert('清理失败: ' + (data.error || '未知错误'))
+      }
+    } catch {
+      alert('清理请求失败')
+    } finally {
+      setCleaning(false)
+    }
+  }
+
+  const cleanupFiles = cleanupResult?.orphanFiles || []
+  const filteredCleanupFiles = cleanupFiles.filter((file) => {
+    if (cleanupFilter === 'all') return true
+    return file.recommendation === cleanupFilter
+  })
 
   const handleFixSlugs = async () => {
     if (!confirm('确定为所有缺失 slug 的产品自动生成 slug 吗？')) return
@@ -201,35 +258,163 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">存储空间清理</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">删除数据库中未引用的 Storage 文件（孤儿文件）</p>
+                  <p className="text-xs text-gray-500 mt-0.5">先扫描预览，再二次确认删除。默认不会直接清理文件。</p>
                 </div>
                 <button
-                  onClick={handleCleanup}
+                  onClick={handleCleanupScan}
                   disabled={cleaning}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100 disabled:opacity-50"
                 >
-                  {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  {cleaning ? '清理中...' : '开始清理'}
+                  {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                  {cleaning ? '扫描中...' : '扫描可清理文件'}
                 </button>
               </div>
               {cleanupResult && (
-                <div className="mt-4 grid grid-cols-4 gap-3 text-center">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="text-lg font-bold text-gray-900">{cleanupResult.totalFiles}</div>
-                    <div className="text-[10px] text-gray-500">Storage 总文件</div>
+                <div className="mt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3 text-center md:grid-cols-6">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-lg font-bold text-gray-900">{cleanupResult.totalFiles}</div>
+                      <div className="text-[10px] text-gray-500">Storage 总文件</div>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-3">
+                      <div className="text-lg font-bold text-emerald-700">{cleanupResult.referencedFiles}</div>
+                      <div className="text-[10px] text-emerald-600">数据库引用数</div>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg p-3">
+                      <div className="text-lg font-bold text-amber-700">{cleanupResult.orphanedFiles}</div>
+                      <div className="text-[10px] text-amber-600">疑似未引用</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-3">
+                      <div className="text-lg font-bold text-orange-700">{cleanupResult.recommendedDeleteFiles || 0}</div>
+                      <div className="text-[10px] text-orange-600">系统建议删除</div>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="text-lg font-bold text-slate-700">{cleanupResult.reviewRequiredFiles || 0}</div>
+                      <div className="text-[10px] text-slate-500">人工确认</div>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-3">
+                      <div className="text-lg font-bold text-red-600">{cleanupResult.deletedFiles}</div>
+                      <div className="text-[10px] text-red-500">本次已删除</div>
+                    </div>
                   </div>
-                  <div className="bg-emerald-50 rounded-lg p-3">
-                    <div className="text-lg font-bold text-emerald-700">{cleanupResult.referencedFiles}</div>
-                    <div className="text-[10px] text-emerald-600">已引用文件</div>
+
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <div>
+                        <p className="font-semibold">{cleanupResult.warning || '当前仅为扫描结果。'}</p>
+                        <p className="mt-1">
+                          “系统建议删除”主要是临时文件、备份文件等低风险项；“人工确认”会保留，需要管理员确认用途后再处理。
+                          如果文件被手工写死在页面、外部链接、富文本内容或新功能字段中，系统可能无法识别。
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-amber-50 rounded-lg p-3">
-                    <div className="text-lg font-bold text-amber-700">{cleanupResult.orphanedFiles}</div>
-                    <div className="text-[10px] text-amber-600">孤儿文件</div>
+
+                  <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900">扫描后的操作</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        当前可删除 {cleanupResult.recommendedDeleteFiles || 0} 个；需人工确认 {cleanupResult.reviewRequiredFiles || 0} 个。
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleCleanupDelete}
+                        disabled={cleaning || cleanupResult.mode !== 'preview' || (cleanupResult.recommendedDeleteFiles || 0) === 0}
+                        title={(cleanupResult.recommendedDeleteFiles || 0) === 0 ? '当前没有系统建议删除的低风险文件' : '只删除系统建议删除的低风险文件'}
+                        className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        删除系统建议文件
+                      </button>
+                      <button
+                        onClick={() => setCleanupFilter('review')}
+                        disabled={(cleanupResult.reviewRequiredFiles || 0) === 0}
+                        title={(cleanupResult.reviewRequiredFiles || 0) === 0 ? '当前没有需要人工确认的文件' : '只查看需要人工确认的文件'}
+                        className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <FileText className="w-4 h-4" />
+                        查看人工确认文件
+                      </button>
+                    </div>
                   </div>
-                  <div className="bg-red-50 rounded-lg p-3">
-                    <div className="text-lg font-bold text-red-600">{cleanupResult.deletedFiles}</div>
-                    <div className="text-[10px] text-red-500">已删除</div>
-                  </div>
+
+                  {cleanupResult.checkedReferenceSources && (
+                    <details className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                      <summary className="cursor-pointer font-medium text-gray-800">本次已检查的引用来源</summary>
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {cleanupResult.checkedReferenceSources.map((source) => (
+                          <li key={source}>{source}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+
+                  {cleanupResult.orphanFiles && cleanupResult.orphanFiles.length > 0 && (
+                    <div className="rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="flex items-center justify-between bg-gray-50 px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs font-semibold text-gray-800">疑似未引用文件预览</p>
+                          {[
+                            { value: 'all' as const, label: '全部' },
+                            { value: 'delete' as const, label: '建议删除' },
+                            { value: 'review' as const, label: '人工确认' },
+                          ].map((item) => (
+                            <button
+                              key={item.value}
+                              onClick={() => setCleanupFilter(item.value)}
+                              className={`rounded px-2 py-1 text-[10px] font-medium ${
+                                cleanupFilter === item.value
+                                  ? 'bg-slate-900 text-white'
+                                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-gray-500">
+                          显示 {filteredCleanupFiles.length} 条，最多返回 {cleanupResult.orphanPreviewLimit || cleanupResult.orphanFiles.length} 条
+                        </p>
+                      </div>
+                      <div className="max-h-72 divide-y divide-gray-100 overflow-auto bg-white">
+                        {filteredCleanupFiles.map((file) => (
+                          <div key={`${file.bucket}/${file.path}`} className="px-3 py-2 text-xs">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">{file.bucket}</span>
+                              <span className={`rounded px-2 py-0.5 font-medium ${
+                                file.recommendation === 'delete'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-amber-50 text-amber-700'
+                              }`}>
+                                {file.actionLabel}
+                              </span>
+                              <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-gray-600">
+                                置信度 {file.confidence}%
+                              </span>
+                              <span className="font-mono text-gray-800 break-all">{file.path}</span>
+                              <a
+                                href={file.publicUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded bg-blue-50 px-2 py-0.5 font-medium text-blue-600 hover:bg-blue-100"
+                              >
+                                打开文件
+                              </a>
+                            </div>
+                            <p className="mt-1 text-gray-500">{file.reason}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {cleanupResult.orphanedFiles === 0 && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                      本次扫描没有发现疑似未引用文件，所以删除和人工确认按钮处于不可操作状态。
+                    </div>
+                  )}
                 </div>
               )}
             </div>

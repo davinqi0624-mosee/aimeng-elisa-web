@@ -1,28 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import {
+  MEMBER_TIER_RULES,
+  getMemberTierRule,
+  getNextMemberTierRule,
+  getPointLedgerSummary,
+} from '@/lib/points/ledger'
+
+interface UserMetadata {
+  full_name?: string
+}
 
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
-  // 计算积分余额
-  const { data: ptData } = await supabase
-    .from('point_transactions')
-    .select('amount, type')
-    .eq('user_id', user.id)
-
-  const balance = (ptData || []).reduce((sum: number, tx: any) => {
-    if (tx.type === 'earn') return sum + tx.amount
-    if (tx.type === 'spend') return sum - tx.amount
-    return sum
-  }, 0)
-
-  // 会员等级
-  let tier = 'free'
-  if (balance >= 5000) tier = 'platinum'
-  else if (balance >= 2000) tier = 'gold'
-  else if (balance >= 500) tier = 'silver'
+  const summary = await getPointLedgerSummary(supabase, user.id)
+  const balance = summary.availablePoints
+  const tierRule = getMemberTierRule(summary.totalPoints)
+  const nextTierRule = getNextMemberTierRule(summary.totalPoints)
 
   // 从 profiles 表读取基本信息
   const { data: profile } = await supabase
@@ -39,11 +36,25 @@ export async function GET() {
     .single()
 
   const role = (adminRole?.role as string) || 'user'
-  const displayName = profile?.full_name || (user.user_metadata as any)?.full_name || user.email
+  const userMetadata = user.user_metadata as UserMetadata
+  const displayName = profile?.full_name || userMetadata.full_name || user.email
 
   return NextResponse.json({
     balance,
-    tier,
+    totalPoints: summary.totalPoints,
+    tier: tierRule.code,
+    tierLabel: tierRule.label,
+    discountRate: tierRule.discountRate,
+    discountLabel: tierRule.discountLabel,
+    nextTier: nextTierRule
+      ? {
+          code: nextTierRule.code,
+          label: nextTierRule.label,
+          minPoints: nextTierRule.minPoints,
+          pointsNeeded: Math.max(0, nextTierRule.minPoints - summary.totalPoints),
+        }
+      : null,
+    tierRules: MEMBER_TIER_RULES,
     userId: user.id,
     displayName,
     role,

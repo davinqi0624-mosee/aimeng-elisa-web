@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { chatCompletion } from '@/lib/ai/llm'
+import { requireSuper } from '@/lib/admin/auth'
+
+type GeneratedArticle = {
+  topic: string
+  status: 'generated' | 'insert_error' | 'generation_error'
+  article_id?: string
+  title?: string
+  error?: string
+}
+
+type KnowledgeArticleDraft = {
+  title?: string
+  category?: string
+  tags?: string[]
+  content?: string
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message || fallback : fallback
+}
+
+function parseKnowledgeArticleDraft(text: string): KnowledgeArticleDraft | null {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text) as unknown
+    return parsed && typeof parsed === 'object' ? (parsed as KnowledgeArticleDraft) : null
+  } catch {
+    return null
+  }
+}
 
 const GENERATE_PROMPT = `你是 AIMENG UNING（爱萌优宁）的 ELISA 技术专家。
 请基于用户近期经常询问的技术问题，撰写一篇专业、实用、通俗易懂的 ELISA 知识库文章。
@@ -147,7 +177,7 @@ async function runEvolution() {
   }
 
   // 4. Generate articles for each topic
-  const generatedArticles: any[] = []
+  const generatedArticles: GeneratedArticle[] = []
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   const publishDate = tomorrow.toISOString().split('T')[0]
@@ -168,20 +198,15 @@ ${topic.sampleAnswers.map((a, i) => `参考${i + 1}：${a.slice(0, 500)}`).join(
           { role: 'system', content: GENERATE_PROMPT },
           { role: 'user', content: userPrompt },
         ],
-        { temperature: 0.7, maxTokens: 3000 }
+        { task: 'longform', temperature: 0.7, maxTokens: 3000 }
       )
 
-      let article: any
-      try {
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
-        article = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponse)
-      } catch {
-        article = {
-          title: topic.question.slice(0, 40),
-          category: '操作技巧',
-          tags: ['ELISA', '自动生成的内容'],
-          content: aiResponse,
-        }
+      const parsedArticle = parseKnowledgeArticleDraft(aiResponse)
+      const article: Required<KnowledgeArticleDraft> = {
+        title: parsedArticle?.title || topic.question.slice(0, 40),
+        category: parsedArticle?.category || '操作技巧',
+        tags: parsedArticle?.tags || ['ELISA', '自动生成的内容'],
+        content: parsedArticle?.content || aiResponse,
       }
 
       // 5. Save to knowledge_base
@@ -223,12 +248,12 @@ ${topic.sampleAnswers.map((a, i) => `参考${i + 1}：${a.slice(0, 500)}`).join(
         article_id: saved.id,
         title: article.title,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[admin/knowledge/evolve] generation error:', err)
       generatedArticles.push({
         topic: topic.question,
         status: 'generation_error',
-        error: err.message,
+        error: getErrorMessage(err, '生成失败'),
       })
     }
   }
@@ -243,21 +268,31 @@ ${topic.sampleAnswers.map((a, i) => `参考${i + 1}：${a.slice(0, 500)}`).join(
 // Vercel Cron invokes GET
 export async function GET(request: NextRequest) {
   try {
+    const cronSecret = process.env.CRON_SECRET
+    const cronHeader = request.headers.get('x-cron-secret')
+    if (!cronSecret || cronHeader !== cronSecret) {
+      const { error: authError } = await requireSuper(request)
+      if (authError) return authError
+    }
+
     const result = await runEvolution()
     return NextResponse.json(result)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[admin/knowledge/evolve] GET exception:', err)
-    return NextResponse.json({ error: err.message || '知识进化失败' }, { status: 500 })
+    return NextResponse.json({ error: getErrorMessage(err, '知识进化失败') }, { status: 500 })
   }
 }
 
 // Manual trigger via POST
 export async function POST(request: NextRequest) {
   try {
+    const { error: authError } = await requireSuper(request)
+    if (authError) return authError
+
     const result = await runEvolution()
     return NextResponse.json(result)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[admin/knowledge/evolve] POST exception:', err)
-    return NextResponse.json({ error: err.message || '知识进化失败' }, { status: 500 })
+    return NextResponse.json({ error: getErrorMessage(err, '知识进化失败') }, { status: 500 })
   }
 }

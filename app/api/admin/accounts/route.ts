@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireSuper, requireAdminSession, hashPassword } from '@/lib/admin/auth'
+import { requireSuper, hashPassword } from '@/lib/admin/auth'
 
 const ALL_PERMISSIONS = [
   'product_manage',
@@ -14,7 +14,7 @@ const ALL_PERMISSIONS = [
 
 // GET: list all admin accounts
 export async function GET(request: NextRequest) {
-  const { admin, error } = await requireAdminSession(request)
+  const { error } = await requireSuper(request)
   if (error) return error
 
   const supabase = await createClient()
@@ -123,7 +123,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { id, display_name, role, is_active, permissions } = body
+    const { id, username, display_name, role, is_active, permissions, password } = body
 
     if (!id) {
       return NextResponse.json({ error: '缺少管理员ID' }, { status: 400 })
@@ -137,9 +137,23 @@ export async function PUT(request: NextRequest) {
     const supabase = await createClient()
 
     const updateData: any = {}
+    if (username !== undefined) {
+      const cleanUsername = String(username).trim()
+      if (!cleanUsername) {
+        return NextResponse.json({ error: '用户名不能为空' }, { status: 400 })
+      }
+      updateData.username = cleanUsername
+    }
     if (display_name !== undefined) updateData.display_name = display_name
     if (role !== undefined) updateData.role = role
     if (is_active !== undefined) updateData.is_active = is_active
+    if (password !== undefined && String(password).trim()) {
+      const cleanPassword = String(password).trim()
+      if (cleanPassword.length < 8) {
+        return NextResponse.json({ error: '密码至少需要 8 位' }, { status: 400 })
+      }
+      updateData.password_hash = await hashPassword(cleanPassword)
+    }
 
     if (Object.keys(updateData).length > 0) {
       const { error: updateErr } = await supabase

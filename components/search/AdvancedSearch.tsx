@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, Check } from 'lucide-react'
 import { SpeciesIcon, SPECIES_ORDER, SPECIES_LABELS } from '@/components/icons/SpeciesIcons'
+import { normalizeSpeciesList } from '@/lib/products/species'
 
 const GREEK_CHARS = [
   { char: 'α', name: 'alpha' },
@@ -58,32 +59,30 @@ export default function AdvancedSearch({
 }: AdvancedSearchProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const searchParamString = searchParams.toString()
 
-  const [selectedSpecies, setSelectedSpecies] = useState<string[]>([])
-  const [query, setQuery] = useState('')
+  const parseSelectedSpecies = useCallback((params: { get(name: string): string | null }) => {
+    const speciesParam = params.get('species')
+    return normalizeSpeciesList(speciesParam ? speciesParam.split(',') : [])
+  }, [])
+
+  const [selectedSpecies, setSelectedSpecies] = useState<string[]>(() => {
+    const speciesParam = searchParams.get('species')
+    return normalizeSpeciesList(speciesParam ? speciesParam.split(',') : [])
+  })
+  const [query, setQuery] = useState(() => searchParams.get(queryParamName) || '')
   const [showGreekPanel, setShowGreekPanel] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [cursorPos, setCursorPos] = useState(0)
 
-  // Initialize from URL params
-  useEffect(() => {
-    const speciesParam = searchParams.get('species')
-    const queryParam = searchParams.get(queryParamName)
-
-    if (speciesParam) {
-      setSelectedSpecies(speciesParam.split(',').filter(Boolean))
-    }
-    if (queryParam) {
-      setQuery(queryParam)
-    }
-  }, [searchParams, queryParamName])
-
   const toggleSpecies = useCallback((species: string) => {
+    const canonicalSpecies = normalizeSpeciesList([species])[0]
+    if (!canonicalSpecies) return
     setSelectedSpecies((prev) =>
-      prev.includes(species)
-        ? prev.filter((s) => s !== species)
-        : [...prev, species]
+      prev.includes(canonicalSpecies)
+        ? prev.filter((s) => s !== canonicalSpecies)
+        : [...prev, canonicalSpecies]
     )
   }, [])
 
@@ -100,7 +99,8 @@ export default function AdvancedSearch({
 
   const removeTag = useCallback((type: string, value: string) => {
     if (type === 'species') {
-      setSelectedSpecies((prev) => prev.filter((s) => s !== value))
+      const canonicalSpecies = normalizeSpeciesList([value])[0]
+      setSelectedSpecies((prev) => prev.filter((s) => s !== canonicalSpecies))
     } else if (type === 'query') {
       setQuery('')
     }
@@ -152,9 +152,19 @@ export default function AdvancedSearch({
     }
   }, [])
 
+  useEffect(() => {
+    const currentParams = new URLSearchParams(searchParamString)
+    setSelectedSpecies(parseSelectedSpecies(currentParams))
+    setQuery(currentParams.get(queryParamName) || '')
+  }, [parseSelectedSpecies, searchParamString, queryParamName])
+
   const hasFilters = selectedSpecies.length > 0 || query.trim()
 
-  const displayedSpecies = SPECIES_ORDER
+  const normalizedAvailableSpecies = normalizeSpeciesList(availableSpecies)
+  const displayedSpecies = [
+    ...SPECIES_ORDER.filter((species) => normalizedAvailableSpecies.includes(species)),
+    ...normalizedAvailableSpecies.filter((species) => !SPECIES_ORDER.includes(species)),
+  ]
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">

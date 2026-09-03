@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai/llm'
-import { requireRole, getClientIP } from '@/lib/admin/permissions'
+import { getAiModelSettings, getProviderForAiTask, type AiProvider } from '@/lib/ai/model-settings'
+import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit } from '@/lib/admin/audit'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
+import { contentToSections, DATASHEET_SECTION_KEYS } from '@/lib/datasheet/sections'
+import { getPreferredDatasheetTemplate } from '@/lib/datasheet/templates'
+import { buildDatasheetEnglishFields } from '@/lib/datasheet/english'
 
 const SPECIES_CODE_MAP: Record<string, string> = {
   Human: '1',
@@ -11,10 +16,13 @@ const SPECIES_CODE_MAP: Record<string, string> = {
   Rabbit: '21',
   Monkey: '5',
   Canine: '6',
+  'Canine/Dog': '6',
   Dog: '6',
   Porcine: '7',
+  'Porcine/Pig': '7',
   Pig: '7',
   Bovine: '8',
+  'Bovine/Cow': '8',
   Cow: '8',
   Chicken: '9',
   'Guinea pig': '17',
@@ -24,62 +32,136 @@ const SPECIES_CODE_MAP: Record<string, string> = {
   'zebrafish': '19',
 }
 
-const SECTIONS = [
-  'header',
-  'principle',
-  'kit_components',
-  'equipment_needed',
-  'sample_collection',
-  'sample_notes',
-  'sample_storage',
-  'operation_notes',
-  'reagent_preparation',
-  'washing_method',
-  'procedure',
-  'procedure_summary',
-  'results',
-  'declaration',
-  'troubleshooting',
-]
+const SPECIES_CN_MAP: Record<string, string> = {
+  Human: '人',
+  Mouse: '小鼠',
+  Rat: '大鼠',
+  Rabbit: '兔',
+  Monkey: '猴',
+  Canine: '狗',
+  'Canine/Dog': '狗',
+  Dog: '狗',
+  Porcine: '猪',
+  'Porcine/Pig': '猪',
+  Pig: '猪',
+  Bovine: '牛',
+  'Bovine/Cow': '牛',
+  Cow: '牛',
+  Chicken: '鸡',
+  'Guinea pig': '豚鼠',
+  GuineaPig: '豚鼠',
+  Sheep: '绵羊',
+  Zebrafish: '斑马鱼',
+  zebrafish: '斑马鱼',
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isUuid(value?: unknown): value is string {
+  return typeof value === 'string' && UUID_REGEX.test(value.trim())
+}
+
+function normalizeText(value?: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function extractJsonCandidate(raw: string) {
+  const withoutFence = raw
+    .replace(/```json\s*/gi, '')
+    .replace(/```/g, '')
+    .trim()
+  const firstBrace = withoutFence.indexOf('{')
+  const lastBrace = withoutFence.lastIndexOf('}')
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return withoutFence.slice(firstBrace, lastBrace + 1)
+  }
+  return withoutFence
+}
+
+function ensureTextSections(content: Record<string, unknown>) {
+  const normalized: Record<string, string> = {}
+  for (const key of DATASHEET_SECTION_KEYS) {
+    const value = content[key]
+    if (typeof value === 'string') {
+      normalized[key] = value
+    } else if (value && typeof value === 'object') {
+      normalized[key] = Object.values(value as Record<string, unknown>)
+        .map((item) => (typeof item === 'string' ? item : JSON.stringify(item)))
+        .join('\n')
+    } else {
+      normalized[key] = '（该章节内容待补充）'
+    }
+  }
+  return normalized
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error || '未知错误')
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const { admin, error: authError } = await requireAdminOrSuper(request)
+    if (authError) return authError
+
     const body = await request.json()
-    const { target, species, method, antibodyId, templateId, customAntibody, size = '96T' } = body
+    const {
+      target,
+      species,
+      method,
+      templateId,
+      catalogSerial,
+      detectionRange,
+      sensitivity,
+      targetIntro,
+      sampleTypes,
+    } = body
     if (!target || !species || !method) {
       return NextResponse.json({ error: '缺少必填参数（靶标、种属、方法）' }, { status: 400 })
+    }
+    if (!detectionRange || !sensitivity) {
+      return NextResponse.json({ error: '请填写检测范围和灵敏度。性能参数必须来自真实产品数据，不能由 AI 编造。' }, { status: 400 })
+    }
+    const targetIntroText = normalizeText(targetIntro)
+    if (!targetIntroText) {
+      return NextResponse.json({ error: '请填写指标简介素材。该内容会写入说明书“简介”区域，不能留空。' }, { status: 400 })
+    }
+    const sampleTypesText = normalizeText(sampleTypes)
+    const serialText = normalizeText(catalogSerial)
+    if (!/^\d{1,8}$/.test(serialText)) {
+      return NextResponse.json({ error: '请填写货号流水号，只能输入数字，例如 1770。' }, { status: 400 })
     }
 
     const speciesCode = SPECIES_CODE_MAP[species]
     if (!speciesCode) {
       return NextResponse.json({ error: `不支持的种属: ${species}` }, { status: 400 })
     }
+    const speciesCn = SPECIES_CN_MAP[species] || species
 
-    const sizeSuffix = size === '48T' ? 'S' : 'M'
+    const templateInput = normalizeText(templateId)
+    const templateDbId = isUuid(templateInput) ? templateInput : null
+    const displaySize = '96T/48T'
+    const sizeForDb = '96T'
+    const catalogNumber = `LV${speciesCode}${serialText}`
 
-    const { user, error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
-    if (authError) return authError
-
-    const supabase = await createClient()
-
-    // Fetch antibody info if provided
-    let antibodyInfo = ''
-    if (antibodyId) {
-      const { data: ab } = await supabase
-        .from('antibody_catalog')
-        .select('*')
-        .eq('id', antibodyId)
-        .single()
-      if (ab) {
-        antibodyInfo = `\n所选抗体信息：\n- 供应商：${ab.supplier}\n- 货号：${ab.catalog_number}\n- 靶标：${ab.target}\n- 种属：${ab.species}\n- 克隆号：${ab.clone_number || 'N/A'}\n- 宿主：${ab.host}\n- 反应性：${ab.reactivity || 'N/A'}\n- 应用：${ab.applications || 'N/A'}\n- 浓度：${ab.concentration || 'N/A'}`
-      }
-    } else if (customAntibody && typeof customAntibody === 'object') {
-      antibodyInfo = `\n用户提供的抗体信息：\n- 供应商：${customAntibody.supplier || 'N/A'}\n- 货号：${customAntibody.catalog_number || 'N/A'}\n- 靶标：${customAntibody.target || target}\n- 种属：${customAntibody.species || species}\n- 克隆号：${customAntibody.clone_number || 'N/A'}\n- 宿主：${customAntibody.host || 'N/A'}`
-    }
+    const supabase = createAdminClient()
+    const templateStatus = await getPreferredDatasheetTemplate()
 
     const systemPrompt = `你是一位资深的 ELISA 试剂盒技术文档工程师。请严格按照以下模板格式生成试剂盒说明书，输出必须是一个严格的 JSON 对象。
 
 模板来源：上海爱萌优宁生物技术有限公司标准 ELISA 试剂盒说明书
+
+已确认产品参数：
+- 检测靶标：${target}
+- 适用种属：${species}
+- 实验方法：${method}
+- 规格：${displaySize}
+- 产品货号：${catalogNumber}
+- 货号规则：LV + 种属编号 + 流水号。96T/48T 使用同一份说明书，规格不进入说明书货号。
+- 检测范围：${detectionRange}
+- 灵敏度：${sensitivity}
+- 样本类型：${sampleTypesText || '血清、血浆、组织匀浆、细胞培养上清及其它生物体液'}
+- 指标简介素材：${targetIntroText}
 
 JSON 字段要求：
 {
@@ -118,31 +200,41 @@ JSON 字段要求：
 1. 所有字段必须存在且不为空
 2. 内容必须使用中文，专业术语可保留英文
 3. 严格按照上述模板的章节结构、编号方式和行文风格输出
-4. header字段中的货号、检测范围、灵敏度等参数需根据靶标和种属给出合理估计值
-5. 数值参数需符合ELISA行业常规范围
-6. 标准曲线浓度点为8点（含空白）：1000.0、500.0、250.0、125.0、62.5、31.25、15.6、0 pg/ml`
+4. header字段中的检测范围、灵敏度必须使用“已确认产品参数”，严禁估计、编造或自动推断
+5. 未提供的性能数值统一写“待确认”，不要补造数值
+6. header字段中的“简介：”必须优先使用管理员提供的“指标简介素材”，不得遗漏
+7. 标准曲线浓度点为8点（含空白）：1000.0、500.0、250.0、125.0、62.5、31.25、15.6、0 pg/ml`
 
-    const userPrompt = `请为以下试剂盒生成完整说明书：\n- 检测靶标：${target}\n- 适用种属：${species}\n- 实验方法：${method}${antibodyInfo}`
+    const userPrompt = `请为以下试剂盒生成完整说明书：\n- 产品货号：${catalogNumber}\n- 检测靶标：${target}\n- 适用种属：${species}\n- 实验方法：${method}\n- 规格：${displaySize}`
+
+    const aiSettings = await getAiModelSettings({ refresh: true })
+    const requestedProvider = getProviderForAiTask(aiSettings, 'datasheet')
+    let usedProvider: AiProvider = requestedProvider
+    let usedModel = ''
 
     const rawContent = await chatCompletion(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      { temperature: 0.5, maxTokens: 4096 }
+      {
+        task: 'datasheet',
+        provider: requestedProvider,
+        temperature: 0.5,
+        maxTokens: 4096,
+        onProviderUsed: (provider, model) => {
+          usedProvider = provider
+          usedModel = model
+        },
+      }
     )
 
     // Parse JSON response
     let content: Record<string, string> = {}
     try {
-      const cleaned = rawContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim()
-      content = JSON.parse(cleaned)
-      // Ensure all sections exist
-      for (const key of SECTIONS) {
-        if (!content[key]) content[key] = '（该章节内容待补充）'
-      }
-    } catch (parseErr: any) {
-      console.warn('JSON parse failed, using fallback structure:', parseErr.message)
+      content = ensureTextSections(JSON.parse(extractJsonCandidate(rawContent)))
+    } catch (parseErr: unknown) {
+      console.warn('JSON parse failed, using fallback structure:', getErrorMessage(parseErr))
       // Fallback: split by section headers
       const fallback: Record<string, string> = {}
       let currentKey = 'principle'
@@ -164,42 +256,58 @@ JSON 字段要求：
         else if (lower.includes('问题') || lower.includes('故障') || lower.includes('排查')) currentKey = 'troubleshooting'
         fallback[currentKey] = (fallback[currentKey] || '') + line + '\n'
       }
-      content = { ...Object.fromEntries(SECTIONS.map((k) => [k, ''])), ...fallback }
+      content = ensureTextSections(fallback)
     }
-
-    // Generate catalog number via atomic DB function
-    const { data: cnData, error: cnError } = await supabase.rpc('next_catalog_number', {
-      p_species_code: speciesCode,
-      p_size: sizeSuffix,
-    })
-
-    if (cnError) {
-      console.error('Catalog number generation error:', cnError)
-      return NextResponse.json({ error: `货号生成失败: ${cnError.message}` }, { status: 500 })
-    }
-
-    const catalogNumber = cnData as string
 
     // Patch the AI-generated header with the real catalog number
     if (content.header) {
       content.header = content.header.replace(/货号[：:]\s*[^\n]+/, `货号：${catalogNumber}`)
+      content.header = content.header.replace(/规格[：:]\s*[^\n]+/, `规格：${displaySize}`)
+      content.header = content.header.replace(/检测范围[：:]\s*[^\n]+/, `检测范围：${detectionRange}`)
+      content.header = content.header.replace(/灵敏度[：:]\s*[^\n]+/, `灵敏度：${sensitivity}`)
+      if (/简介[：:]/.test(content.header)) {
+        content.header = content.header.replace(/简介[：:]\s*[^\n]*/, `简介：${targetIntroText}`)
+      } else {
+        content.header = `${content.header}\n简介：${targetIntroText}`
+      }
     }
+    const englishFields = buildDatasheetEnglishFields({
+      target,
+      species,
+      sampleTypes: sampleTypesText || undefined,
+      targetIntro: targetIntroText,
+    })
 
     // Save to database
     const title = `${target} (${species}) ${method} 试剂盒说明书`
     const { data: inserted, error: insertError } = await supabase
       .from('auto_datasheets')
       .insert({
-        user_id: user.id,
+        user_id: null,
+        admin_id: admin!.id,
         title,
         target,
         species,
         method,
         catalog_number: catalogNumber,
-        size,
-        template_id: templateId || null,
-        antibody_id: antibodyId || null,
-        content,
+        size: sizeForDb,
+        template_id: templateDbId,
+        antibody_id: null,
+        content: {
+          ...content,
+          template_file: templateStatus?.fileName || null,
+          template_has_placeholders: templateStatus?.hasPlaceholders || false,
+          catalog_rule: 'LV + species_code + serial',
+          species_code: speciesCode,
+          species_cn: speciesCn,
+          catalog_serial: serialText,
+          display_size: displaySize,
+          detection_range: detectionRange,
+          sensitivity,
+          sample_types: sampleTypesText || null,
+          target_intro: targetIntroText,
+          ...englishFields,
+        },
         status: 'draft',
       })
       .select('id, catalog_number')
@@ -212,23 +320,49 @@ JSON 字段要求：
 
     // Audit log
     await logAudit({
-      admin_id: user.id,
+      admin_id: admin!.id,
       action: 'generate',
       target_table: 'auto_datasheets',
       target_id: inserted.id,
-      new_value: { target, species, method, catalogNumber: inserted.catalog_number, size },
+      new_value: {
+        target,
+        species,
+        method,
+        catalogNumber: inserted.catalog_number,
+        size: displaySize,
+        speciesCode,
+        speciesCn,
+        catalogSerial: serialText,
+        templateFile: templateStatus?.fileName || null,
+        templateReady: templateStatus?.hasPlaceholders || false,
+      },
       ip_address: getClientIP(request),
     })
 
-    return NextResponse.json({ id: inserted.id, title, catalogNumber: inserted.catalog_number, size, content })
-  } catch (err: any) {
+    return NextResponse.json({
+      id: inserted.id,
+      title,
+      catalogNumber: inserted.catalog_number,
+      size: displaySize,
+      content,
+      sections: contentToSections(content),
+      template: templateStatus,
+      templateReady: templateStatus?.hasPlaceholders || false,
+      ai: {
+        provider: usedProvider,
+        model: usedModel || undefined,
+        fallback_used: usedProvider !== requestedProvider,
+      },
+    })
+  } catch (err: unknown) {
     console.error('Datasheet generate error:', err)
-    const isDeepSeekErr = err.message?.includes('DeepSeek') || err.message?.includes('DEEPSEEK')
+    const errorMessage = getErrorMessage(err)
+    const isAiErr = /DeepSeek|DEEPSEEK|Kimi|KIMI|API_KEY|RATE_LIMIT|INSUFFICIENT/i.test(errorMessage)
     return NextResponse.json(
       {
-        error: err.message,
-        detail: isDeepSeekErr
-          ? 'DeepSeek API 调用失败，请检查 API Key 和环境变量配置。'
+        error: errorMessage,
+        detail: isAiErr
+          ? 'AI API 调用失败，请检查 API Key 和环境变量配置。'
           : '服务器内部错误，请联系管理员。',
       },
       { status: 500 }

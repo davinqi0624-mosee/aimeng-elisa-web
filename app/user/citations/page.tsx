@@ -25,15 +25,24 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export default function MyCitationsPage() {
   const [papers, setPapers] = useState<Paper[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     fetch('/api/user/citations')
       .then(r => r.json())
       .then(data => {
+        if (data.error) {
+          setLoadError(data.error)
+          setPapers([])
+          return
+        }
         setPapers(data.papers || [])
-        setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch((error: unknown) => {
+        setLoadError(error instanceof Error ? error.message : '文献投稿记录加载失败')
+        setPapers([])
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -54,6 +63,10 @@ export default function MyCitationsPage() {
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-24 bg-white rounded-xl animate-pulse" />
             ))}
+          </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-sm text-red-700">
+            文献投稿记录加载失败：{loadError}
           </div>
         ) : papers.length === 0 ? (
           <div className="bg-white rounded-xl p-12 text-center">

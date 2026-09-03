@@ -3,6 +3,7 @@ interface CompressOptions {
   maxHeight?: number
   quality?: number
   maxSizeMB?: number
+  outputType?: 'auto' | 'image/jpeg' | 'image/png' | 'image/webp'
 }
 
 export async function compressImage(
@@ -14,6 +15,7 @@ export async function compressImage(
     maxHeight = 1200,
     quality = 0.8,
     maxSizeMB = 1,
+    outputType: preferredOutputType = 'auto',
   } = options
 
   // If it's not an image or already small enough, return as-is
@@ -47,34 +49,36 @@ export async function compressImage(
 
       ctx.drawImage(img, 0, 0, width, height)
 
-      const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+      const outputType =
+        preferredOutputType === 'auto'
+          ? file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+          : preferredOutputType
       const targetQuality = outputType === 'image/png' ? undefined : quality
 
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error('Canvas 转 Blob 失败'))
-            return
+      const encode = (encodeQuality?: number) => new Promise<Blob>((encodeResolve, encodeReject) => {
+        canvas.toBlob(
+          (blob) => blob ? encodeResolve(blob) : encodeReject(new Error('Canvas 转 Blob 失败')),
+          outputType,
+          encodeQuality
+        )
+      })
+
+      void (async () => {
+        try {
+          let blob = await encode(targetQuality)
+          const targetBytes = maxSizeMB * 1024 * 1024
+
+          if (outputType !== 'image/png') {
+            for (let nextQuality = quality - 0.08; blob.size > targetBytes && nextQuality >= 0.5; nextQuality -= 0.08) {
+              blob = await encode(Math.max(0.5, nextQuality))
+            }
           }
 
-          // If still too large and it's a JPEG, try lower quality
-          if (blob.size > maxSizeMB * 1024 * 1024 && outputType === 'image/jpeg') {
-            const tryQuality = Math.max(0.5, quality - 0.1)
-            canvas.toBlob(
-              (retryBlob) => {
-                if (retryBlob) resolve(retryBlob)
-                else resolve(blob)
-              },
-              outputType,
-              tryQuality
-            )
-          } else {
-            resolve(blob)
-          }
-        },
-        outputType,
-        targetQuality
-      )
+          resolve(blob)
+        } catch (error) {
+          reject(error)
+        }
+      })()
     }
 
     img.onerror = () => {

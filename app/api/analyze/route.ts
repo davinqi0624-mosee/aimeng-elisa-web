@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { fit4PL, fourPL, fourPLInverse } from '@/lib/elisa-4pl-core'
 
 function parseCSV(raw: string): Array<Record<string, string>> {
   const lines = raw.trim().split('\n').filter((l) => l.trim())
@@ -11,73 +12,6 @@ function parseCSV(raw: string): Array<Record<string, string>> {
     headers.forEach((h, i) => (row[h] = values[i] || ''))
     return row
   })
-}
-
-// Four-parameter logistic regression (4-PL)
-// y = D + (A - D) / (1 + (x / C) ^ B)
-function fit4PL(
-  standards: Array<{ concentration: number; od: number }>
-): { A: number; B: number; C: number; D: number; r2: number } {
-  // Initial guesses
-  const ods = standards.map((s) => s.od)
-  const concs = standards.map((s) => s.concentration)
-  let A = Math.min(...ods) * 0.95
-  let D = Math.max(...ods) * 1.05
-  let C = concs[Math.floor(concs.length / 2)]
-  let B = 1.0
-
-  // Simple iterative optimization (gradient descent-ish)
-  const lr = 0.01
-  for (let iter = 0; iter < 5000; iter++) {
-    let dA = 0, dB = 0, dC = 0, dD = 0
-    let sse = 0
-    for (const s of standards) {
-      const x = s.concentration
-      const yObs = s.od
-      const denom = 1 + Math.pow(x / C, B)
-      const yPred = D + (A - D) / denom
-      const err = yObs - yPred
-      sse += err * err
-
-      dA += err / denom
-      dD += err * (1 - 1 / denom)
-      const inner = Math.pow(x / C, B)
-      if (inner > 0) {
-        const dDenom_dB = inner * Math.log(x / C)
-        dB += err * ((D - A) / (denom * denom)) * dDenom_dB
-        const dDenom_dC = -B * inner / C
-        dC += err * ((D - A) / (denom * denom)) * dDenom_dC
-      }
-    }
-    A += dA * lr
-    D += dD * lr
-    B += dB * lr * 0.1
-    C += dC * lr * 0.1
-    // Constrain
-    if (B < 0.1) B = 0.1
-    if (C <= 0) C = 0.01
-  }
-
-  // Compute R²
-  const meanY = ods.reduce((a, b) => a + b, 0) / ods.length
-  let ssTot = 0, ssRes = 0
-  for (const s of standards) {
-    const denom = 1 + Math.pow(s.concentration / C, B)
-    const yPred = D + (A - D) / denom
-    ssTot += Math.pow(s.od - meanY, 2)
-    ssRes += Math.pow(s.od - yPred, 2)
-  }
-  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0
-
-  return { A, B, C, D, r2 }
-}
-
-function predictConcentration(od: number, A: number, B: number, C: number, D: number): number | null {
-  if (od <= A || od >= D) return null
-  // Inverse: x = C * ((A - D) / (y - D) - 1) ^ (1 / B)
-  const inner = (A - D) / (od - D) - 1
-  if (inner <= 0) return null
-  return C * Math.pow(inner, 1 / B)
 }
 
 export async function POST(request: NextRequest) {
@@ -121,15 +55,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `标准品数据不足，至少需要 4 个浓度点，当前 ${standards.length} 个` }, { status: 400 })
     }
 
-    const fit = fit4PL(standards)
+    const fit = fit4PL(
+      standards.map(s => s.concentration),
+      standards.map(s => s.od)
+    )
     const standardsOut = standards.map((s) => {
-      const denom = 1 + Math.pow(s.concentration / fit.C, fit.B)
-      const predicted = fit.D + (fit.A - fit.D) / denom
+      const predicted = fourPL(s.concentration, fit.A, fit.B, fit.C, fit.D)
       return { ...s, predicted, residual: s.od - predicted }
     })
 
     const samplesOut = samples.map((s) => {
-      const conc = predictConcentration(s.od, fit.A, fit.B, fit.C, fit.D)
+      const calculated = fourPLInverse(s.od, fit.A, fit.B, fit.C, fit.D)
+      const conc = Number.isFinite(calculated) ? calculated : null
       return {
         ...s,
         concentration: conc,
@@ -172,7 +109,8 @@ export async function POST(request: NextRequest) {
       standards: standardsOut,
       samples: samplesOut,
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '分析失败'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

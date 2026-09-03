@@ -18,8 +18,8 @@ export async function GET() {
     if (error) throw error
 
     return NextResponse.json({ papers: papers || [] })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[user/citations]', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : '读取文献投稿失败' }, { status: 500 })
   }
 }

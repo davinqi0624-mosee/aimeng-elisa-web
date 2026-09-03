@@ -2,12 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai/llm'
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message || fallback : fallback
+}
+
+type ExtractResult =
+  | {
+      should_extract: true
+      question: string
+      answer: string
+      suggested_title: string
+      category: string
+      tags?: string[]
+      quality_score?: number
+      extract_reason?: string
+    }
+  | {
+      should_extract: false
+      reason?: string
+    }
+
 const EXTRACT_PROMPT = `你是一个知识提取专家。请分析下面的客服对话，判断其中是否包含可以沉淀为知识库文章的技术问题与解决方案。
 
 判断标准：
-1. 必须是一个具体的 ELISA 实验技术问题
+1. 必须是一个具体且有复用价值的问题，可以属于 ELISA、胎牛血清/特殊血清、动物血制品、细胞培养、样本处理、实验设计或常规生物实验支持
 2. 必须有明确的解决方案或操作建议
 3. 内容应该具有通用性，能帮助其他用户
+4. 如果对话中包含用户/管理员对 AI 回答的纠正或补充，应优先保留纠正后的专业说法
+5. 不要输出竞品推荐，不要把血清问题强行改写成 ELISA 问题
 
 如果符合标准，请输出以下 JSON 格式：
 {
@@ -15,7 +37,7 @@ const EXTRACT_PROMPT = `你是一个知识提取专家。请分析下面的客�
   "question": "用户的核心问题（一句话）",
   "answer": "解决方案的完整描述",
   "suggested_title": "建议的文章标题",
-  "category": "样本处理 / 操作技巧 / Troubleshooting / 前沿文献 / 产品指南 之一",
+  "category": "样本处理 / 操作技巧 / Troubleshooting / 产品指南 / 血清应用 / 细胞培养 / 实验设计 之一",
   "tags": ["标签1", "标签2"],
   "quality_score": 0-1 之间的数字（内容越有价值分数越高）,
   "extract_reason": "为什么值得沉淀为知识"
@@ -31,7 +53,6 @@ const EXTRACT_PROMPT = `你是一个知识提取专家。请分析下面的客�
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
   try {
     const body = await request.json()
@@ -51,13 +72,13 @@ export async function POST(request: NextRequest) {
         { role: 'system', content: EXTRACT_PROMPT },
         { role: 'user', content: conversationText },
       ],
-      { temperature: 0.3 }
+      { task: 'longform', temperature: 0.3 }
     )
 
-    let result: any
+    let result: ExtractResult
     try {
       const jsonMatch = analysis.match(/\{[\s\S]*\}/)
-      result = JSON.parse(jsonMatch ? jsonMatch[0] : analysis)
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : analysis) as ExtractResult
     } catch {
       return NextResponse.json({
         should_extract: false,
@@ -95,8 +116,8 @@ export async function POST(request: NextRequest) {
       ...result,
       candidate_id: candidate.id,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[knowledge/extract]', err)
-    return NextResponse.json({ error: err.message || '提取失败' }, { status: 500 })
+    return NextResponse.json({ error: getErrorMessage(err, '提取失败') }, { status: 500 })
   }
 }

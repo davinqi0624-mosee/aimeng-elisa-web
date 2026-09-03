@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole } from '@/lib/admin/permissions'
 
 export async function POST(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少 papers 数组' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const rows = papers.map((p: any) => ({
       title: p.title,
@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
       citation_type: p.citation_type || 'official_import',
       points_awarded: 0,
       verified_at: new Date().toISOString(),
-      verified_by: user.id,
+      verified_by: null,
+      verified_admin_id: null,
     }))
 
     const { data, error } = await supabase.from('papers').insert(rows).select('id')

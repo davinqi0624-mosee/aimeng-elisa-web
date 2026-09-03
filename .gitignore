@@ -19,6 +19,13 @@
 
 # production
 /build
+/backups
+
+# local business materials, generated reports, and agent settings
+/project-materials/
+/reports/
+/.claude/
+supabase/.temp/*
 
 # misc
 .DS_Store

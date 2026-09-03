@@ -8,11 +8,6 @@ import {
   Trash2,
   X,
   Search,
-  Building2,
-  User,
-  Phone,
-  Mail,
-  MapPinned,
   Upload,
   CheckCircle2,
   FileSpreadsheet,
@@ -23,7 +18,7 @@ import {
   Download,
   Loader2,
 } from 'lucide-react'
-import { readExcelWithImages, generateExcelTemplate } from '@/lib/xlsx-images'
+import { readExcelWithImages } from '@/lib/xlsx-images'
 import JSZip from 'jszip'
 
 interface Agent {
@@ -61,6 +56,10 @@ interface ValidationResult {
   height?: number
 }
 
+interface ApiErrorResponse {
+  error?: string
+}
+
 const PROVINCE_OPTIONS = [
   '北京', '天津', '河北', '山西', '内蒙古',
   '辽宁', '吉林', '黑龙江', '上海', '江苏',
@@ -73,6 +72,10 @@ const PROVINCE_OPTIONS = [
 
 const QR_REQUIREMENTS = { width: 400, height: 400, label: '微信二维码' }
 
+function createImportBatchId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 export default function AgentsAdminPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +83,7 @@ export default function AgentsAdminPage() {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [saving, setSaving] = useState(false)
+  const [pageError, setPageError] = useState('')
 
   const [form, setForm] = useState({
     province: '',
@@ -95,7 +99,6 @@ export default function AgentsAdminPage() {
     wechat_qr: '',
   })
 
-  const [qrFile, setQrFile] = useState<File | null>(null)
   const [qrUploading, setQrUploading] = useState(false)
   const [qrPreview, setQrPreview] = useState('')
   const qrInputRef = useRef<HTMLInputElement>(null)
@@ -105,7 +108,6 @@ export default function AgentsAdminPage() {
   const [wizardStep, setWizardStep] = useState(1)
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [zipFile, setZipFile] = useState<File | null>(null)
-  const [zipImages, setZipImages] = useState<Map<string, Blob>>(new Map())
   const [parsedRows, setParsedRows] = useState<ParsedAgentRow[]>([])
   const [qrValidation, setQrValidation] = useState<Record<string, ValidationResult>>({})
   const [parsing, setParsing] = useState(false)
@@ -123,19 +125,27 @@ export default function AgentsAdminPage() {
 
   const fetchAgents = () => {
     setLoading(true)
-    fetch('/api/agents')
+    setPageError('')
+    fetch('/api/admin/agents')
       .then((r) => r.json())
       .then((d) => {
-        setAgents(d.agents || [])
+        if (d.error) {
+          setAgents([])
+          setPageError(d.error)
+        } else {
+          setAgents(d.agents || [])
+        }
         setLoading(false)
       })
-      .catch(() => {
+      .catch((err) => {
         setAgents([])
+        setPageError(err.message || '代理商加载失败')
         setLoading(false)
       })
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载需要同步触发一次后台数据请求。
     fetchAgents()
   }, [])
 
@@ -154,7 +164,6 @@ export default function AgentsAdminPage() {
       wechat_qr: '',
     })
     setEditingAgent(null)
-    setQrFile(null)
     setQrPreview('')
     setQrUploading(false)
   }
@@ -180,7 +189,6 @@ export default function AgentsAdminPage() {
       wechat_qr: agent.wechat_qr || '',
     })
     setQrPreview(agent.wechat_qr || '')
-    setQrFile(null)
     setShowForm(true)
   }
 
@@ -203,7 +211,6 @@ export default function AgentsAdminPage() {
       return
     }
 
-    setQrFile(file)
     setQrUploading(true)
 
     try {
@@ -238,9 +245,9 @@ export default function AgentsAdminPage() {
 
       setQrPreview(data.url)
       setForm((prev) => ({ ...prev, wechat_qr: data.url }))
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('QR upload exception:', err)
-      alert('二维码上传失败: ' + (err.message || '网络或服务器错误'))
+      alert('二维码上传失败: ' + (err instanceof Error ? err.message : '网络或服务器错误'))
     } finally {
       setQrUploading(false)
     }
@@ -252,7 +259,7 @@ export default function AgentsAdminPage() {
 
     setSaving(true)
     try {
-      const url = '/api/agents'
+      const url = '/api/admin/agents'
       const method = editingAgent ? 'PUT' : 'POST'
       const body = editingAgent
         ? { id: editingAgent.id, ...form }
@@ -265,7 +272,7 @@ export default function AgentsAdminPage() {
       })
 
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({})) as ApiErrorResponse
         alert(err.error || '保存失败')
         return
       }
@@ -283,9 +290,9 @@ export default function AgentsAdminPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除该代理商？')) return
     try {
-      const res = await fetch(`/api/agents?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/agents?id=${id}`, { method: 'DELETE' })
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({})) as ApiErrorResponse
         alert(err.error || '删除失败')
         return
       }
@@ -343,7 +350,6 @@ export default function AgentsAdminPage() {
       let zipMap = new Map<string, Blob>()
       if (zipFile) {
         zipMap = await extractZipImages(zipFile)
-        setZipImages(zipMap)
       }
 
       const { rows, images: excelImages } = await readExcelWithImages(excelFile)
@@ -404,8 +410,8 @@ export default function AgentsAdminPage() {
       setParsedRows(parsed)
       setQrValidation(validations)
       setWizardStep(2)
-    } catch (e: any) {
-      alert('解析失败: ' + (e.message || '未知错误'))
+    } catch (e: unknown) {
+      alert('解析失败: ' + (e instanceof Error ? e.message : '未知错误'))
     }
     setParsing(false)
   }
@@ -414,7 +420,7 @@ export default function AgentsAdminPage() {
     if (parsedRows.length === 0) return
     setImporting(true)
     setWizardStep(3)
-    const batchId = crypto.randomUUID()
+    const batchId = createImportBatchId()
     let success = 0
     let failed = 0
     let skippedImages = 0
@@ -451,7 +457,7 @@ export default function AgentsAdminPage() {
           }
         }
 
-        const res = await fetch('/api/agents', {
+        const res = await fetch('/api/admin/agents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -475,12 +481,12 @@ export default function AgentsAdminPage() {
           } catch {}
         } else {
           failed++
-          const d = await res.json().catch(() => ({}))
+          const d = await res.json().catch(() => ({})) as ApiErrorResponse
           errors.push(`${row.company_name || '未命名'}: ${d.error || '保存失败'}`)
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         failed++
-        errors.push(`${row.company_name || '未命名'}: ${err.message || '未知错误'}`)
+        errors.push(`${row.company_name || '未命名'}: ${err instanceof Error ? err.message : '未知错误'}`)
       }
     }
 
@@ -512,7 +518,6 @@ export default function AgentsAdminPage() {
     setWizardStep(1)
     setExcelFile(null)
     setZipFile(null)
-    setZipImages(new Map())
     setParsedRows([])
     setQrValidation({})
     setImportResult(null)
@@ -521,9 +526,9 @@ export default function AgentsAdminPage() {
     if (zipInputRef.current) zipInputRef.current.value = ''
   }
 
-  function downloadAgentTemplate() {
+  async function downloadAgentTemplate() {
     // We reuse the xlsx helper but generate an agent-specific template
-    const XLSX = require('xlsx')
+    const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
     const wsData = [
       ['province', 'city', 'company_name', 'contact_name', 'phone', 'email', 'address', 'is_active', 'wechat_qr'],
@@ -572,6 +577,13 @@ export default function AgentsAdminPage() {
           </button>
         </div>
       </div>
+
+      {/* Search */}
+      {pageError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {pageError}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">

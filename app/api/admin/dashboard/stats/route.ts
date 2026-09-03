@@ -11,19 +11,22 @@ export async function GET(request: NextRequest) {
   todayStart.setHours(0, 0, 0, 0)
   const todayISO = todayStart.toISOString()
 
-  const [{ data: todayProducts }, { data: todayDatasheets }, { data: stockStats }] = await Promise.all([
-    supabase.from('products').select('id').gte('created_at', todayISO),
-    supabase.from('auto_datasheets').select('id').gte('created_at', todayISO),
-    supabase.from('products').select('stock_status'),
+  const [
+    { count: todayProducts },
+    { count: todayDatasheets },
+    { count: inStock },
+    { count: outOfStock },
+  ] = await Promise.all([
+    supabase.from('products').select('id', { count: 'exact', head: true }).gte('created_at', todayISO),
+    supabase.from('auto_datasheets').select('id', { count: 'exact', head: true }).gte('created_at', todayISO),
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('stock_status', 'in_stock'),
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('stock_status', 'out_of_stock'),
   ])
 
-  const inStock = stockStats?.filter((p) => p.stock_status === 'in_stock').length || 0
-  const outOfStock = stockStats?.filter((p) => p.stock_status === 'out_of_stock').length || 0
-
   return NextResponse.json({
-    todayProducts: todayProducts?.length || 0,
-    todayDatasheets: todayDatasheets?.length || 0,
-    inStock,
-    outOfStock,
+    todayProducts: todayProducts || 0,
+    todayDatasheets: todayDatasheets || 0,
+    inStock: inStock || 0,
+    outOfStock: outOfStock || 0,
   })
 }

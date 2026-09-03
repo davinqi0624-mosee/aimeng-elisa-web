@@ -1,23 +1,32 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { FlaskConical, Shield, Eye, EyeOff } from 'lucide-react'
+import TurnstileWidget from '@/components/security/TurnstileWidget'
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
     setError('')
+    if (turnstileSiteKey && !turnstileToken) {
+      setError('请先完成人机验证')
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, turnstileToken })
       })
       const data = await res.json()
       if (data.success) {
@@ -86,6 +95,13 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              action="admin_login"
+              onTokenChange={setTurnstileToken}
+              className="flex justify-center"
+            />
+
             <button
               onClick={handleLogin}
               disabled={loading}
@@ -98,13 +114,13 @@ export default function AdminLoginPage() {
 
         {/* Back to site */}
         <div className="text-center mt-6">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
           >
             <FlaskConical className="w-3.5 h-3.5" />
             返回网站首页
-          </a>
+          </Link>
         </div>
       </div>
     </div>

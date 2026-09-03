@@ -3,6 +3,29 @@
   50% { transform: translateY(-6px); }
 }
 
+@keyframes bee-flight {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-2deg) scale(1);
+  }
+  18% {
+    transform: translate3d(-4px, -5px, 0) rotate(-4deg) scale(1.01);
+  }
+  38% {
+    transform: translate3d(4px, -8px, 0) rotate(3deg) scale(1.02);
+  }
+  58% {
+    transform: translate3d(5px, -3px, 0) rotate(4deg) scale(1.01);
+  }
+  78% {
+    transform: translate3d(-3px, 4px, 0) rotate(-3deg) scale(0.99);
+  }
+}
+
+@keyframes bee-shadow {
+  0%, 100% { opacity: 0.45; transform: scale(0.92); }
+  50% { opacity: 0.7; transform: scale(1.08); }
+}
+
 @keyframes blink {
   0%, 90%, 100% { transform: scaleY(1); }
   95% { transform: scaleY(0.1); }
@@ -22,3 +45,22 @@
 .animate-blink { animation: blink 4s ease-in-out infinite; }
 .animate-sparkle { animation: sparkle 2s ease-in-out infinite; }
 .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+.bee-flight {
+  animation: bee-flight 6.5s ease-in-out infinite;
+  transform-origin: 50% 60%;
+  will-change: transform;
+}
+.group:hover .bee-flight {
+  animation-duration: 4s;
+}
+.group:hover .bee-flight img {
+  filter: saturate(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bee-flight,
+  .animate-float,
+  .animate-sparkle {
+    animation: none;
+  }
+}

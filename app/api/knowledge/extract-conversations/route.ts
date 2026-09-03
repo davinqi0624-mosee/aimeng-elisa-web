@@ -2,13 +2,45 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { chatCompletion } from '@/lib/ai/llm'
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message || fallback : fallback
+}
+
+type ExtractResult =
+  | {
+      should_extract: true
+      question: string
+      answer: string
+      suggested_title: string
+      category: string
+      tags?: string[]
+      quality_score?: number
+      extract_reason?: string
+    }
+  | {
+      should_extract: false
+      reason?: string
+    }
+
+type ConversationRow = {
+  id: string
+  question: string
+  answer: string
+  source_type: string | null
+  products_referenced: string[] | null
+  feedback: string | null
+  feedback_note?: string | null
+}
+
 const EXTRACT_PROMPT = `你是一个知识提取专家。请分析下面的客服对话，判断其中是否包含可以沉淀为知识库文章的技术问题与解决方案。
 
 判断标准：
-1. 必须是一个具体的 ELISA 实验技术问题
+1. 必须是一个具体且可复用的问题，可以属于 ELISA、胎牛血清/特殊血清、动物血制品、细胞培养、样本处理、实验设计或常规生物实验支持
 2. 必须有明确的解决方案或操作建议
 3. 内容应该具有通用性，能帮助其他用户
 4. 回答应该详细、准确，有实用价值
+5. 如果用户反馈里包含纠正或补充，应优先提取纠正后的专业表达
+6. 不要推荐其他品牌，不要把血清话题硬拉回 ELISA
 
 如果符合标准，请输出以下 JSON 格式：
 {
@@ -16,7 +48,7 @@ const EXTRACT_PROMPT = `你是一个知识提取专家。请分析下面的客�
   "question": "用户的核心问题（一句话）",
   "answer": "解决方案的完整描述",
   "suggested_title": "建议的文章标题",
-  "category": "样本处理 / 操作技巧 / Troubleshooting / 前沿文献 / 产品指南 之一",
+  "category": "样本处理 / 操作技巧 / Troubleshooting / 产品指南 / 血清应用 / 细胞培养 / 实验设计 之一",
   "tags": ["标签1", "标签2"],
   "quality_score": 0-1 之间的数字（内容越有价值分数越高）,
   "extract_reason": "为什么值得沉淀为知识"
@@ -46,43 +78,58 @@ export async function POST(request: NextRequest) {
     const { limit = 20, minAnswerLength = 150 } = body
 
     // Fetch unprocessed conversations: upvoted OR detailed answers
-    const { data: conversations, error: fetchError } = await supabase
+    const fetchConversations = async (includeFeedbackNote: boolean) => supabase
       .from('ai_conversations')
-      .select('id, question, answer, source_type, products_referenced, feedback')
+      .select(includeFeedbackNote
+        ? 'id, question, answer, source_type, products_referenced, feedback, feedback_note'
+        : 'id, question, answer, source_type, products_referenced, feedback')
       .is('extracted_at', null)
       .or(`feedback.eq.upvote,and(feedback.is.null,answer.gte.${minAnswerLength})`)
       .order('created_at', { ascending: false })
       .limit(limit)
+
+    let { data: conversations, error: fetchError } = await fetchConversations(true)
+
+    if (fetchError && fetchError.message.includes('feedback_note')) {
+      const fallbackQuery = await fetchConversations(false)
+      conversations = fallbackQuery.data
+      fetchError = fallbackQuery.error
+    }
 
     if (fetchError) {
       console.error('[extract-conversations] fetch error:', fetchError.message)
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
-    if (!conversations || conversations.length === 0) {
+    const conversationRows = ((conversations || []) as unknown as ConversationRow[])
+
+    if (conversationRows.length === 0) {
       return NextResponse.json({ message: '暂无待提取的对话', extracted: 0 })
     }
 
     const results = []
     let extractedCount = 0
 
-    for (const conv of conversations) {
+    for (const conv of conversationRows) {
       try {
+        const feedbackNote = 'feedback_note' in conv && typeof conv.feedback_note === 'string'
+          ? conv.feedback_note.trim()
+          : ''
         const analysis = await chatCompletion(
           [
             { role: 'system', content: EXTRACT_PROMPT },
             {
               role: 'user',
-              content: `用户问题：${conv.question}\n\nAI回答：${conv.answer.slice(0, 2000)}`,
+              content: `用户问题：${conv.question}\n\nAI回答：${conv.answer.slice(0, 2000)}${feedbackNote ? `\n\n用户/管理员补充：${feedbackNote}` : ''}`,
             },
           ],
-          { temperature: 0.3 }
+          { task: 'longform', temperature: 0.3 }
         )
 
-        let result: any
+        let result: ExtractResult
         try {
           const jsonMatch = analysis.match(/\{[\s\S]*\}/)
-          result = JSON.parse(jsonMatch ? jsonMatch[0] : analysis)
+          result = JSON.parse(jsonMatch ? jsonMatch[0] : analysis) as ExtractResult
         } catch {
           results.push({ id: conv.id, status: 'parse_error' })
           continue
@@ -135,19 +182,19 @@ export async function POST(request: NextRequest) {
           candidate_id: candidate.id,
           title: result.suggested_title,
         })
-      } catch (err: any) {
-        results.push({ id: conv.id, status: 'error', error: err.message })
+      } catch (err: unknown) {
+        results.push({ id: conv.id, status: 'error', error: getErrorMessage(err, '提取失败') })
       }
     }
 
     return NextResponse.json({
       message: '提取完成',
-      scanned: conversations.length,
+      scanned: conversationRows.length,
       extracted: extractedCount,
       results,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[extract-conversations] exception:', err)
-    return NextResponse.json({ error: err.message || '提取失败' }, { status: 500 })
+    return NextResponse.json({ error: getErrorMessage(err, '提取失败') }, { status: 500 })
   }
 }

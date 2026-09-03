@@ -1,14 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { requireSuper } from '@/lib/admin/auth'
+import { requireAdminPermission } from '@/lib/admin/auth'
 import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit, checkExportLimit, logExport, maskEmail } from '@/lib/admin/audit'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+interface ProfileRow {
+  id: string
+  full_name?: string | null
+  role?: string | null
+  created_at?: string | null
+}
+
+interface PointTransactionRow {
+  user_id: string
+  amount: number
+  type: string
+}
 
 export async function GET(request: NextRequest) {
-  const { admin, error: authError } = await requireSuper(request)
+  const { admin, error: authError } = await requireAdminPermission(request, 'user_manage')
   if (authError) return authError
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { searchParams } = new URL(request.url)
   const limit = parseInt(searchParams.get('limit') || '50')
   const offset = parseInt(searchParams.get('offset') || '0')
@@ -22,41 +35,64 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*, auth.users!inner(email, created_at, last_sign_in_at, phone)')
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+  const page = Math.floor(offset / limit) + 1
+  const { data: authUsersData, error } = await supabase.auth.admin.listUsers({
+    page,
+    perPage: limit,
+  })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message || '用户读取失败' }, { status: 500 })
   }
 
-  const userIds = (data || []).map((d: any) => d.id)
-  let balances: Record<string, number> = {}
+  const authUsers = authUsersData?.users || []
+  const userIds = authUsers.map((user) => user.id)
+  const profilesById = new Map<string, ProfileRow>()
+
+  if (userIds.length > 0) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, created_at')
+      .in('id', userIds)
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message || '用户档案读取失败' }, { status: 500 })
+    }
+
+    for (const profile of (profileData || []) as ProfileRow[]) {
+      profilesById.set(profile.id, profile)
+    }
+  }
+
+  const balances: Record<string, number> = {}
   if (userIds.length > 0) {
     const { data: txData } = await supabase
       .from('point_transactions')
       .select('user_id, amount, type')
       .in('user_id', userIds)
 
-    for (const tx of txData || []) {
+    for (const tx of (txData || []) as PointTransactionRow[]) {
       if (!balances[tx.user_id]) balances[tx.user_id] = 0
-      if (tx.type === 'earn') balances[tx.user_id] += tx.amount
+      if (tx.type === 'earn' || tx.type === 'refund') balances[tx.user_id] += tx.amount
       if (tx.type === 'spend') balances[tx.user_id] -= tx.amount
     }
   }
 
-  const users = (data || []).map((d: any) => ({
-    id: d.id,
-    email: d.auth?.users?.email || d.email,
-    full_name: d.full_name,
-    role: d.role,
-    balance: balances[d.id] || 0,
-    created_at: d.created_at,
-    last_sign_in_at: d.auth?.users?.last_sign_in_at || d.last_sign_in_at,
-    phone: d.auth?.users?.phone || d.phone,
-  }))
+  const users = authUsers.map((authUser) => {
+    const profile = profilesById.get(authUser.id)
+    return {
+      id: authUser.id,
+      email: authUser.email || '',
+      full_name:
+        profile?.full_name ||
+        (typeof authUser.user_metadata?.full_name === 'string' ? authUser.user_metadata.full_name : null),
+      role: profile?.role || 'user',
+      balance: balances[authUser.id] || 0,
+      created_at: authUser.created_at || profile?.created_at || new Date().toISOString(),
+      last_sign_in_at: authUser.last_sign_in_at || null,
+      phone: authUser.phone || '',
+    }
+  })
 
   if (exportCsv) {
     await logExport(admin!.id, 'users', users.length)
@@ -69,9 +105,9 @@ export async function GET(request: NextRequest) {
     })
 
     // 脱敏处理
-    const maskedUsers = users.map((u: any) => ({
+    const maskedUsers = users.map((u) => ({
       ...u,
-      email: maskEmail(u.email),
+      email: u.email ? maskEmail(u.email) : '',
       phone: u.phone ? u.phone.slice(0, 3) + '****' + u.phone.slice(-4) : '',
     }))
 

@@ -1,17 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import Link from 'next/link'
-import { requireRole } from '@/lib/admin/permissions'
 import {
   CheckCircle2,
   XCircle,
-  Edit3,
-  Merge,
   Loader2,
   Sparkles,
   Clock,
   ChevronLeft,
+  Trash2,
 } from 'lucide-react'
 
 interface Candidate {
@@ -35,25 +33,32 @@ export default function KnowledgeCandidatesPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [filter, setFilter] = useState('pending')
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadCandidates()
-  }, [filter])
-
-  async function loadCandidates() {
+  const loadCandidates = useCallback(async () => {
     setLoading(true)
+    setError('')
     try {
       const res = await fetch(`/api/admin/knowledge/candidates?status=${filter}`)
-      const data = await res.json()
+      const data = await res.json().catch(() => ({})) as { candidates?: Candidate[]; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error || '知识候选加载失败')
       setCandidates(data.candidates || [])
-    } catch {
+    } catch (err: unknown) {
       setCandidates([])
+      setError(err instanceof Error ? err.message : '知识候选加载失败')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }
+  }, [filter])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始/切换筛选时需要同步触发一次后台数据请求。
+    loadCandidates()
+  }, [loadCandidates])
 
   async function handleAction(id: string, action: string, note?: string) {
     setActionLoading(id)
+    setError('')
     try {
       const res = await fetch('/api/admin/knowledge/candidates', {
         method: 'POST',
@@ -62,11 +67,15 @@ export default function KnowledgeCandidatesPage() {
       })
       if (res.ok) {
         setCandidates((prev) => prev.filter((c) => c.id !== id))
+      } else {
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        setError(data.error || '操作失败')
       }
-    } catch {
-      // ignore
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   return (
@@ -74,7 +83,7 @@ export default function KnowledgeCandidatesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">知识候选审核</h1>
-          <p className="text-sm text-gray-500 mt-1">AI 从客服对话中自动提取的知识候选</p>
+          <p className="text-sm text-gray-500 mt-1">AI 从客服对话中自动提取的知识候选，审核后收录到 AI 客服知识库</p>
         </div>
         <Link
           href="/admin"
@@ -85,11 +94,17 @@ export default function KnowledgeCandidatesPage() {
         </Link>
       </div>
 
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4">
         {[
           { value: 'pending', label: '待审核' },
-          { value: 'approved', label: '已通过' },
+          { value: 'approved', label: '已收录' },
           { value: 'rejected', label: '已拒绝' },
         ].map((tab) => (
           <button
@@ -112,7 +127,7 @@ export default function KnowledgeCandidatesPage() {
         </div>
       ) : candidates.length === 0 ? (
         <div className="bg-white rounded-xl border p-12 text-center text-gray-400">
-          {filter === 'pending' ? '暂无待审核的知识候选' : `暂无${filter === 'approved' ? '已通过' : '已拒绝'}的候选`}
+          {filter === 'pending' ? '暂无待审核的知识候选' : `暂无${filter === 'approved' ? '已收录' : '已拒绝'}的候选`}
         </div>
       ) : (
         <div className="space-y-4">
@@ -181,23 +196,7 @@ export default function KnowledgeCandidatesPage() {
                       className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      一键发布
-                    </button>
-                    <button
-                      onClick={() => handleAction(c.id, 'edit')}
-                      disabled={actionLoading === c.id}
-                      className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      编辑后发布
-                    </button>
-                    <button
-                      onClick={() => handleAction(c.id, 'merge')}
-                      disabled={actionLoading === c.id}
-                      className="flex items-center gap-1 px-3 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition-colors disabled:opacity-50"
-                    >
-                      <Merge className="w-4 h-4" />
-                      合并到现有
+                      收录到 AI 知识库
                     </button>
                     <button
                       onClick={() => handleAction(c.id, 'reject')}
@@ -206,6 +205,18 @@ export default function KnowledgeCandidatesPage() {
                     >
                       <XCircle className="w-4 h-4" />
                       拒绝
+                    </button>
+                  </div>
+                )}
+                {filter !== 'pending' && (
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button
+                      onClick={() => handleAction(c.id, 'delete')}
+                      disabled={actionLoading === c.id}
+                      className="flex items-center gap-1 px-3 py-2 border border-red-100 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      删除记录
                     </button>
                   </div>
                 )}

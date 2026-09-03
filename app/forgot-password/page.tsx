@@ -1,0 +1,114 @@
+'use client'
+
+import { FormEvent, useMemo, useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { AlertCircle, CheckCircle2, Loader2, Mail } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL || 'https://animaluni.com'
+
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setMessage('')
+    setError('')
+    setLoading(true)
+
+    try {
+      const redirectTo = `${SITE_ORIGIN.replace(/\/$/, '')}/auth/callback?next=/reset-password`
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
+      if (resetError) throw resetError
+      setMessage('如果该邮箱已注册，我们已发送密码重置邮件。请打开邮箱中的链接设置新密码。')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '发送重置邮件失败，请稍后重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B]">
+      <div className="min-h-screen flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-5xl flex flex-col lg:flex-row lg:items-stretch items-center justify-center gap-8 lg:gap-12">
+          <div className="w-full max-w-[320px] lg:max-w-[340px] flex items-center justify-center lg:items-stretch lg:self-stretch">
+            <div className="relative w-full h-[360px] lg:h-full rounded-[28px] overflow-hidden bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] border border-white/70">
+              <Image
+                src="/brand/login-lab-specialist.jpg"
+                alt="AIMENG UNING 客服支持"
+                fill
+                priority
+                sizes="(max-width: 1024px) 90vw, 340px"
+                className="object-cover object-center"
+              />
+            </div>
+          </div>
+
+          <div className="w-full max-w-md flex items-center justify-center lg:items-stretch lg:self-stretch">
+            <div className="w-full h-full bg-white/95 border border-gray-200 rounded-[24px] p-6 sm:p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] flex flex-col justify-center">
+              <div className="text-center mb-8">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                  <Mail className="h-5 w-5" />
+                </div>
+                <h1 className="text-[30px] sm:text-[34px] font-extrabold leading-tight text-[#2563EB] tracking-normal">
+                  找回密码
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  输入注册邮箱，系统会发送一封密码重置邮件。
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+              )}
+              {message && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2 text-sm text-emerald-700">
+                  <CheckCircle2 className="mt-0.5 w-4 h-4 shrink-0" />
+                  {message}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#475569] mb-1">注册邮箱</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    placeholder="请输入注册邮箱"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  发送重置邮件
+                </button>
+              </form>
+
+              <div className="mt-6 text-center text-sm text-[#94A3B8]">
+                想起密码了？{' '}
+                <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                  返回登录
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

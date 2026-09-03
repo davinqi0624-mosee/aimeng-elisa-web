@@ -25,6 +25,20 @@ interface AdminAccount {
   permissions: string[]
 }
 
+interface AdminAccountPayload {
+  id?: string
+  username?: string
+  password?: string
+  role?: 'super' | 'admin'
+  display_name?: string
+  permissions?: string[]
+  is_active?: boolean
+}
+
+interface ApiErrorResponse {
+  error?: string
+}
+
 const ALL_PERMISSIONS = [
   { code: 'product_manage', label: '商品管理' },
   { code: 'points_review', label: '积分审核' },
@@ -41,6 +55,7 @@ export default function AdminManagementPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<AdminAccount | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const [form, setForm] = useState({
     username: '',
@@ -56,14 +71,18 @@ export default function AdminManagementPage() {
 
   async function loadAdmins() {
     setLoading(true)
+    setError('')
     try {
       const res = await fetch('/api/admin/accounts')
-      const data = await res.json()
+      const data = await res.json().catch(() => ({})) as { accounts?: AdminAccount[]; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error || '管理员列表加载失败')
       setAdmins(data.accounts || [])
-    } catch {
+    } catch (err: unknown) {
       setAdmins([])
+      setError(err instanceof Error ? err.message : '管理员列表加载失败')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function openCreate() {
@@ -93,21 +112,27 @@ export default function AdminManagementPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
+    setError('')
 
     try {
       if (editing) {
-        const body: any = {
+        const body: AdminAccountPayload = {
           id: editing.id,
-          display_name: form.display_name,
+          username: form.username.trim(),
+          display_name: form.display_name.trim(),
           role: form.role,
           permissions: form.permissions,
+        }
+        if (form.password.trim()) {
+          body.password = form.password.trim()
         }
         const res = await fetch('/api/admin/accounts', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-        if (!res.ok) throw new Error('更新失败')
+        const data = await res.json().catch(() => ({})) as ApiErrorResponse
+        if (!res.ok) throw new Error(data.error || '更新失败')
       } else {
         if (!form.password) {
           alert('请设置初始密码')
@@ -119,18 +144,22 @@ export default function AdminManagementPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         })
-        if (!res.ok) throw new Error('创建失败')
+        const data = await res.json().catch(() => ({})) as ApiErrorResponse
+        if (!res.ok) throw new Error(data.error || '创建失败')
       }
       setShowModal(false)
       loadAdmins()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '保存失败'
+      setError(message)
+      alert(message)
     } finally {
       setSubmitting(false)
     }
   }
 
   async function toggleStatus(admin: AdminAccount) {
+    setError('')
     try {
       const res = await fetch('/api/admin/accounts', {
         method: 'PUT',
@@ -140,21 +169,28 @@ export default function AdminManagementPage() {
           is_active: !admin.is_active,
         }),
       })
-      if (!res.ok) throw new Error('操作失败')
+      const data = await res.json().catch(() => ({})) as ApiErrorResponse
+      if (!res.ok) throw new Error(data.error || '操作失败')
       loadAdmins()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '操作失败'
+      setError(message)
+      alert(message)
     }
   }
 
   async function handleDelete(admin: AdminAccount) {
     if (!confirm(`确定删除管理员 "${admin.display_name || admin.username}" 吗？此操作不可恢复。`)) return
+    setError('')
     try {
       const res = await fetch(`/api/admin/accounts?id=${admin.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('删除失败')
+      const data = await res.json().catch(() => ({})) as ApiErrorResponse
+      if (!res.ok) throw new Error(data.error || '删除失败')
       loadAdmins()
-    } catch (err: any) {
-      alert(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '删除失败'
+      setError(message)
+      alert(message)
     }
   }
 
@@ -173,6 +209,12 @@ export default function AdminManagementPage() {
           新增管理员
         </button>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -294,25 +336,25 @@ export default function AdminManagementPage() {
                   type="text"
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  disabled={!!editing}
                   required
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-50"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   placeholder="如 admin-zhangsan"
                 />
               </div>
-              {!editing && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">初始密码</label>
-                  <input
-                    type="text"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    required={!editing}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="请输入初始密码"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {editing ? '重置密码（可选）' : '初始密码'}
+                </label>
+                <input
+                  type="text"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required={!editing}
+                  minLength={form.password ? 8 : undefined}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  placeholder={editing ? '不填写则不修改密码，填写至少 8 位' : '请输入初始密码，至少 8 位'}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">显示名</label>
                 <input

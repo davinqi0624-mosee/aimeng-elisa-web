@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 412" role="img" aria-label="AIMENG UNING A logo">
+  <g opacity="0.96">
+    <polygon points="64,14 456,62 456,342 64,410" fill="#41b9cf" />
+    <polygon points="112,94 512,136 512,248 112,292" fill="#e43f97" opacity="0.92" />
+    <polygon points="0,208 192,190 192,326 0,360" fill="#dce900" opacity="0.96" />
+    <polygon points="112,94 456,132 456,250 112,292" fill="#684486" opacity="0.9" />
+    <polygon points="0,208 192,190 192,326 0,360" fill="#4aaa39" opacity="0.78" />
+  </g>
+  <path
+    fill="#ffffff"
+    fill-rule="evenodd"
+    d="M229 52h91l121 293h-88l-28-65h-94l-29 89h-91L229 52Zm54 112-35 107h72l-37-107Z"
+  />
+</svg>

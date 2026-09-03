@@ -3,6 +3,10 @@
     {
       "path": "/api/admin/knowledge/evolve",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/knowledge/backfill-current-month",
+      "schedule": "0 8 * * *"
     }
   ]
 }

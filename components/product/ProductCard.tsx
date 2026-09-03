@@ -1,7 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
+import { getCatalogDisplayNumber } from '@/lib/products/catalog'
+import { getSpeciesLabel, normalizeSpeciesList } from '@/lib/products/species'
 
 const DEFAULT_IMAGES = [
   '/images/elisa/elisa_sandwich_sketch.jpg',
@@ -15,8 +18,8 @@ interface ProductCardProps {
     name: string
     slug: string
     target: string
-    price: number
-    detection_range: string
+    catalog_number?: string | null
+    detection_range?: string | null
     stock_status: string
     citation_count?: number
     image_url?: string
@@ -36,6 +39,8 @@ function getDefaultImage(id: string): string {
 export default function ProductCard({ product, species = [] }: ProductCardProps) {
   const isInStock = product.stock_status === 'in_stock'
   const displayImage = product.image_url || getDefaultImage(product.id)
+  const displayCatalogNumber = getCatalogDisplayNumber(product.catalog_number)
+  const displaySpecies = normalizeSpeciesList(species)
 
   return (
     <Link
@@ -43,12 +48,13 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
       className="group block bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 hover:shadow-md transition-all"
     >
       {/* Product Image */}
-      <div className="h-48 w-full overflow-hidden bg-slate-50">
-        <img
+      <div className="relative h-48 w-full overflow-hidden bg-slate-50">
+        <Image
           src={displayImage}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
       </div>
 
@@ -58,12 +64,12 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-semibold">
             {product.target}
           </span>
-          {species.slice(0, 1).map((s) => (
+          {displaySpecies.slice(0, 1).map((s) => (
             <span
               key={s}
               className="px-2.5 py-1 bg-slate-50 text-slate-600 text-xs rounded-md border border-slate-200 font-medium"
             >
-              {s}
+              {getSpeciesLabel(s)}
             </span>
           ))}
           {!isInStock && (
@@ -79,15 +85,16 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
         </h3>
 
         {/* Detection Range */}
-        <p className="text-sm text-slate-500 mb-4">
-          检测范围 {product.detection_range}
-        </p>
+        <div className="mb-4 space-y-1 text-sm text-slate-500">
+          {displayCatalogNumber && (
+            <p className="font-mono text-xs text-blue-600">货号 {displayCatalogNumber}</p>
+          )}
+          <p>检测范围 {product.detection_range || '待确认'}</p>
+        </div>
 
-        {/* Bottom row: price + citations + button */}
+        {/* Bottom row: citations + button */}
         <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-black text-slate-900">¥{product.price}</span>
-          </div>
+          <span className="text-xs font-medium text-slate-500">48T / 96T 可选</span>
           <div className="flex items-center gap-3">
             {(product.citation_count || 0) > 0 && (
               <span className="flex items-center gap-1 text-xs text-slate-500 font-medium">

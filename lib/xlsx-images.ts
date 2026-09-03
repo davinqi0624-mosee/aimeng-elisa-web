@@ -136,7 +136,7 @@ async function extractImagesFromXLSX(arrayBuffer: ArrayBuffer): Promise<ExcelIma
 }
 
 export async function readExcelWithImages(file: File): Promise<{
-  rows: any[][]
+  rows: unknown[][]
   images: ExcelImage[]
 }> {
   const data = await file.arrayBuffer()
@@ -144,7 +144,7 @@ export async function readExcelWithImages(file: File): Promise<{
   const workbook = XLSX.read(data, { type: 'array' })
   const sheetName = workbook.SheetNames.find(s => s.toLowerCase() === 'products') || workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][]
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 })
 
   const images = await extractImagesFromXLSX(data)
 
@@ -154,14 +154,53 @@ export async function readExcelWithImages(file: File): Promise<{
 export function generateExcelTemplate(): void {
   const wb = XLSX.utils.book_new()
   const wsData = [
-    ['catalog_number', 'product_name', 'target', 'detection_range', 'sensitivity', 'size', 'price', 'stock_status', 'status', 'product_image', 'standard_curve_image', 'validation_image', 'additional_image'],
-    ['AU-IL6-96T', 'Mouse IL-6 Elisa Kit', 'IL-6', '7.8-500 pg/mL', '3.9 pg/mL', '96T', 1800, '有货', '上架', '在此单元格嵌入图片 (600×600)', '在此单元格嵌入图片 (800×400)', '在此单元格嵌入图片 (800×400)', '在此单元格嵌入图片 (600×400)'],
+    [
+      '货号(CAT_NO.)',
+      '产品名称(Product_name)',
+      '种属(species)',
+      '指标名称(target)',
+      'Product name',
+      '产品名称',
+      '灵敏度(Sensitivity)',
+      '检测范围(Detection_range)',
+      '样品用量(Sample size)',
+      '测试方法(test_method)',
+      '储存温度(Store)',
+      '操作时长(assay_time)',
+      '运输(Transport)',
+      '样本类型(sample_types_text)',
+      '中文简介',
+      'Introduction',
+      '库存(Stock status)',
+      '状态(Status)',
+    ],
+    [
+      'LV10001',
+      'Mouse IL-6 ELISA Kit (小鼠白介素-6)',
+      'Mouse',
+      'IL-6',
+      'Mouse IL-6 ELISA Kit',
+      '小鼠白介素-6',
+      '3.9 pg/mL',
+      '7.8-500 pg/mL',
+      '50ul',
+      'Sandwich ELISA',
+      '4℃',
+      '4h',
+      '蓝冰',
+      '血清/血浆/细胞培养上清/组织匀浆',
+      '用于检测小鼠样本中 IL-6 浓度的 ELISA 试剂盒。',
+      'For quantitative detection of IL-6 in mouse samples.',
+      '有货',
+      '上架',
+    ],
   ]
   const ws = XLSX.utils.aoa_to_sheet(wsData)
   ws['!cols'] = [
-    { wch: 18 }, { wch: 28 }, { wch: 15 }, { wch: 22 }, { wch: 15 }, { wch: 8 },
-    { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 32 }, { wch: 32 }, { wch: 32 }, { wch: 32 },
+    { wch: 18 }, { wch: 36 }, { wch: 14 }, { wch: 18 }, { wch: 30 }, { wch: 24 },
+    { wch: 18 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 16 }, { wch: 18 },
+    { wch: 14 }, { wch: 36 }, { wch: 58 }, { wch: 58 }, { wch: 16 }, { wch: 14 },
   ]
-  XLSX.utils.book_append_sheet(wb, ws, 'Products')
+  XLSX.utils.book_append_sheet(wb, ws, 'ELISA Products')
   XLSX.writeFile(wb, 'product_import_template.xlsx')
 }

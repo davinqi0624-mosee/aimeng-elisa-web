@@ -56,7 +56,8 @@ function residuals(data: DataPoint[], p: PL4Params): number[] {
   return data.map(pt => pt.y - pl4(pt.x, p));
 }
 
-// ── Sum of Squared Errors ──unction sse(data: DataPoint[], p: PL4Params): number {
+// ── Sum of Squared Errors ──
+function sse(data: DataPoint[], p: PL4Params): number {
   return residuals(data, p).reduce((sum, r) => sum + r * r, 0);
 }
 

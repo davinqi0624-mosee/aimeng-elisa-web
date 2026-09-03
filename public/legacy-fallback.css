@@ -1,0 +1,296 @@
+/*
+ * Legacy browser fallback.
+ * This file intentionally avoids Tailwind v4, CSS variables, dvh, backdrop-filter,
+ * arbitrary selectors, and other modern syntax that older Tencent/IE-compatible
+ * browser engines may ignore.
+ */
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+  color: #0f172a;
+  background: #fff;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+header {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  min-height: 64px;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+header > div {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+header > div > div {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 64px;
+}
+
+header a[aria-label*="官网首页"] {
+  display: flex;
+  align-items: center;
+  flex: 0 0 180px;
+  width: 180px;
+  max-width: 180px;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+header a[aria-label*="官网首页"] img {
+  display: block;
+  width: 180px !important;
+  max-width: 180px !important;
+  height: auto !important;
+}
+
+header nav {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+header nav > div {
+  position: relative;
+}
+
+header nav > div > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+header nav > div > a:hover {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+header nav > div > div {
+  display: none;
+}
+
+header nav > div:hover > div,
+header nav > div:focus-within > div {
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 50;
+  width: 288px;
+  padding-top: 10px;
+  transform: translateX(-50%);
+}
+
+header nav > div > div > div {
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
+header nav > div > div a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #334155;
+  text-decoration: none;
+}
+
+header nav > div > div a:hover {
+  background: #f8fafc;
+}
+
+header nav span {
+  display: block;
+}
+
+header button[aria-controls="mobile-site-nav"] {
+  display: none;
+}
+
+body > div,
+header + div {
+  min-width: 0;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.max-w-7xl,
+.mx-auto.max-w-7xl {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.px-4 {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.py-8 {
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.bg-white {
+  background: #fff;
+}
+
+.text-white {
+  color: #fff;
+}
+
+.rounded-lg,
+.rounded-xl,
+.rounded-2xl {
+  border-radius: 12px;
+}
+
+.border {
+  border: 1px solid #e2e8f0;
+}
+
+.shadow-sm {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.aspect-video {
+  position: relative;
+  width: 100%;
+}
+
+.aspect-video:before {
+  display: block;
+  padding-top: 56.25%;
+  content: "";
+}
+
+.aspect-video > img,
+.aspect-video > video,
+.aspect-video > div {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.object-cover {
+  object-fit: cover;
+}
+
+.grid {
+  display: grid;
+}
+
+.flex {
+  display: flex;
+}
+
+.hidden {
+  display: none;
+}
+
+header .hidden,
+header nav.hidden {
+  display: flex;
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.space-y-3 > * + * {
+  margin-top: 12px;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-3 {
+  gap: 12px;
+}
+
+.gap-6 {
+  gap: 24px;
+}
+
+button,
+.legacy-button,
+a[class*="rounded"] {
+  cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-\[1\.15fr_0\.85fr\],
+  .lg\:grid-cols-\[1\.16fr_0\.84fr\] {
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  }
+}
+
+@media (max-width: 767px) {
+  header > div > div {
+    gap: 12px;
+  }
+
+  header a[aria-label*="官网首页"] {
+    flex-basis: 150px;
+    width: 150px;
+    max-width: 150px;
+  }
+
+  header a[aria-label*="官网首页"] img {
+    width: 150px !important;
+    max-width: 150px !important;
+  }
+
+  header nav {
+    display: none;
+  }
+
+  header .hidden,
+  header nav.hidden {
+    display: none;
+  }
+
+  header button[aria-controls="mobile-site-nav"] {
+    display: block;
+    margin-left: auto;
+  }
+}

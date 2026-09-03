@@ -9,16 +9,20 @@ interface Paper {
   id: string
   title: string
   authors: string
+  affiliation: string
   journal: string
   doi: string
+  link: string
   impact_factor: number
   publication_date: string
   product_cat_no: string
+  journal_cover_url: string
+  detected_products: string[]
   products: { name: string; target: string; slug: string; cat_no: string } | null
 }
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: '最新发表' },
+  { value: 'newest', label: '最新收录' },
   { value: 'oldest', label: '最早发表' },
   { value: 'highest_if', label: '影响因子高→低' },
   { value: 'lowest_if', label: '影响因子低→高' },
@@ -40,6 +44,20 @@ const YEAR_OPTIONS = [
   { value: '2022', label: '2022' },
   { value: '2021', label: '2021' },
 ]
+
+function getPaperCatNos(paper: Paper) {
+  if (Array.isArray(paper.detected_products) && paper.detected_products.length > 0) {
+    return paper.detected_products
+  }
+  return (paper.product_cat_no || '')
+    .split(/[,，、\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function getPaperAffiliation(paper: Paper) {
+  return paper.affiliation || '单位待补充'
+}
 
 export default function CitationsPage() {
   const [papers, setPapers] = useState<Paper[]>([])
@@ -82,12 +100,16 @@ export default function CitationsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load(1)
     setPage(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort, journalFilter, ifRange, year, productFilter])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load(page)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 
   function handleSearch() {
@@ -105,10 +127,19 @@ export default function CitationsPage() {
   const hasFilters = journalFilter || ifRange || year || productFilter
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <section className="relative h-[300px] overflow-hidden border-b border-white/70 md:h-[380px]">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/brand/citation-hall-wall.jpg')" }}
+        />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-gray-50" />
+      </section>
+
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">文献引用大厅</h1>
             <p className="text-sm text-gray-500">
@@ -121,6 +152,7 @@ export default function CitationsPage() {
           >
             + 提交文献
           </Link>
+          </div>
         </div>
 
         {/* Stats */}
@@ -235,22 +267,19 @@ export default function CitationsPage() {
                 className="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-4">
-                  {/* Product badge */}
-                  <div className="shrink-0 w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                    {p.products?.slug ? (
-                      <Link
-                        href={`/products/${p.products.slug}`}
-                        className="text-center"
-                      >
-                        <span className="text-xs text-gray-500 block">货号</span>
-                        <span className="text-sm font-semibold text-blue-700">
-                          {p.product_cat_no || p.products.cat_no || '—'}
-                        </span>
-                      </Link>
+                  <div className="shrink-0">
+                    {p.journal_cover_url ? (
+                      <img
+                        src={p.journal_cover_url}
+                        alt={p.journal}
+                        className="h-20 w-16 rounded-lg border object-cover"
+                      />
                     ) : (
-                      <span className="text-xs text-gray-400 text-center">
-                        {p.product_cat_no || '—'}
-                      </span>
+                      <div className="flex h-20 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-slate-100 text-center text-[11px] font-semibold text-blue-700">
+                        SCI
+                        <br />
+                        Paper
+                      </div>
                     )}
                   </div>
 
@@ -258,7 +287,7 @@ export default function CitationsPage() {
                     <h3 className="font-semibold text-gray-900 mb-1 leading-snug">
                       {p.title}
                     </h3>
-                    <p className="text-sm text-gray-500 mb-2">{p.authors}</p>
+                    <p className="text-sm text-gray-500 mb-2">{getPaperAffiliation(p)}</p>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
                       <span className="font-medium text-gray-700">
@@ -272,7 +301,7 @@ export default function CitationsPage() {
                           ? new Date(p.publication_date).getFullYear()
                           : '-'}
                       </span>
-                      {p.doi && (
+                      {p.doi ? (
                         <a
                           href={`https://doi.org/${p.doi}`}
                           target="_blank"
@@ -282,18 +311,42 @@ export default function CitationsPage() {
                           DOI
                           <ExternalLink className="w-3 h-3" />
                         </a>
+                      ) : p.link ? (
+                        <a
+                          href={p.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          原文链接
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {getPaperCatNos(p).map((catNo) => (
+                        <span
+                          key={catNo}
+                          className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+                        >
+                          {catNo}
+                        </span>
+                      ))}
+                      {getPaperCatNos(p).length === 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">
+                          货号审核中
+                        </span>
                       )}
                     </div>
 
                     {p.products?.name && (
-                      <div className="mt-2">
-                        <Link
-                          href={`/products/${p.products.slug}`}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium hover:bg-blue-100"
-                        >
-                          {p.products.name}
-                        </Link>
-                      </div>
+                      <Link
+                        href={`/products/${p.products.slug}`}
+                        className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 text-slate-700 rounded-full text-xs font-medium hover:bg-slate-100"
+                      >
+                        {p.products.name}
+                      </Link>
                     )}
                   </div>
                 </div>
@@ -326,7 +379,7 @@ export default function CitationsPage() {
             </button>
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

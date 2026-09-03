@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
-import Navbar from "@/components/ui/Navbar";
-import AiChatBot from '@/components/product/AiChatBot';
+import AppChrome from "@/components/AppChrome";
 
 export const metadata: Metadata = {
   title: "AIMENG UNING | 爱萌优宁 - ELISA 试剂盒专家",
@@ -30,12 +29,38 @@ export default async function RootLayout({
 
   return (
     <html lang="zh-CN" className="h-[100dvh] antialiased">
+      <head>
+        <link rel="preload" href="/legacy-fallback.css" as="style" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function () {
+  try {
+    var css = window.CSS;
+    var supportsModernCss =
+      css &&
+      css.supports &&
+      css.supports("height", "100dvh") &&
+      css.supports("color", "oklch(60% 0.12 220)");
+    if (supportsModernCss) return;
+  } catch (error) {}
+
+  var existing = document.querySelector('link[href="/legacy-fallback.css"][rel="stylesheet"]');
+  if (existing) return;
+
+  var link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "/legacy-fallback.css";
+  document.head.appendChild(link);
+})();
+            `.trim(),
+          }}
+        />
+      </head>
       <body className="h-[100dvh] flex flex-col font-sans overflow-hidden">
-        <Navbar user={user} isAdmin={isAdmin} />
-        <div className="flex-1 min-h-0 overflow-auto bg-white">
+        <AppChrome user={user} isAdmin={isAdmin}>
           {children}
-        </div>
-        <AiChatBot />
+        </AppChrome>
       </body>
     </html>
   );

@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { verifyPassword, signAdminToken, setAdminCookie } from '@/lib/admin/auth'
+import { verifyTurnstileToken } from '@/lib/security/turnstile'
+import { checkAdminLoginLock, clearAdminLoginFailures, recordAdminLoginFailure } from '@/lib/security/admin-login-security'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username, password } = body
+    const { username, password, turnstileToken } = body
 
     if (!username || !password) {
       return NextResponse.json({ error: '用户名和密码不能为空' }, { status: 400 })
+    }
+
+    const lock = await checkAdminLoginLock(request, String(username))
+    if (lock.error) return NextResponse.json({ error: lock.error }, { status: 503 })
+    if (lock.locked) {
+      return NextResponse.json({ error: `登录失败次数过多，请 ${Math.ceil(lock.retryAfterSeconds / 60)} 分钟后重试` }, { status: 429, headers: { 'Retry-After': String(lock.retryAfterSeconds) } })
+    }
+
+    const turnstile = await verifyTurnstileToken(request, turnstileToken, {
+      required: process.env.TURNSTILE_ENFORCE_AUTH === 'true',
+      action: 'admin_login',
+    })
+    if (!turnstile.ok) {
+      return NextResponse.json({ error: turnstile.error || '人机验证失败' }, { status: 403 })
     }
 
     const supabase = await createClient()
@@ -20,6 +36,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!account) {
+      const failure = await recordAdminLoginFailure(request, String(username))
+      if (failure.retryAfterSeconds > 0) {
+        return NextResponse.json({ error: `登录失败次数过多，请 ${Math.ceil(failure.retryAfterSeconds / 60)} 分钟后重试` }, { status: 429, headers: { 'Retry-After': String(failure.retryAfterSeconds) } })
+      }
       return NextResponse.json({ error: '用户名或密码错误' }, { status: 401 })
     }
 
@@ -29,8 +49,14 @@ export async function POST(request: NextRequest) {
 
     const valid = await verifyPassword(password, account.password_hash)
     if (!valid) {
+      const failure = await recordAdminLoginFailure(request, String(username))
+      if (failure.retryAfterSeconds > 0) {
+        return NextResponse.json({ error: `登录失败次数过多，请 ${Math.ceil(failure.retryAfterSeconds / 60)} 分钟后重试` }, { status: 429, headers: { 'Retry-After': String(failure.retryAfterSeconds) } })
+      }
       return NextResponse.json({ error: '用户名或密码错误' }, { status: 401 })
     }
+
+    await clearAdminLoginFailures(request, String(username))
 
     // Update last login
     await supabase
@@ -43,6 +69,7 @@ export async function POST(request: NextRequest) {
       username: account.username,
       role: account.role as 'super' | 'admin',
       display_name: account.display_name || account.username,
+      permissions: [],
     })
 
     await setAdminCookie(token)
@@ -52,7 +79,7 @@ export async function POST(request: NextRequest) {
       role: account.role,
       display_name: account.display_name || account.username,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[admin/login]', err)
     return NextResponse.json({ error: '登录失败' }, { status: 500 })
   }

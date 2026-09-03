@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     query = query.ilike('journal', `%${journal}%`)
   }
   if (productCatNo) {
-    query = query.eq('product_cat_no', productCatNo)
+    query = query.ilike('product_cat_no', `%${productCatNo}%`)
   }
   if (minIf) {
     query = query.gte('impact_factor', parseFloat(minIf))
@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (sort === 'newest') {
-    query = query.order('publication_date', { ascending: false })
+    query = query
+      .order('verified_at', { ascending: false, nullsFirst: false })
+      .order('publication_date', { ascending: false })
   } else if (sort === 'oldest') {
     query = query.order('publication_date', { ascending: true })
   } else if (sort === 'highest_if') {

@@ -3,37 +3,53 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdminOrSuper } from '@/lib/admin/auth'
 import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit } from '@/lib/admin/audit'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { SHORT_PUBLIC_CACHE_HEADERS, getMemoryCached } from '@/lib/server/memory-cache'
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback
+}
 
 // GET: 公开接口，查询代理商列表
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
   const { searchParams } = new URL(request.url)
   const province = searchParams.get('province')
   const isActive = searchParams.get('is_active')
+  const cacheKey = `api:agents:${province || ''}:${isActive ?? 'default'}`
 
-  let query = supabase
-    .from('agents')
-    .select('*')
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false })
+  try {
+    const cached = await getMemoryCached(cacheKey, 60 * 1000, async () => {
+      const supabase = await createClient()
+      let query = supabase
+        .from('agents')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false })
 
-  if (province) {
-    query = query.eq('province', province)
-  }
-  if (isActive !== null) {
-    query = query.eq('is_active', isActive === 'true')
-  }
+      if (province) {
+        query = query.eq('province', province)
+      }
+      query = query.eq('is_active', isActive === null ? true : isActive === 'true')
 
-  const { data, error: dbError } = await query
-  if (dbError) {
-    return NextResponse.json({ error: dbError.message }, { status: 500 })
+      const { data, error: dbError } = await query
+      if (dbError) throw new Error(dbError.message)
+      // Prefer `wechat_qr` (migration 021), fall back to `wechat_qr_code` (legacy)
+      const agents = (data || []).map((a: Record<string, unknown>) => ({
+        ...a,
+        wechat_qr: a.wechat_qr || a.wechat_qr_code,
+      }))
+      return { agents }
+    })
+
+    return NextResponse.json(cached.value, {
+      headers: {
+        ...SHORT_PUBLIC_CACHE_HEADERS,
+        'X-Aimeng-Cache': cached.hit ? 'hit' : 'miss',
+      },
+    })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : '代理商读取失败' }, { status: 500 })
   }
-  // Prefer `wechat_qr` (migration 021), fall back to `wechat_qr_code` (legacy)
-  const agents = (data || []).map((a: any) => ({
-    ...a,
-    wechat_qr: a.wechat_qr || a.wechat_qr_code,
-  }))
-  return NextResponse.json({ agents })
 }
 
 // POST: 管理员新增代理商
@@ -41,7 +57,7 @@ export async function POST(request: NextRequest) {
   const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   try {
     const body = await request.json()
     const {
@@ -96,9 +112,9 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ id: data.id, message: '代理商创建成功' })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || '创建失败' },
+      { error: errorMessage(err, '创建失败') },
       { status: 500 }
     )
   }
@@ -109,7 +125,7 @@ export async function PUT(request: NextRequest) {
   const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   try {
     const body = await request.json()
     const { id, wechat_qr, wechat_qr_code, ...rest } = body
@@ -120,7 +136,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const updates: any = { ...rest }
+    const updates: Record<string, unknown> = { ...rest }
     if (wechat_qr !== undefined) updates.wechat_qr = wechat_qr
     if (wechat_qr_code !== undefined) updates.wechat_qr = wechat_qr_code
 
@@ -147,9 +163,9 @@ export async function PUT(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || '更新失败' },
+      { error: errorMessage(err, '更新失败') },
       { status: 500 }
     )
   }
@@ -160,7 +176,7 @@ export async function DELETE(request: NextRequest) {
   const { admin, error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   if (!id) {

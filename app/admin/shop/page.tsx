@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { Gift, Plus, Pencil, Trash2, Loader2, X, Upload } from 'lucide-react'
+import { SHOP_REDEMPTION_NOTICE } from '@/lib/shop/constants'
+import { SHOP_CATEGORIES, getShopCategoryLabel, type ShopCategory } from '@/lib/shop/categories'
 
 interface ShopItem {
   id: string
@@ -11,7 +13,18 @@ interface ShopItem {
   stock: number
   image_url: string | null
   status: string
+  category: ShopCategory | null
   created_at: string
+}
+
+interface ShopItemsResponse {
+  items?: ShopItem[]
+  error?: string
+}
+
+interface ApiErrorResponse {
+  error?: string
+  url?: string
 }
 
 export default function AdminShopPage() {
@@ -19,27 +32,44 @@ export default function AdminShopPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState<ShopItem | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', points_required: '', stock: '', image_url: '', status: 'active' })
+  const [form, setForm] = useState({ name: '', description: '', points_required: '', stock: '', image_url: '', status: 'active', category: '' as ShopCategory | '' })
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
+  const [imageUploadNote, setImageUploadNote] = useState('')
+  const [formError, setFormError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const imageInputRef = useRef<HTMLInputElement | null>(null)
 
-  const fetchItems = () => {
+  const fetchItems = useCallback(() => {
     setLoading(true)
+    setLoadError('')
     fetch('/api/admin/shop')
       .then((r) => r.json())
-      .then((d) => setItems(d.items || []))
-      .catch(() => setItems([]))
+      .then((d: ShopItemsResponse) => {
+        if (d.error) {
+          setItems([])
+          setLoadError(d.error)
+        } else {
+          setItems(d.items || [])
+        }
+      })
+      .catch((err: unknown) => {
+        setItems([])
+        setLoadError(err instanceof Error ? err.message : '积分商城奖品加载失败')
+      })
       .finally(() => setLoading(false))
-  }
+  }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载需要同步触发一次后台数据请求。
     fetchItems()
-  }, [])
+  }, [fetchItems])
 
   const openCreate = () => {
     setEditingItem(null)
-    setForm({ name: '', description: '', points_required: '', stock: '', image_url: '', status: 'active' })
+    setForm({ name: '', description: '', points_required: '', stock: '', image_url: '', status: 'active', category: '' })
+    setFormError('')
+    setImageUploadNote('')
     setShowForm(true)
   }
 
@@ -52,7 +82,10 @@ export default function AdminShopPage() {
       stock: String(item.stock),
       image_url: item.image_url || '',
       status: item.status,
+      category: item.category || '',
     })
+    setFormError('')
+    setImageUploadNote('')
     setShowForm(true)
   }
 
@@ -60,11 +93,11 @@ export default function AdminShopPage() {
     if (!file) return
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
-    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
     const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
     if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
-      alert('仅支持 JPG、JPEG、PNG、GIF 格式的图片')
+      alert('仅支持 JPG、JPEG、PNG、GIF、WebP 格式的图片')
       return
     }
 
@@ -75,16 +108,23 @@ export default function AdminShopPage() {
     }
 
     setImageUploading(true)
+    setImageUploadNote('')
     try {
-      const { compressImage } = await import('@/lib/image-compress')
-      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85, maxSizeMB: 1 })
-      const ext = file.type === 'image/png' ? 'png' : 'jpg'
+      const { compressImage, formatFileSize } = await import('@/lib/image-compress')
+      const compressed = await compressImage(file, {
+        maxWidth: 1000,
+        maxHeight: 1000,
+        quality: 0.8,
+        maxSizeMB: 0.45,
+        outputType: 'image/webp',
+      })
       const timestamp = Date.now()
       const itemId = editingItem?.id || 'new'
-      const path = `shop/${itemId}/${timestamp}.${ext}`
+      const path = `shop/${itemId}/${timestamp}.webp`
+      const optimizedName = `${file.name.replace(/\.[^.]+$/, '') || 'shop-item'}.webp`
 
       const body = new FormData()
-      body.append('file', compressed, file.name)
+      body.append('file', compressed, optimizedName)
       body.append('bucket', 'product-assets')
       body.append('path', path)
 
@@ -92,15 +132,17 @@ export default function AdminShopPage() {
       if (oldUrl) body.append('old_url', oldUrl)
 
       const res = await fetch('/api/admin/upload', { method: 'POST', body })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({})) as ApiErrorResponse
       if (!res.ok) {
         alert('图片上传失败: ' + (data.error || '未知错误'))
-      } else {
-        setForm((prev) => ({ ...prev, image_url: data.url }))
+      } else if (data.url) {
+        const imageUrl = data.url
+        setForm((prev) => ({ ...prev, image_url: imageUrl }))
+        setImageUploadNote(`已自动优化：${formatFileSize(file.size)} → ${formatFileSize(compressed.size)}（WebP）`)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Image upload exception:', err)
-      alert('图片上传失败: ' + (err.message || '网络或服务器错误'))
+      alert('图片上传失败: ' + (err instanceof Error ? err.message : '网络或服务器错误'))
     } finally {
       setImageUploading(false)
     }
@@ -108,11 +150,26 @@ export default function AdminShopPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError('')
+    const pointsRequired = Number(form.points_required)
+    const stockCount = Number(form.stock)
+    if (!Number.isFinite(pointsRequired) || pointsRequired <= 0) {
+      setFormError('所需积分必须大于 0')
+      return
+    }
+    if (!Number.isFinite(stockCount) || stockCount < 0) {
+      setFormError('库存不能小于 0')
+      return
+    }
+    if (!form.category) {
+      setFormError('请选择商品分类')
+      return
+    }
     setSaving(true)
     const body = {
       ...form,
-      points_required: parseInt(form.points_required),
-      stock: parseInt(form.stock),
+      points_required: pointsRequired,
+      stock: stockCount,
     }
     try {
       const res = await fetch('/api/admin/shop', {
@@ -120,12 +177,15 @@ export default function AdminShopPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingItem ? { id: editingItem.id, ...body } : body),
       })
+      const data = await res.json().catch(() => ({})) as ApiErrorResponse
       if (res.ok) {
         setShowForm(false)
         fetchItems()
+      } else {
+        setFormError(data.error || '保存失败')
       }
-    } catch (err) {
-      console.error(err)
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : '网络或服务器错误')
     } finally {
       setSaving(false)
     }
@@ -133,11 +193,20 @@ export default function AdminShopPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除这个奖品吗？')) return
+    setLoadError('')
     try {
       const res = await fetch(`/api/admin/shop?id=${id}`, { method: 'DELETE' })
-      if (res.ok) fetchItems()
-    } catch (err) {
-      console.error(err)
+      const data = await res.json().catch(() => ({})) as ApiErrorResponse
+      if (res.ok) {
+        fetchItems()
+      } else {
+        setLoadError(data.error || '删除失败')
+        alert(data.error || '删除失败')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '删除失败'
+      setLoadError(message)
+      alert(message)
     }
   }
 
@@ -159,6 +228,12 @@ export default function AdminShopPage() {
           新增奖品
         </button>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSave} className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
@@ -188,11 +263,25 @@ export default function AdminShopPage() {
                 <option value="inactive">下架</option>
               </select>
             </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">商品分类 <span className="text-red-500">*</span></label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value as ShopCategory | '' })}
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              >
+                <option value="">请选择分类</option>
+                {SHOP_CATEGORIES.map((category) => (
+                  <option key={category.code} value={category.code}>{category.label}</option>
+                ))}
+              </select>
+            </div>
             <div className="sm:col-span-2">
               <label className="block text-xs text-gray-500 mb-1">奖品图片</label>
               <div className="flex items-center gap-4">
                 {form.image_url && (
-                  <img src={form.image_url} alt="预览" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+                  <img src={form.image_url} alt="预览" className="w-16 h-16 rounded-lg object-contain bg-gray-50 border border-gray-200" />
                 )}
                 <div className="flex-1">
                   <input
@@ -214,14 +303,23 @@ export default function AdminShopPage() {
                   {form.image_url && (
                     <p className="text-xs text-gray-400 mt-1 truncate max-w-xs">{form.image_url}</p>
                   )}
+                  {imageUploadNote && (
+                    <p className="mt-1 text-xs font-medium text-emerald-600">{imageUploadNote}</p>
+                  )}
                 </div>
               </div>
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs text-gray-500 mb-1">描述</label>
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+              <p className="mt-1 text-xs text-slate-400">兑换须知由系统统一展示，不需要粘贴到商品描述中：{SHOP_REDEMPTION_NOTICE}</p>
             </div>
           </div>
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setShowForm(false)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">取消</button>
             <button type="submit" disabled={saving} className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
@@ -238,23 +336,29 @@ export default function AdminShopPage() {
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-500 border-b border-gray-200">
-            <div className="col-span-4">名称</div>
+            <div className="col-span-3">名称</div>
+            <div className="col-span-2">分类</div>
             <div className="col-span-2">积分</div>
-            <div className="col-span-2">库存</div>
+            <div className="col-span-1">库存</div>
             <div className="col-span-2">状态</div>
             <div className="col-span-2 text-right">操作</div>
           </div>
           <div className="divide-y divide-gray-100">
             {items.map((item) => (
               <div key={item.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors">
-                <div className="col-span-4 flex items-center gap-2">
+                <div className="col-span-3 flex items-center gap-2 min-w-0">
                   {item.image_url && (
-                    <img src={item.image_url} alt="" className="w-8 h-8 rounded object-cover border border-gray-200" />
+                    <img src={item.image_url} alt="" className="w-8 h-8 rounded object-contain bg-gray-50 border border-gray-200" />
                   )}
                   <span className="text-sm font-medium text-gray-900 truncate">{item.name}</span>
                 </div>
+                <div className="col-span-2">
+                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${item.category ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {getShopCategoryLabel(item.category)}
+                  </span>
+                </div>
                 <div className="col-span-2 text-sm text-gray-600">{item.points_required}</div>
-                <div className="col-span-2 text-sm text-gray-600">{item.stock}</div>
+                <div className="col-span-1 text-sm text-gray-600">{item.stock}</div>
                 <div className="col-span-2">
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${item.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-600'}`}>
                     {item.status === 'active' ? '上架' : '下架'}

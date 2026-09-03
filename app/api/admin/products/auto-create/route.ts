@@ -17,7 +17,7 @@ const SPECIES_NAME_ZH: Record<string, string> = {
   Bovine: '牛',
   Cow: '牛',
   Chicken: '鸡',
-  Sheep: '羊',
+  Sheep: '绵羊',
 }
 
 const METHOD_LABEL: Record<string, string> = {

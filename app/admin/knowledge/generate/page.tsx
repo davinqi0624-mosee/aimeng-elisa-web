@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sparkles, Calendar, Loader2, BookOpen, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface GenerateResult {
@@ -14,7 +14,31 @@ interface GenerateResult {
     publish_date: string;
   };
   topic?: string;
+  ai?: {
+    provider: 'deepseek' | 'kimi';
+    model?: string;
+    fallback_used?: boolean;
+  };
   error?: string;
+}
+
+interface ApiErrorResponse {
+  error?: string;
+  message?: string;
+  details?: string;
+}
+
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
+function isCompleteArticle(article: GenerateResult['article']) {
+  return Boolean(
+    article &&
+      article.title?.trim() &&
+      article.publish_date?.trim() &&
+      article.content?.trim().length >= 120
+  );
 }
 
 export default function AdminKnowledgePage() {
@@ -23,8 +47,34 @@ export default function AdminKnowledgePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [longformProvider, setLongformProvider] = useState<'deepseek' | 'kimi'>('deepseek');
 
-  const presetTopics = [
+  useEffect(() => {
+    fetch('/api/admin/ai-model-settings')
+      .then((res) => res.json())
+      .then((data) => {
+        const provider = data?.settings?.longform_provider;
+        if (provider === 'deepseek' || provider === 'kimi') setLongformProvider(provider);
+      })
+      .catch(() => {
+        // The generation API remains the source of truth if the status read fails.
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!loading) return;
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
+  const elisaTopics = [
     'ELISA 标准品稀释技巧与常见错误',
     '夹心法 ELISA 捕获抗体包被条件优化',
     'TMB 显色时间与终止液使用要点',
@@ -41,10 +91,22 @@ export default function AdminKnowledgePage() {
     '96T vs 48T 试剂盒：如何选择更经济？',
   ];
 
+  const serumTopics = [
+    '四环素阴性血清的应用场景',
+    '低内毒素胎牛血清适合哪些细胞培养',
+    '透析胎牛血清的适用实验',
+    '活性炭处理胎牛血清的选择要点',
+    '无外泌体胎牛血清使用注意事项',
+    '胎牛血清批次筛选为什么重要',
+    '热灭活胎牛血清什么时候需要使用',
+    '胎牛血清 COA 重点看哪些指标',
+  ];
+
   const handleGenerate = async () => {
     setLoading(true);
     setResult(null);
     setSaveStatus('idle');
+    setElapsedSeconds(0);
 
     try {
       const res = await fetch('/api/knowledge/generate', {
@@ -53,10 +115,21 @@ export default function AdminKnowledgePage() {
         body: JSON.stringify({ date, topic: topic || undefined }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({})) as GenerateResult & ApiErrorResponse;
+      if (!res.ok) {
+        setResult({ success: false, error: data.details || data.message || data.error || '生成失败，请稍后重试' });
+        return;
+      }
+      if (!data.success || !isCompleteArticle(data.article)) {
+        setResult({
+          success: false,
+          error: data.error || 'AI 未返回完整正文，未保存到知识库。请重新生成。',
+        });
+        return;
+      }
       setResult(data);
-    } catch (err: any) {
-      setResult({ success: false, error: err.message });
+    } catch (err: unknown) {
+      setResult({ success: false, error: getErrorMessage(err, '生成失败，请稍后重试') });
     } finally {
       setLoading(false);
     }
@@ -64,7 +137,13 @@ export default function AdminKnowledgePage() {
 
   const handleSaveToDatabase = async () => {
     if (!result?.article) return;
+    if (!isCompleteArticle(result.article)) {
+      setSaveError('生成结果正文为空或不完整，未尝试保存。请重新生成文章。');
+      setSaveStatus('error');
+      return;
+    }
     setSaveStatus('saving');
+    setSaveError('');
 
     try {
       const res = await fetch('/api/knowledge/save', {
@@ -76,9 +155,12 @@ export default function AdminKnowledgePage() {
       if (res.ok) {
         setSaveStatus('saved');
       } else {
+        const data = await res.json().catch(() => null) as ApiErrorResponse | null;
+        setSaveError(data?.details || data?.message || data?.error || '保存失败，请稍后重试');
         setSaveStatus('error');
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      setSaveError(getErrorMessage(err, '保存失败，请稍后重试'));
       setSaveStatus('error');
     }
   };
@@ -91,7 +173,7 @@ export default function AdminKnowledgePage() {
             <BookOpen className="w-6 h-6 text-blue-400" />
             每日知识生成
           </h1>
-          <p className="text-slate-400">使用 DeepSeek AI 自动生成 ELISA 专业知识文章</p>
+          <p className="text-slate-400">使用 AI 模型自动生成 ELISA 与血清专业知识文章</p>
         </div>
 
         <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
@@ -123,23 +205,46 @@ export default function AdminKnowledgePage() {
             </div>
           </div>
 
-          <div className="mb-4">
-            <label className="block text-xs text-slate-500 mb-2">快速选择主题：</label>
-            <div className="flex flex-wrap gap-2">
-              {presetTopics.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTopic(t)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                    topic === t
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+          <div className="mb-4 space-y-4">
+            <div>
+              <label className="block text-xs text-slate-500 mb-2">ELISA 主题：</label>
+              <div className="flex flex-wrap gap-2">
+                {elisaTopics.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTopic(t)}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                      topic === t
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-2">血清主题：</label>
+              <div className="flex flex-wrap gap-2">
+                {serumTopics.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTopic(t)}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                      topic === t
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-slate-500">
+              血清主题会按血清产品、细胞培养、检测基质和 COA 质控闭环生成，不会默认套用 ELISA 文章结构。
+            </p>
           </div>
 
           <button
@@ -150,7 +255,7 @@ export default function AdminKnowledgePage() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                生成中...
+                {longformProvider === 'kimi' ? 'Kimi K3' : 'DeepSeek'} 正在生成文章... {elapsedSeconds > 0 ? `${elapsedSeconds}s` : ''}
               </>
             ) : (
               <>
@@ -159,12 +264,23 @@ export default function AdminKnowledgePage() {
               </>
             )}
           </button>
+          {loading && (
+            <p className="mt-3 text-xs text-slate-400">
+              正在生成并校验文章结构，长内容通常需要几十秒；无需刷新页面。
+            </p>
+          )}
         </div>
 
         {result && (
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
             {result.success ? (
               <>
+                {result.ai && (
+                  <p className="mb-4 text-xs text-slate-400">
+                    本次使用：{result.ai.provider === 'kimi' ? 'Kimi K3' : 'DeepSeek'}{result.ai.model ? `（${result.ai.model}）` : ''}
+                    {result.ai.fallback_used ? '；主模型失败后切换了备用模型' : ''}
+                  </p>
+                )}
                 <div className="flex items-center gap-2 mb-4">
                   <CheckCircle className="w-5 h-5 text-green-400" />
                   <span className="text-green-400 font-medium">生成成功</span>
@@ -217,6 +333,11 @@ export default function AdminKnowledgePage() {
                       {saveStatus === 'saved' && (
                         <span className="text-sm text-green-400">
                           文章已发布到每日知识日历
+                        </span>
+                      )}
+                      {saveStatus === 'error' && saveError && (
+                        <span className="text-sm text-red-400">
+                          {saveError}
                         </span>
                       )}
                     </div>

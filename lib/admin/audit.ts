@@ -1,19 +1,19 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 interface AuditPayload {
   admin_id: string
   action: string
   target_table?: string
   target_id?: string
-  old_value?: any
-  new_value?: any
+  old_value?: unknown
+  new_value?: unknown
   reason?: string
   ip_address?: string
   user_agent?: string
 }
 
 export async function logAudit(payload: AuditPayload) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   try {
     await supabase.from('admin_audit_logs').insert({
       admin_id: payload.admin_id,
@@ -47,7 +47,7 @@ export async function checkDailyPointsQuota(
   pointsToAward: number,
   maxDaily: number = 2000
 ): Promise<{ allowed: boolean; remaining: number; message?: string }> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const today = new Date().toISOString().slice(0, 10)
 
   const { data } = await supabase
@@ -73,7 +73,7 @@ export async function checkDailyPointsQuota(
 
 // 增加 level2 当日积分发放记录
 export async function incrementDailyPointsQuota(adminId: string, points: number) {
-  const supabase = await createClient()
+    const supabase = createAdminClient()
   const today = new Date().toISOString().slice(0, 10)
 
   const { data: existing } = await supabase
@@ -103,7 +103,7 @@ export async function checkExportLimit(
   windowHours: number = 1,
   maxExports: number = 3
 ): Promise<{ allowed: boolean; count: number; message?: string }> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString()
 
   const { data } = await supabase
@@ -126,7 +126,7 @@ export async function checkExportLimit(
 
 // 记录导出日志
 export async function logExport(adminId: string, exportType: string, recordCount: number) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   await supabase.from('admin_export_logs').insert({
     admin_id: adminId,
     export_type: exportType,

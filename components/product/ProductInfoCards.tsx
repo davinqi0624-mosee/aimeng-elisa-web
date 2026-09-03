@@ -1,9 +1,11 @@
 import { FlaskConical, Droplets, Gauge, Ruler } from 'lucide-react'
-import { SpeciesIcon, SPECIES_LABELS } from '@/components/icons/SpeciesIcons'
+import { SpeciesIcon } from '@/components/icons/SpeciesIcons'
+import { getSpeciesLabel, normalizeSpeciesList } from '@/lib/products/species'
 
 interface ProductInfoCardsProps {
   detectionMethod?: string | null
   speciesList: string[]
+  sampleTypes?: string[] | string | null
   sensitivity?: string | null
   detectionRange?: string | null
 }
@@ -11,24 +13,20 @@ interface ProductInfoCardsProps {
 export default function ProductInfoCards({
   detectionMethod,
   speciesList,
+  sampleTypes,
   sensitivity,
   detectionRange,
 }: ProductInfoCardsProps) {
+  const sampleTypeText = Array.isArray(sampleTypes)
+    ? sampleTypes.filter(Boolean).join('、')
+    : sampleTypes?.trim()
+  const displaySpeciesList = normalizeSpeciesList(speciesList)
+
   const items = [
     {
-      icon: <FlaskConical className="w-5 h-5 text-blue-600" />,
-      label: '检测方法',
-      value: detectionMethod || '双抗夹心法',
-    },
-    {
-      icon: <SpeciesIcon species={speciesList[0] || 'human'} className="w-5 h-5 text-emerald-600" />,
+      icon: <SpeciesIcon species={displaySpeciesList[0] || 'human'} className="w-5 h-5 text-emerald-600" />,
       label: '反应种属',
-      value: speciesList.map((s) => SPECIES_LABELS[s] || s).join(' / ') || '-',
-    },
-    {
-      icon: <Droplets className="w-5 h-5 text-sky-600" />,
-      label: '样本类型',
-      value: '体液、组织、细胞样本',
+      value: displaySpeciesList.map(getSpeciesLabel).join(' / ') || '-',
     },
     {
       icon: <Gauge className="w-5 h-5 text-violet-600" />,
@@ -39,6 +37,16 @@ export default function ProductInfoCards({
       icon: <Ruler className="w-5 h-5 text-amber-600" />,
       label: '检测范围',
       value: detectionRange || '-',
+    },
+    {
+      icon: <Droplets className="w-5 h-5 text-sky-600" />,
+      label: '样本类型',
+      value: sampleTypeText || '待确认',
+    },
+    {
+      icon: <FlaskConical className="w-5 h-5 text-blue-600" />,
+      label: '检测方法',
+      value: detectionMethod || '待确认',
     },
   ]
 
