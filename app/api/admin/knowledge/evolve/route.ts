@@ -268,9 +268,14 @@ ${topic.sampleAnswers.map((a, i) => `参考${i + 1}：${a.slice(0, 500)}`).join(
 // Vercel Cron invokes GET
 export async function GET(request: NextRequest) {
   try {
+    // cron 鉴权：同时接受 Vercel Cron 标准的 Authorization: Bearer 头
+    // 与自带的 x-cron-secret 头；两者都不匹配时降级为超管会话校验
     const cronSecret = process.env.CRON_SECRET
     const cronHeader = request.headers.get('x-cron-secret')
-    if (!cronSecret || cronHeader !== cronSecret) {
+    const authHeader = request.headers.get('authorization')
+    const isCronAuthorized =
+      !!cronSecret && (cronHeader === cronSecret || authHeader === `Bearer ${cronSecret}`)
+    if (!isCronAuthorized) {
       const { error: authError } = await requireSuper(request)
       if (authError) return authError
     }
