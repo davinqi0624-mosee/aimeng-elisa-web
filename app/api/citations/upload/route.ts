@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
@@ -15,8 +16,7 @@ function safeFileName(name: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
   try {

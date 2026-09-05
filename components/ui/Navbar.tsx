@@ -9,7 +9,7 @@ interface NavbarProps {
   user?: {
     email?: string
     user_metadata?: {
-      full_name?: string
+      full_name?: string | null
     }
   } | null
   isAdmin?: boolean

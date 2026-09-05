@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
-  const response = await updateSession(request)
   const { pathname } = request.nextUrl
 
   // This is only an optimistic page guard. API routes still perform the
@@ -18,7 +16,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {

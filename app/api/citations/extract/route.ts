@@ -1,5 +1,6 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { attachJournalIf, extractCitationFromFiles, getCitationExtractionErrorMessage } from '@/lib/citations/extract'
 
 interface CitationExtractBody {
@@ -14,9 +15,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
+
+  const supabase = createAdminClient()
 
   try {
     const body = await request.json() as CitationExtractBody

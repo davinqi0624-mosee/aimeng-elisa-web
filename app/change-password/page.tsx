@@ -6,17 +6,19 @@ import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from 'lucide-react'
 
-export default function ResetPasswordPage() {
+// 登录态修改密码：当前密码 + 新密码。管理员设置的初始密码（must_change_password）
+// 登录后会被引导到本页（?forced=1）。
+export default function ChangePasswordPage() {
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
-  const token = searchParams.get('token') || ''
+  const forced = searchParams.get('forced') === '1'
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -37,14 +39,14 @@ export default function ResetPasswordPage() {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
+        body: JSON.stringify({ currentPassword, password }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || '密码重置失败，请重新申请重置邮件')
-      setMessage('密码已重置，正在自动登录...')
-      setTimeout(() => router.push('/chat'), 1200)
+      if (!response.ok) throw new Error(data.error || '密码修改失败')
+      setMessage('密码已更新。')
+      setTimeout(() => router.push(forced ? '/chat' : '/user/member'), 1200)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '密码重置失败，请重新申请重置邮件')
+      setError(err instanceof Error ? err.message : '密码修改失败')
       setLoading(false)
     }
   }
@@ -73,23 +75,18 @@ export default function ResetPasswordPage() {
                   <KeyRound className="h-5 w-5" />
                 </div>
                 <p className="font-mono text-xs font-semibold uppercase tracking-[.28em] text-teal-700">
-                  account.access / reset
+                  account.access / change
                 </p>
                 <h1 className="mt-3 text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
-                  设置新密码
+                  {forced ? '请设置新密码' : '修改密码'}
                 </h1>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  请设置一个新的登录密码，完成后将自动登录。
-                </p>
+                {forced && (
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    当前使用的是初始密码，为保障账户安全请先设置新密码。
+                  </p>
+                )}
               </div>
 
-              {!token && !message && (
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2 text-sm text-amber-800">
-                  <AlertCircle className="mt-0.5 w-4 h-4 shrink-0" />
-                  缺少重置令牌。请从邮箱中的重置链接打开本页面，或
-                  <Link href="/forgot-password" className="font-semibold underline">重新申请</Link>。
-                </div>
-              )}
               {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -104,6 +101,17 @@ export default function ResetPasswordPage() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">当前密码</label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    required
+                    className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500"
+                    placeholder="请输入当前密码"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">新密码</label>
                   <div className="relative">
@@ -128,42 +136,33 @@ export default function ResetPasswordPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">确认新密码</label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full px-4 py-2.5 pr-12 rounded-lg bg-white border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500"
-                      placeholder="再次输入新密码"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((value) => !value)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-600"
-                      aria-label={showConfirmPassword ? '隐藏确认密码' : '显示确认密码'}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500"
+                    placeholder="再次输入新密码"
+                  />
                 </div>
                 <button
                   type="submit"
-                  disabled={loading || !token}
+                  disabled={loading}
                   className="w-full py-3 rounded-lg bg-slate-950 text-white font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  重置密码
+                  更新密码
                 </button>
               </form>
 
-              <div className="mt-6 text-center text-sm text-slate-500">
-                已完成重置？{' '}
-                <Link href="/login" className="text-teal-700 hover:text-teal-800 font-semibold">
-                  返回登录
-                </Link>
-              </div>
+              {!forced && (
+                <div className="mt-6 text-center text-sm text-slate-500">
+                  <Link href="/user/member" className="text-teal-700 hover:text-teal-800 font-semibold">
+                    返回个人中心
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

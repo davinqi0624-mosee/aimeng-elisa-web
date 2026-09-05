@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
 
 const SEED_SHOP_ITEMS = [
   {
@@ -79,15 +80,11 @@ const SEED_PAPERS = [
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
+    const { admin, error: adminError } = await requireAdminOrSuper(request)
+    if (adminError) return adminError
 
-    // 简单校验：仅允许管理员（metadata 中 is_admin=true）
-    const isAdmin = (user.user_metadata as any)?.is_admin === true
-    if (!isAdmin) {
-      return NextResponse.json({ error: '无权操作，请在用户 metadata 中设置 is_admin=true' }, { status: 403 })
-    }
+    const user = { id: admin!.id, email: admin!.username }
+    const supabase = createAdminClient()
 
     const results: any = {}
 

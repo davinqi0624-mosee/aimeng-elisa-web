@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -17,8 +18,7 @@ function isMissingRewardFunction(message: string) {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const body = await request.json() as {

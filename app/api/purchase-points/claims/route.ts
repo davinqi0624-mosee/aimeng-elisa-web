@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { createHash, randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
@@ -95,9 +96,9 @@ async function fileToUpload(file: File, photoType: string): Promise<PhotoUpload>
 }
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('purchase_point_claims')
@@ -111,9 +112,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: '请先登录后再申请积分' }, { status: 401 })
+    const supabase = createAdminClient()
 
     const formData = await request.formData()
     const productType = normalizeText(formData.get('product_type'))

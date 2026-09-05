@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextRequest } from 'next/server'
 import { randomUUID } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -760,8 +761,7 @@ export async function POST(request: NextRequest) {
 
     let userId: string | null = null
     try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getCurrentUser()
       userId = user?.id || null
     } catch (error) {
       console.warn('[ai/chat] unable to read user session', error)
@@ -973,7 +973,7 @@ ${contextText || '暂无相关知识库内容。'}
           const supabase = await createClient()
 
           if (sessionId) {
-            const { data: { user } } = await supabase.auth.getUser()
+            const user = await getCurrentUser()
             if (user) {
               await supabase.from('chat_sessions').upsert({
                 id: sessionId,

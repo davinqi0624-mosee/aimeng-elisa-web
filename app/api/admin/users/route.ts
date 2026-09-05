@@ -2,117 +2,95 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminPermission } from '@/lib/admin/auth'
 import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit, checkExportLimit, logExport, maskEmail } from '@/lib/admin/audit'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { withService } from '@/lib/db/pg'
 
-interface ProfileRow {
+interface AppUserRow {
   id: string
-  full_name?: string | null
-  role?: string | null
-  created_at?: string | null
+  email: string
+  full_name: string | null
+  phone: string | null
+  email_verified_at: Date | string | null
+  is_active: boolean
+  must_change_password: boolean
+  created_at: Date | string
+  last_login_at: Date | string | null
+  profile_role: string | null
+  balance: number | string | null
 }
 
-interface PointTransactionRow {
-  user_id: string
-  amount: number
-  type: string
+function toIso(value: Date | string | null): string | null {
+  if (!value) return null
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
 
 export async function GET(request: NextRequest) {
   const { admin, error: authError } = await requireAdminPermission(request, 'user_manage')
   if (authError) return authError
 
-  const supabase = createAdminClient()
   const { searchParams } = new URL(request.url)
-  const limit = parseInt(searchParams.get('limit') || '50')
-  const offset = parseInt(searchParams.get('offset') || '0')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '50') || 50, 200)
+  const offset = Math.max(parseInt(searchParams.get('offset') || '0') || 0, 0)
   const exportCsv = searchParams.get('export') === 'true'
 
   if (exportCsv) {
-    // 检查导出频率限制
     const limitCheck = await checkExportLimit(admin!.id, 1, 3)
     if (!limitCheck.allowed) {
       return NextResponse.json({ error: limitCheck.message }, { status: 429 })
     }
   }
 
-  const page = Math.floor(offset / limit) + 1
-  const { data: authUsersData, error } = await supabase.auth.admin.listUsers({
-    page,
-    perPage: limit,
-  })
-
-  if (error) {
-    return NextResponse.json({ error: error.message || '用户读取失败' }, { status: 500 })
-  }
-
-  const authUsers = authUsersData?.users || []
-  const userIds = authUsers.map((user) => user.id)
-  const profilesById = new Map<string, ProfileRow>()
-
-  if (userIds.length > 0) {
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, full_name, role, created_at')
-      .in('id', userIds)
-
-    if (profileError) {
-      return NextResponse.json({ error: profileError.message || '用户档案读取失败' }, { status: 500 })
-    }
-
-    for (const profile of (profileData || []) as ProfileRow[]) {
-      profilesById.set(profile.id, profile)
-    }
-  }
-
-  const balances: Record<string, number> = {}
-  if (userIds.length > 0) {
-    const { data: txData } = await supabase
-      .from('point_transactions')
-      .select('user_id, amount, type')
-      .in('user_id', userIds)
-
-    for (const tx of (txData || []) as PointTransactionRow[]) {
-      if (!balances[tx.user_id]) balances[tx.user_id] = 0
-      if (tx.type === 'earn' || tx.type === 'refund') balances[tx.user_id] += tx.amount
-      if (tx.type === 'spend') balances[tx.user_id] -= tx.amount
-    }
-  }
-
-  const users = authUsers.map((authUser) => {
-    const profile = profilesById.get(authUser.id)
-    return {
-      id: authUser.id,
-      email: authUser.email || '',
-      full_name:
-        profile?.full_name ||
-        (typeof authUser.user_metadata?.full_name === 'string' ? authUser.user_metadata.full_name : null),
-      role: profile?.role || 'user',
-      balance: balances[authUser.id] || 0,
-      created_at: authUser.created_at || profile?.created_at || new Date().toISOString(),
-      last_sign_in_at: authUser.last_sign_in_at || null,
-      phone: authUser.phone || '',
-    }
-  })
-
-  if (exportCsv) {
-    await logExport(admin!.id, 'users', users.length)
-    await logAudit({
-      admin_id: admin!.id,
-      action: 'export',
-      target_table: 'profiles',
-      new_value: { count: users.length, type: 'users_csv' },
-      ip_address: getClientIP(request),
+  try {
+    const rows = await withService(async (tx) => {
+      return tx<AppUserRow[]>`
+        SELECT u.id, u.email, u.full_name, u.phone, u.email_verified_at, u.is_active,
+               u.must_change_password, u.created_at, u.last_login_at,
+               p.role AS profile_role,
+               COALESCE(pt.balance, 0) AS balance
+        FROM app_users u
+        LEFT JOIN profiles p ON p.id = u.id
+        LEFT JOIN user_points pt ON pt.user_id = u.id
+        ORDER BY u.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `
     })
 
-    // 脱敏处理
-    const maskedUsers = users.map((u) => ({
-      ...u,
-      email: u.email ? maskEmail(u.email) : '',
-      phone: u.phone ? u.phone.slice(0, 3) + '****' + u.phone.slice(-4) : '',
+    const users = rows.map((row) => ({
+      id: row.id,
+      email: row.email || '',
+      full_name: row.full_name,
+      role: row.profile_role || 'user',
+      balance: Number(row.balance || 0),
+      created_at: toIso(row.created_at) || new Date().toISOString(),
+      last_sign_in_at: toIso(row.last_login_at),
+      phone: row.phone || '',
+      is_active: row.is_active,
+      email_verified: Boolean(row.email_verified_at),
+      must_change_password: row.must_change_password,
+      has_password: true,
     }))
 
-    return NextResponse.json({ users: maskedUsers, exported: true, count: users.length })
-  }
+    if (exportCsv) {
+      await logExport(admin!.id, 'users', users.length)
+      await logAudit({
+        admin_id: admin!.id,
+        action: 'export',
+        target_table: 'app_users',
+        new_value: { count: users.length, type: 'users_csv' },
+        ip_address: getClientIP(request),
+      })
 
-  return NextResponse.json({ users })
+      const maskedUsers = users.map((u) => ({
+        ...u,
+        email: u.email ? maskEmail(u.email) : '',
+        phone: u.phone ? u.phone.slice(0, 3) + '****' + u.phone.slice(-4) : '',
+      }))
+
+      return NextResponse.json({ users: maskedUsers, exported: true, count: users.length })
+    }
+
+    return NextResponse.json({ users })
+  } catch (error) {
+    console.error('[admin/users GET]', error)
+    return NextResponse.json({ error: '用户读取失败' }, { status: 500 })
+  }
 }

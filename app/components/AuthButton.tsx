@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import AuthModal from './AuthModal'
 
 interface AuthButtonProps {
@@ -14,8 +13,7 @@ export default function AuthButton({ user }: AuthButtonProps) {
   const [showModal, setShowModal] = useState(false)
 
   async function handleSignOut() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth/signout', { method: 'POST' })
     window.location.reload()
   }
 

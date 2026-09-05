@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai/llm'
 import { getAiModelSettings, getProviderForAiTask } from '@/lib/ai/model-settings'
-import { requireRole } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
 
 const GENERATE_PROMPT = `你是一位 ELISA 实验技术专家。请根据提供的信息，生成一篇高质量的 ELISA 知识文章。
 
@@ -56,7 +56,7 @@ type GeneratedResult =
   | { date: string; status: 'success'; title?: string }
 
 export async function POST(request: NextRequest) {
-  const { error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+  const { error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
     const supabase = await createClient()

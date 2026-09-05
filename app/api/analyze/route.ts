@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/user-auth'
+import { withUser } from '@/lib/db/pg'
 import { fit4PL, fourPL, fourPLInverse } from '@/lib/elisa-4pl-core'
 
 function parseCSV(raw: string): Array<Record<string, string>> {
@@ -76,32 +78,25 @@ export async function POST(request: NextRequest) {
 
     const equation = `OD = ${fit.D.toFixed(4)} + (${fit.A.toFixed(4)} - ${fit.D.toFixed(4)}) / (1 + (Conc / ${fit.C.toFixed(4)}) ^ ${fit.B.toFixed(4)})`
 
-    // Save to history if logged in
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Save to history if logged in (best-effort)
+    const user = await getCurrentUser()
     if (user) {
-      const setupSql = `
-        CREATE TABLE IF NOT EXISTS analysis_reports (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-          raw_data TEXT,
-          fit_params JSONB,
-          standards JSONB,
-          samples JSONB,
-          created_at TIMESTAMPTZ DEFAULT now()
-        );
-        ALTER TABLE analysis_reports ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all analysis" ON analysis_reports;
-        CREATE POLICY "Allow all analysis" ON analysis_reports FOR ALL USING (true) WITH CHECK (true);
-      `
-      try { await supabase.rpc('exec_sql', { sql: setupSql }) } catch { /* ignore */ }
-      await supabase.from('analysis_reports').insert({
-        user_id: user.id,
-        raw_data: rawData,
-        fit_params: fit,
-        standards: standardsOut,
-        samples: samplesOut,
-      })
+      try {
+        await withUser(user.id, async (tx) => {
+          await tx`
+            INSERT INTO analysis_reports (user_id, title, raw_data, processed_data, standard_curve)
+            VALUES (
+              ${user.id},
+              '4PL 标准曲线分析',
+              ${JSON.stringify(rawData)}::jsonb,
+              ${JSON.stringify({ standards: standardsOut, samples: samplesOut })}::jsonb,
+              ${JSON.stringify(fit)}::jsonb
+            )
+          `
+        })
+      } catch (historyError) {
+        console.warn('[analyze] history save skipped:', historyError)
+      }
     }
 
     return NextResponse.json({

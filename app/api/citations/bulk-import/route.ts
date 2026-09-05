@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireRole } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
 
 export async function POST(request: NextRequest) {
-  const { user, error: authError } = await requireRole(request, ['super', 'level1'])
+  const { error: authError } = await requireAdminOrSuper(request)
   if (authError) return authError
 
   try {

@@ -1,5 +1,6 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import {
   MEMBER_TIER_RULES,
   getMemberTierRule,
@@ -12,9 +13,10 @@ interface UserMetadata {
 }
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
+
+  const supabase = createAdminClient()
 
   const summary = await getPointLedgerSummary(supabase, user.id)
   const balance = summary.availablePoints

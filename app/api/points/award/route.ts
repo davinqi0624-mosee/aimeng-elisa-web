@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireRole, getClientIP } from '@/lib/admin/permissions'
+import { requireAdminOrSuper } from '@/lib/admin/auth'
+import { getClientIP } from '@/lib/admin/permissions'
 import { logAudit, checkDailyPointsQuota, incrementDailyPointsQuota } from '@/lib/admin/audit'
 import { getPointLedgerSummary, syncProfilePointTotals } from '@/lib/points/ledger'
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error: authError } = await requireRole(request, ['super', 'level1', 'level2'])
+    const { admin: sessionAdmin, error: authError } = await requireAdminOrSuper(request)
     if (authError) return authError
 
-    const supabase = await createClient()
     const body = await request.json()
     const { targetUserId, amount, reason } = body
     const pointAmount = Number(amount)
@@ -19,28 +18,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少目标用户或积分数量' }, { status: 400 })
     }
 
-    // level2 单笔上限 500 分
-    const { data: adminRole } = await supabase
-      .from('admin_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
-
-    if (adminRole?.role === 'level2' && pointAmount > 500) {
-      return NextResponse.json({ error: 'L2 管理员单笔积分发放上限为 500 分' }, { status: 403 })
-    }
-
-    // level2 单日上限 2000 分
-    if (adminRole?.role === 'level2') {
-      const quotaCheck = await checkDailyPointsQuota(user.id, pointAmount, 2000)
+    // 普通管理员单笔上限 500、单日上限 2000（super 不限）
+    if (sessionAdmin!.role !== 'super') {
+      if (pointAmount > 500) {
+        return NextResponse.json({ error: '管理员单笔积分发放上限为 500 分' }, { status: 403 })
+      }
+      const quotaCheck = await checkDailyPointsQuota(sessionAdmin!.id, pointAmount, 2000)
       if (!quotaCheck.allowed) {
         return NextResponse.json({ error: quotaCheck.message }, { status: 429 })
       }
     }
 
-    const admin = createAdminClient()
-    const currentSummary = await getPointLedgerSummary(admin, targetUserId)
-    const { error: txError } = await admin.from('point_transactions').insert({
+    const supabase = createAdminClient()
+    const currentSummary = await getPointLedgerSummary(supabase, targetUserId)
+    const { error: txError } = await supabase.from('point_transactions').insert({
       user_id: targetUserId,
       amount: pointAmount,
       balance_after: currentSummary.availablePoints + pointAmount,
@@ -51,14 +42,14 @@ export async function POST(request: NextRequest) {
 
     if (txError) throw txError
 
-    await syncProfilePointTotals(admin, targetUserId)
+    await syncProfilePointTotals(supabase, targetUserId)
 
-    if (adminRole?.role === 'level2') {
-      await incrementDailyPointsQuota(user.id, pointAmount)
+    if (sessionAdmin!.role !== 'super') {
+      await incrementDailyPointsQuota(sessionAdmin!.id, pointAmount)
     }
 
     await logAudit({
-      admin_id: user.id,
+      admin_id: sessionAdmin!.id,
       action: 'award_points',
       target_table: 'point_transactions',
       new_value: { target_user_id: targetUserId, amount: pointAmount, reason },

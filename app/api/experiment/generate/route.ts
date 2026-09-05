@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai/llm'
@@ -78,10 +79,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少实验目的或研究问题' }, { status: 400 })
     }
 
+    const user = await getCurrentUser()
     const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
 
     let matchedProducts: Array<{
       id: string

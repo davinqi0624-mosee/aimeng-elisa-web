@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { createClient } from "@/lib/supabase/server";
 import AppChrome from "@/components/AppChrome";
+import { getCurrentUser } from "@/lib/user-auth";
+import { withService } from "@/lib/db/pg";
 
 export const metadata: Metadata = {
   title: "AIMENG UNING | 爱萌优宁 - ELISA 试剂盒专家",
@@ -13,17 +14,20 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   let userRole: string | null = null;
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    userRole = profile?.role || null;
+    try {
+      const rows = await withService(async (tx) => {
+        return tx<{ role: string | null }[]>`
+          SELECT role FROM profiles WHERE id = ${user.id} LIMIT 1
+        `
+      });
+      userRole = rows[0]?.role || null;
+    } catch {
+      userRole = null;
+    }
   }
   const isAdmin = userRole === 'admin_l1' || userRole === 'admin_l2';
 

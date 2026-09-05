@@ -1,19 +1,15 @@
 'use client'
 
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { AlertCircle, CheckCircle2, Loader2, Mail } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-
-const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL || 'https://animaluni.com'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const supabase = useMemo(() => createClient(), [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -22,10 +18,14 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      const redirectTo = `${SITE_ORIGIN.replace(/\/$/, '')}/auth/callback?next=/reset-password`
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
-      if (resetError) throw resetError
-      setMessage('如果该邮箱已注册，我们已发送密码重置邮件。请打开邮箱中的链接设置新密码。')
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || '请求失败，请稍后重试')
+      setMessage(data.message || '如果该邮箱已注册，重置邮件已发送，请查收。')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '发送重置邮件失败，请稍后重试')
     } finally {

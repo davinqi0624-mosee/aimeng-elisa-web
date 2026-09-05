@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
   const [isLogin, setIsLogin] = useState(true)
@@ -10,30 +9,38 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const supabase = createClient()
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
 
     if (isLogin) {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      if (signInError) {
-        setError(signInError.message)
-      } else {
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        const data = await response.json()
+        if (!response.ok) {
+          setError(data.error || '登录失败')
+          setLoading(false)
+          return
+        }
+        if (data.mustChangePassword) {
+          window.location.href = '/change-password?forced=1'
+          return
+        }
         onClose()
         window.location.reload()
+      } catch {
+        setError('网络异常，请稍后重试')
+        setLoading(false)
       }
     } else {
       window.location.href = `/register?email=${encodeURIComponent(email)}`
       return
     }
-
-    setLoading(false)
   }
 
   return (

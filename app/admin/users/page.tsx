@@ -1,15 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Alert, App, Button, Popconfirm, Space, Table, Tag } from 'antd'
+import { Alert, App, Button, Modal, Popconfirm, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DownloadOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
+import { DownloadOutlined, KeyOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons'
 import PageHeader from '@/components/admin/PageHeader'
 
 interface User {
   id: string
   email: string
   full_name: string | null
+  must_change_password?: boolean
+  is_active?: boolean
+  email_verified?: boolean
   role: string
   balance: number
   created_at: string
@@ -38,6 +41,30 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [resettingId, setResettingId] = useState<string | null>(null)
+  const [initialPassword, setInitialPassword] = useState<{ email: string; password: string } | null>(null)
+
+  const resetPassword = async (userId: string) => {
+    setResettingId(userId)
+    try {
+      const res = await fetch('/api/admin/users/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json() as { error?: string; email?: string; initialPassword?: string }
+      if (data.error) {
+        message.error(data.error)
+        return
+      }
+      setInitialPassword({ email: data.email || '', password: data.initialPassword || '' })
+      fetchUsers()
+    } catch {
+      message.error('重置失败，请稍后重试')
+    } finally {
+      setResettingId(null)
+    }
+  }
 
   const fetchUsers = () => {
     setLoading(true)
@@ -132,6 +159,29 @@ export default function AdminUsersPage() {
       width: 120,
       render: (v: string | null) => <span className="text-xs text-slate-500">{v ? new Date(v).toLocaleDateString('zh-CN') : '-'}</span>,
     },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 130,
+      render: (_, u) => (
+        <Popconfirm
+          title="为该用户重置密码？"
+          description="将生成随机初始密码，用户下次登录时会被要求修改。"
+          onConfirm={() => resetPassword(u.id)}
+          okText="重置"
+          cancelText="取消"
+        >
+          <Button
+            size="small"
+            icon={<KeyOutlined />}
+            loading={resettingId === u.id}
+            disabled={u.is_active === false}
+          >
+            重置密码
+          </Button>
+        </Popconfirm>
+      ),
+    },
   ]
 
   return (
@@ -170,6 +220,23 @@ export default function AdminUsersPage() {
         locale={{ emptyText: '暂无用户数据' }}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 名用户` }}
       />
+
+      <Modal
+        open={Boolean(initialPassword)}
+        title="初始密码已生成"
+        okText="我已记录"
+        cancelButtonProps={{ style: { display: 'none' } }}
+        onOk={() => setInitialPassword(null)}
+        onCancel={() => setInitialPassword(null)}
+      >
+        <p className="text-sm text-slate-600">
+          用户 <b>{initialPassword?.email}</b> 的初始密码：
+        </p>
+        <Typography.Paragraph copyable={{ text: initialPassword?.password }} className="!mb-2">
+          <code className="rounded bg-slate-100 px-2 py-1 text-base font-mono">{initialPassword?.password}</code>
+        </Typography.Paragraph>
+        <p className="text-xs text-amber-600">仅显示这一次，请立即复制并安全告知用户；该用户下次登录时将被强制修改密码。</p>
+      </Modal>
     </div>
   )
 }

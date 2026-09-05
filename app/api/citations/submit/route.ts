@@ -1,5 +1,6 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { attachJournalIf } from '@/lib/citations/extract'
 import {
   cleanText,
@@ -74,11 +75,12 @@ function getStoredFileHashes(paper: PaperHashSource) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) {
     return NextResponse.json({ error: '未登录' }, { status: 401 })
   }
+
+  const supabase = createAdminClient()
 
   try {
     const body = await request.json() as CitationSubmitBody

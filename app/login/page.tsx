@@ -4,34 +4,53 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  missing_token: '验证链接不完整，请重新查收邮件',
+  invalid_token: '验证链接无效或已过期，请重新注册或联系管理员',
+  server_error: '验证服务异常，请稍后重试',
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/chat'
 
-  const supabase = createClient()
+  const authError = searchParams.get('auth_error')
+  const verified = searchParams.get('verified')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setNotice('')
     setLoading(true)
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await response.json()
 
-    if (signInError) {
-      setError(signInError.message)
-      setLoading(false)
-    } else {
+      if (!response.ok) {
+        setError(data.error || '登录失败')
+        setLoading(false)
+        return
+      }
+      if (data.mustChangePassword) {
+        window.location.href = '/change-password?forced=1'
+        return
+      }
       window.location.href = next
+    } catch {
+      setError('网络异常，请稍后重试')
+      setLoading(false)
     }
   }
 
@@ -63,6 +82,18 @@ export default function LoginPage() {
                 </h1>
               </div>
 
+              {verified === '1' && !error && (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-sm text-emerald-700">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  邮箱验证成功，50 积分已发放，请登录。
+                </div>
+              )}
+              {authError && !error && (
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-sm text-amber-700">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {AUTH_ERROR_MESSAGES[authError] || '链接无效或已过期'}
+                </div>
+              )}
               {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700">
                   <AlertCircle className="w-4 h-4 shrink-0" />

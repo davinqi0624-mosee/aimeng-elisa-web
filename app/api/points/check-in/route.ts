@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@/lib/user-auth'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -9,8 +10,7 @@ function isMissingRewardFunction(message: string) {
 
 export async function POST() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 })
 
     const result = await claimPointReward(createAdminClient(), {

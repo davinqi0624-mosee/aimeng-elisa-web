@@ -100,6 +100,21 @@ DROP POLICY IF EXISTS "knowledge_candidates admin all" ON knowledge_candidates;
 -- ===== 3) 废弃脚手架与旧触发器 =====
 DROP TABLE IF EXISTS public.users;
 
+-- 删除 public 表指向 auth.users 的全部外键（2026-09-05 pg_catalog 核实的 11 处）。
+-- 新用户仅存在于 app_users，保留这些 FK 会让任何新用户写入（注册建 profile、投稿、积分）
+-- 违反外键约束。user_id 列保留 UUID，归属关系由 RLS 策略按值比对强制。
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+ALTER TABLE papers DROP CONSTRAINT IF EXISTS papers_user_id_fkey;
+ALTER TABLE point_transactions DROP CONSTRAINT IF EXISTS point_transactions_user_id_fkey;
+ALTER TABLE redeem_orders DROP CONSTRAINT IF EXISTS redeem_orders_user_id_fkey;
+ALTER TABLE auto_datasheets DROP CONSTRAINT IF EXISTS auto_datasheets_user_id_fkey;
+ALTER TABLE point_reward_claims DROP CONSTRAINT IF EXISTS point_reward_claims_user_id_fkey;
+ALTER TABLE purchase_point_claims DROP CONSTRAINT IF EXISTS purchase_point_claims_user_id_fkey;
+ALTER TABLE purchase_point_claim_photos DROP CONSTRAINT IF EXISTS purchase_point_claim_photos_user_id_fkey;
+ALTER TABLE purchase_point_codes DROP CONSTRAINT IF EXISTS purchase_point_codes_redeemed_by_fkey;
+ALTER TABLE knowledge_candidates DROP CONSTRAINT IF EXISTS knowledge_candidates_reviewer_id_fkey;
+ALTER TABLE knowledge_versions DROP CONSTRAINT IF EXISTS knowledge_versions_updated_by_fkey;
+
 DO $$
 BEGIN
   DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
