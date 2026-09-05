@@ -5,41 +5,9 @@
 -- 4) 防御性 DROP exec_sql（活库已确认不存在）
 
 -- ===== 1) search_path 固化 =====
-CREATE OR REPLACE FUNCTION match_knowledge(
-  query_embedding vector(1536),
-  match_threshold FLOAT DEFAULT 0.5,
-  match_count INT DEFAULT 5
-)
-RETURNS TABLE(
-  id UUID,
-  title TEXT,
-  content TEXT,
-  category TEXT,
-  tags TEXT[],
-  similarity FLOAT
-)
-LANGUAGE sql
-STABLE
-SET search_path = public
-AS $$
-  SELECT
-    kb.id,
-    kb.title,
-    kc.content,
-    kb.category,
-    kb.tags,
-    1 - (kc.embedding <=> query_embedding)::FLOAT AS similarity
-  FROM knowledge_chunks kc
-  JOIN knowledge_base kb ON kb.id = kc.knowledge_id
-  WHERE
-    kb.is_published = true
-    AND coalesce(kb.review_status, 'reviewed') IN ('reviewed', 'published')
-    AND coalesce(kc.review_status, 'reviewed') IN ('reviewed', 'published')
-    AND kc.embedding IS NOT NULL
-    AND 1 - (kc.embedding <=> query_embedding)::FLOAT > match_threshold
-  ORDER BY kc.embedding <=> query_embedding
-  LIMIT match_count;
-$$;
+-- match_knowledge：活库从未创建（026 未应用），knowledge_chunks 亦为空表，
+-- 线上 chat 走降级关键词检索。待知识块向量化补数后再按 026 定义建立（届时务必 SET search_path）。
+DROP FUNCTION IF EXISTS match_knowledge(vector(1536), FLOAT, INT);
 
 DROP FUNCTION IF EXISTS search_products(TEXT, TEXT);
 CREATE FUNCTION search_products(
