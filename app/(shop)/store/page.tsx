@@ -78,7 +78,7 @@ function StoreItemImage({ src, alt, onPreview }: { src: string | null; alt: stri
   const showFallback = !src || failed
 
   return (
-    <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-blue-50 to-violet-50 p-4">
+    <div className="flex h-44 w-full items-center justify-center bg-gradient-to-br from-teal-50 to-slate-100 p-4">
       {showFallback ? (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-200 bg-white/45 text-slate-300">
           <ImageOff className="h-8 w-8" />
@@ -88,7 +88,7 @@ function StoreItemImage({ src, alt, onPreview }: { src: string | null; alt: stri
         <button
           type="button"
           onClick={onPreview}
-          className="group relative flex h-full w-full items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          className="group relative flex h-full w-full items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
           aria-label={`放大查看 ${alt}`}
         >
           <Image
@@ -233,21 +233,25 @@ export default function StorePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="min-h-full bg-[#F2F6FA]">
+    <div className="max-w-5xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-gray-400 hover:text-gray-600">
+          <Link href="/" className="text-slate-400 hover:text-slate-600">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">积分商城</h1>
-            <p className="text-xs text-gray-500">使用积分兑换实验耗材与权益</p>
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+              aimeng.store / points rewards
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-normal text-slate-950">积分商城</h1>
+            <p className="text-xs text-slate-500">使用积分兑换实验耗材与权益</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <a
             href={mailtoHref('service@animaluni.com', '积分商城兑换咨询', '您好，我想咨询积分商城兑换相关问题：')}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition hover:border-blue-200 hover:bg-blue-100"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-teal-100 bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-800 transition hover:border-teal-200 hover:bg-teal-100"
           >
             <Mail className="h-4 w-4" />
             兑换咨询
@@ -272,9 +276,9 @@ export default function StorePage() {
         </div>
       )}
       {isLoggedIn === false && (
-        <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">
+        <div className="mb-4 rounded-lg border border-teal-100 bg-teal-50 p-3 text-sm text-teal-900">
           登录后可以查看积分余额并兑换商品。
-          <Link href="/login?next=/store" className="ml-2 font-semibold text-blue-700 hover:underline">
+          <Link href="/login?next=/store" className="ml-2 font-semibold text-teal-700 hover:underline">
             去登录
           </Link>
         </div>
@@ -284,17 +288,17 @@ export default function StorePage() {
         <section className="mb-6" aria-label="商品筛选与排序">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Filter className="h-4 w-4 text-blue-600" />
+              <Filter className="h-4 w-4 text-teal-700" />
               <span>按类别浏览</span>
               <span className="text-xs font-normal text-slate-400">共 {items.length} 件商品</span>
             </div>
             <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-              <ArrowDownUp className="h-4 w-4 text-blue-600" />
+              <ArrowDownUp className="h-4 w-4 text-teal-700" />
               <span className="whitespace-nowrap">积分排序</span>
               <select
                 value={pointSort}
                 onChange={(event) => setPointSort(event.target.value as PointSort)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 aria-label="积分排序"
               >
                 <option value="default">默认顺序</option>
@@ -307,7 +311,7 @@ export default function StorePage() {
             <button
               type="button"
               onClick={() => setSelectedCategory('all')}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${selectedCategory === 'all' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'}`}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${selectedCategory === 'all' ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-800'}`}
             >
               全部商品 <span className="ml-1 text-xs opacity-75">{items.length}</span>
             </button>
@@ -319,7 +323,7 @@ export default function StorePage() {
                   key={category.code}
                   type="button"
                   onClick={() => setSelectedCategory(category.code)}
-                  className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${selectedCategory === category.code ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'}`}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition ${selectedCategory === category.code ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-800'}`}
                 >
                   {category.label} <span className="ml-1 text-xs opacity-75">{count + (category.code === 'other' ? uncategorizedCount : 0)}</span>
                 </button>
@@ -331,18 +335,18 @@ export default function StorePage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+        <div className="text-center py-12 text-slate-500">
+          <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-slate-300" />
           <p>暂无商品</p>
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-14 text-center text-slate-500">
           <ShoppingBag className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="text-sm">这个类别暂时没有可兑换商品</p>
-          <button type="button" onClick={() => setSelectedCategory('all')} className="mt-3 text-sm font-semibold text-blue-600 hover:underline">
+          <button type="button" onClick={() => setSelectedCategory('all')} className="mt-3 text-sm font-semibold text-teal-700 hover:underline">
             查看全部商品
           </button>
         </div>
@@ -352,17 +356,17 @@ export default function StorePage() {
             const cost = getItemCost(item)
             const hasDiscount = isLoggedIn !== false && cost.savedPoints > 0
             return (
-              <div key={item.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-sm transition-shadow">
+              <div key={item.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
                 <StoreItemImage src={item.image_url} alt={item.name} onPreview={() => setPreviewItem(item)} />
                 <div className="p-4">
                   <div className="mb-1 flex items-start justify-between gap-2">
-                    <h3 className="min-w-0 text-sm font-semibold text-gray-900">{item.name}</h3>
-                    <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                    <h3 className="min-w-0 text-sm font-semibold text-slate-900">{item.name}</h3>
+                    <span className="shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800">
                       {getShopCategoryLabel(item.category === 'other' || !item.category ? 'other' : item.category)}
                     </span>
                   </div>
                   {item.description && (
-                    <p className="text-xs text-gray-500 mb-3 line-clamp-2">{item.description}</p>
+                    <p className="text-xs text-slate-500 mb-3 line-clamp-2">{item.description}</p>
                   )}
                   <div className="flex items-end justify-between gap-3">
                     <div>
@@ -372,21 +376,21 @@ export default function StorePage() {
                         <span className="text-xs font-normal text-amber-500">积分</span>
                       </div>
                       {hasDiscount ? (
-                        <div className="mt-1 text-xs text-gray-400">
+                        <div className="mt-1 text-xs text-slate-400">
                           原价 <span className="line-through">{item.points_required}</span>，已省 {cost.savedPoints} 积分
                         </div>
                       ) : (
-                        <div className="mt-1 text-xs text-gray-400">
+                        <div className="mt-1 text-xs text-slate-400">
                           {isLoggedIn === false ? '登录后按会员等级显示折扣' : memberInfo.discountLabel}
                         </div>
                       )}
                     </div>
-                    <div className="text-xs text-gray-400">库存: {item.stock}</div>
+                    <div className="text-xs text-slate-400">库存: {item.stock}</div>
                   </div>
                   <button
                     onClick={() => openRedeemForm(item)}
                     disabled={redeemingId === item.id || item.stock <= 0 || isLoggedIn === false || cost.discountedPoints > points}
-                    className="w-full mt-3 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full mt-3 px-3 py-2 bg-slate-950 text-white rounded-lg text-sm font-bold hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     {redeemingId === item.id ? (
                       <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -434,7 +438,7 @@ export default function StorePage() {
                   <input
                     value={redeemForm.contactName}
                     onChange={(event) => setRedeemForm((form) => ({ ...form, contactName: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500"
                     placeholder="姓名"
                   />
                 </label>
@@ -443,7 +447,7 @@ export default function StorePage() {
                   <input
                     value={redeemForm.contactPhone}
                     onChange={(event) => setRedeemForm((form) => ({ ...form, contactPhone: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500"
                     placeholder="手机号"
                   />
                 </label>
@@ -453,7 +457,7 @@ export default function StorePage() {
                 <input
                   value={redeemForm.contactEmail}
                   onChange={(event) => setRedeemForm((form) => ({ ...form, contactEmail: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500"
                   placeholder="邮箱"
                 />
               </label>
@@ -462,7 +466,7 @@ export default function StorePage() {
                 <textarea
                   value={redeemForm.shippingAddress}
                   onChange={(event) => setRedeemForm((form) => ({ ...form, shippingAddress: event.target.value }))}
-                  className="mt-1 min-h-20 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  className="mt-1 min-h-20 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500"
                   placeholder="省市区、详细地址"
                 />
               </label>
@@ -471,7 +475,7 @@ export default function StorePage() {
                 <textarea
                   value={redeemForm.shippingNote}
                   onChange={(event) => setRedeemForm((form) => ({ ...form, shippingNote: event.target.value }))}
-                  className="mt-1 min-h-16 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  className="mt-1 min-h-16 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-teal-500"
                   placeholder="颜色、型号、方便联系时间等"
                 />
               </label>
@@ -495,7 +499,7 @@ export default function StorePage() {
                 type="button"
                 onClick={handleRedeem}
                 disabled={redeemingId === selectedItem.id}
-                className="inline-flex min-w-28 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex min-w-28 items-center justify-center rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 {redeemingId === selectedItem.id ? <Loader2 className="h-4 w-4 animate-spin" /> : '提交申请'}
               </button>
@@ -561,6 +565,7 @@ export default function StorePage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

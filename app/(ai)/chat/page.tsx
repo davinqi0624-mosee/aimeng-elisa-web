@@ -79,6 +79,8 @@ export default function ChatPage() {
   const urlMode = searchParams.get('mode') as ChatMode | null
   const initialMode = urlMode && MODE_CONFIG[urlMode] ? urlMode : 'pre-sales'
 
+  const urlQuestion = searchParams.get('question')?.trim() || ''
+
   const [mode, setMode] = useState<ChatMode>(initialMode)
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
@@ -90,7 +92,7 @@ export default function ChatPage() {
           : `已切换到【${MODE_CONFIG[initialMode].label}】模式。${MODE_CONFIG[initialMode].desc}。`,
     },
   ])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(urlQuestion)
   const [isLoading, setIsLoading] = useState(false)
   const [showSources, setShowSources] = useState<string | null>(null)
   const [feedbackDrafts, setFeedbackDrafts] = useState<Record<string, string>>({})
@@ -270,6 +272,13 @@ export default function ChatPage() {
       abortRef.current = null
     }
   }, [input, isLoading, messages, mode])
+
+  const autoSentRef = useRef(false)
+  useEffect(() => {
+    if (!urlQuestion || autoSentRef.current) return
+    autoSentRef.current = true
+    void handleSend()
+  }, [handleSend, urlQuestion])
 
   const handleStop = () => {
     abortRef.current?.abort()

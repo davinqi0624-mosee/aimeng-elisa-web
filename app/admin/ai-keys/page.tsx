@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CheckCircle2, EyeOff, KeyRound, Loader2, Save, ShieldCheck, Trash2 } from 'lucide-react'
+import { Alert, Button, Card, Input, Spin, Tag } from 'antd'
+import { DeleteOutlined, EyeInvisibleOutlined, KeyOutlined, SaveOutlined } from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 type ProviderStatus = {
   provider: 'deepseek' | 'kimi' | 'openai'
@@ -126,61 +128,42 @@ export default function AdminAiKeysPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
-            <KeyRound className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">AI 密钥管理</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              仅超级管理员可见。保存后服务端加密存储，只显示配置状态和 key 尾号，不回显完整密钥。
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={<KeyOutlined />}
+        title="AI 密钥管理"
+        description="仅超级管理员可见。保存后服务端加密存储，只显示配置状态和 key 尾号，不回显完整密钥。"
+      />
 
-      {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertCircle className="h-4 w-4" />
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          <CheckCircle2 className="h-4 w-4" />
-          {message}
-        </div>
-      )}
+      {error && <Alert type="error" showIcon message={error} />}
+      {message && <Alert type="success" showIcon message={message} />}
 
       {loading ? (
-        <div className="grid min-h-64 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
+        <Card>
+          <div className="flex min-h-64 items-center justify-center">
+            <Spin size="large" />
+          </div>
+        </Card>
       ) : (
         <div className="grid gap-5 lg:grid-cols-3">
           {providers.map((provider) => {
             const form = forms[provider.provider] || defaultForm(provider)
             const isSaving = savingProvider === provider.provider
-            const sourceClass = provider.keyExists
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-amber-200 bg-amber-50 text-amber-700'
 
             return (
-              <section key={provider.provider} className="rounded-xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900">{provider.label}</h2>
-                    <p className="mt-1 text-xs text-slate-500">Provider: {provider.provider}</p>
-                  </div>
-                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${sourceClass}`}>
+              <Card
+                key={provider.provider}
+                title={provider.label}
+                extra={
+                  <Tag color={provider.keyExists ? 'green' : 'gold'}>
                     {SOURCE_LABELS[provider.keySource]}
-                  </span>
-                </div>
+                  </Tag>
+                }
+              >
+                <p className="text-xs text-slate-500">Provider: {provider.provider}</p>
 
-                <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
                   <div className="flex items-center gap-2">
-                    <EyeOff className="h-3.5 w-3.5" />
+                    <EyeInvisibleOutlined />
                     {provider.keyExists ? `Key 已配置，尾号 ${provider.keyTail || '******'}` : 'Key 未配置'}
                   </div>
                   {provider.updatedAt && <p className="mt-1 text-slate-400">更新时间：{formatDate(provider.updatedAt)}</p>}
@@ -188,66 +171,60 @@ export default function AdminAiKeysPage() {
 
                 <div className="mt-4 space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">新 API Key</label>
-                    <input
+                    <div className="mb-1 text-xs font-semibold text-slate-600">新 API Key</div>
+                    <Input.Password
                       value={form.apiKey}
                       onChange={(event) => updateForm(provider.provider, { apiKey: event.target.value })}
-                      type="password"
                       autoComplete="new-password"
                       placeholder="留空则不修改当前 key"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">接口地址 Base URL</label>
-                    <input
+                    <div className="mb-1 text-xs font-semibold text-slate-600">接口地址 Base URL</div>
+                    <Input
                       value={form.baseURL}
                       onChange={(event) => updateForm(provider.provider, { baseURL: event.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">模型名</label>
-                    <input
+                    <div className="mb-1 text-xs font-semibold text-slate-600">模型名</div>
+                    <Input
                       value={form.model}
                       onChange={(event) => updateForm(provider.provider, { model: event.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-2">
-                  <button
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    loading={isSaving}
                     onClick={() => save(provider)}
-                    disabled={isSaving}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="flex-1"
                   >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     保存
-                  </button>
-                  <button
-                    onClick={() => save(provider, true)}
+                  </Button>
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
                     disabled={isSaving || !provider.keyExists}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => save(provider, true)}
                   >
-                    <Trash2 className="h-4 w-4" />
                     清除
-                  </button>
+                  </Button>
                 </div>
-              </section>
+              </Card>
             )
           })}
         </div>
       )}
 
-      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-        <div className="flex items-start gap-2">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            安全说明：密钥保存后不会在页面回显。每次保存或清除都会写入后台审计记录，只记录供应商、尾号和变更类型，不记录完整 key。
-          </p>
-        </div>
-      </div>
+      <Alert
+        type="info"
+        showIcon
+        message="安全说明：密钥保存后不会在页面回显。每次保存或清除都会写入后台审计记录，只记录供应商、尾号和变更类型，不记录完整 key。"
+      />
     </div>
   )
 }

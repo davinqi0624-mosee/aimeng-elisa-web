@@ -13,8 +13,8 @@ type CoaDocument = {
   created_at?: string | null
 }
 
-export default function CoaLookupForm() {
-  const [catalogNumber, setCatalogNumber] = useState('')
+export default function CoaLookupForm({ initialCatalog = '' }: { initialCatalog?: string }) {
+  const [catalogNumber, setCatalogNumber] = useState(initialCatalog)
   const [batchNumber, setBatchNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -56,7 +56,7 @@ export default function CoaLookupForm() {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5">
       <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-        <FileSearch className="h-4 w-4 text-emerald-600" />
+        <FileSearch className="h-4 w-4 text-teal-700" />
         查询条件
       </div>
 
@@ -67,7 +67,7 @@ export default function CoaLookupForm() {
             type="text"
             value={catalogNumber}
             onChange={(event) => setCatalogNumber(event.target.value)}
-            className="h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+            className="h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
             placeholder="例如 AM-FBS-STD-500"
           />
         </label>
@@ -77,14 +77,14 @@ export default function CoaLookupForm() {
             type="text"
             value={batchNumber}
             onChange={(event) => setBatchNumber(event.target.value)}
-            className="h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+            className="h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
             placeholder="请输入瓶身或标签上的批号"
           />
         </label>
         <button
           type="submit"
           disabled={loading}
-          className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           {loading ? '查询中...' : '查询 COA'}
@@ -104,9 +104,9 @@ export default function CoaLookupForm() {
       )}
 
       {document && (
-        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-bold text-emerald-900">已找到 COA 文件</p>
-          <div className="mt-2 space-y-1 text-sm text-emerald-800">
+        <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50 p-4">
+          <p className="text-sm font-bold text-teal-900">已找到 COA 文件</p>
+          <div className="mt-2 space-y-1 text-sm text-teal-800">
             <p>货号：{document.catalog_number}</p>
             <p>批号：{document.batch_number}</p>
             {document.product_name && <p>产品：{document.product_name}</p>}
@@ -115,7 +115,7 @@ export default function CoaLookupForm() {
             href={document.file_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700"
           >
             <Download className="h-4 w-4" />
             下载 COA

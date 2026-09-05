@@ -65,37 +65,40 @@ export default function SerumShowcase({ category, title, subtitle, products, gro
   const basePath = category === 'fbs' ? '/products/fbs' : '/products/animal-serum'
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full bg-[#F2F6FA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         <section className="rounded-lg border border-slate-200 bg-white p-6 md:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+                aimeng.serum / {category === 'fbs' ? 'fbs collection' : 'animal serum'}
+              </p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 批次 COA 可追溯
               </div>
-              <h1 className="mt-4 text-2xl font-bold text-slate-900 md:text-3xl">{title}</h1>
+              <h1 className="mt-4 text-2xl font-black tracking-normal text-slate-950 md:text-3xl">{title}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">{subtitle}</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-bold text-slate-900">客户查找路径</p>
               <div className="mt-3 grid gap-2 text-sm text-slate-600">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-emerald-700">1</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-teal-700">1</span>
                   选择产品类型和规格
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-emerald-700">2</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-teal-700">2</span>
                   进入产品内页查看参数和适用场景
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-emerald-700">3</span>
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-bold text-teal-700">3</span>
                   收货后按批号查询 COA
                 </div>
               </div>
               <Link
                 href="/products/coa"
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700"
               >
                 <FileSearch className="h-4 w-4" />
                 COA 查询
@@ -110,12 +113,12 @@ export default function SerumShowcase({ category, title, subtitle, products, gro
               <div
                 key={group.title}
                 className={`overflow-hidden rounded-lg border border-slate-200 ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-slate-800 text-white'
+                  index % 2 === 0 ? 'bg-white' : 'bg-slate-950 text-white'
                 }`}
               >
                 <div className="grid gap-0 lg:grid-cols-[260px_1fr]">
-                  <div className={`flex flex-col justify-center p-6 ${index % 2 === 0 ? 'bg-slate-50' : 'bg-slate-700'}`}>
-                    <p className={`text-xs font-semibold ${index % 2 === 0 ? 'text-emerald-700' : 'text-emerald-200'}`}>{group.code}</p>
+                  <div className={`flex flex-col justify-center p-6 ${index % 2 === 0 ? 'bg-slate-50' : 'bg-slate-900'}`}>
+                    <p className={`text-xs font-semibold ${index % 2 === 0 ? 'text-teal-700' : 'text-teal-200'}`}>{group.code}</p>
                     <h2 className="mt-2 text-xl font-bold">{group.title}</h2>
                     <p className={`mt-3 text-sm leading-6 ${index % 2 === 0 ? 'text-slate-600' : 'text-slate-200'}`}>{group.description}</p>
                     <div className="mt-4 grid gap-1.5">

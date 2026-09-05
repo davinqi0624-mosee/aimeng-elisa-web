@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Beaker, FileText, FlaskConical, Microscope, ShieldCheck, TestTube2 } from 'lucide-react'
+import { FileText, FlaskConical, Microscope, ShieldCheck, TestTube2 } from 'lucide-react'
 import BiochemicalProductSearch from './BiochemicalProductSearch'
 import OfficialCustomerServiceButton from '@/components/product/OfficialCustomerServiceButton'
 
@@ -32,15 +32,14 @@ const workflow = [
 
 export default function BiochemicalReagentsPage() {
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full bg-[#F2F6FA]">
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-10">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">
-              <Beaker className="h-3.5 w-3.5" />
-              产品中心
-            </div>
-            <h1 className="mt-4 text-2xl font-bold tracking-normal text-slate-950 md:text-3xl">生化法试剂盒</h1>
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+              aimeng.products / biochemical reagents
+            </p>
+            <h1 className="mt-4 text-2xl font-black tracking-normal text-slate-950 md:text-3xl">生化法试剂盒</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
               生化法试剂盒与 ELISA 试剂盒采用不同的产品信息结构，独立展示货号、指标名称、规格、操作波长和对应价格，方便按实验指标快速查找。
             </p>

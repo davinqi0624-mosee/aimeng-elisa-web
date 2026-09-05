@@ -331,7 +331,7 @@ export default function CitationSubmitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-[#F2F6FA] py-8 px-4">
       {sizeDialog && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
@@ -364,7 +364,7 @@ export default function CitationSubmitPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h1 className="text-xl font-bold text-gray-900 mb-1">提交引用文献</h1>
+          <h1 className="text-xl font-black tracking-normal text-slate-950 mb-1">提交引用文献</h1>
           <p className="text-sm text-gray-500 mb-6">
             提交使用爱萌产品的 SCI 论文，审核通过后可获得高额积分奖励
           </p>

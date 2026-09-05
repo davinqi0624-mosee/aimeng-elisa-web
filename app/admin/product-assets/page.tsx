@@ -1,17 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Alert, App, Button, Card, Col, Input, Row, Select, Space, Statistic, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import {
-  ArchiveRestore,
-  CheckCircle2,
-  CircleAlert,
-  ImagePlus,
-  Loader2,
-  RefreshCw,
-  Save,
-  Upload,
-  Wand2,
-} from 'lucide-react'
+  CheckCircleOutlined,
+  PictureOutlined,
+  ReloadOutlined,
+  RollbackOutlined,
+  SaveOutlined,
+  ThunderboltOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 import { compressImage, formatFileSize } from '@/lib/image-compress'
 
 type AssetType = 'standard_curve' | 'additional' | 'reserved'
@@ -105,11 +106,12 @@ function formatTime(iso?: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-function getStatusClass(status: string) {
-  if (status === 'active') return 'bg-emerald-500/10 text-emerald-300'
-  if (status === 'matched') return 'bg-cyan-500/10 text-cyan-300'
-  if (status === 'rolled_back' || status === 'archived') return 'bg-slate-500/10 text-slate-300'
-  return 'bg-amber-500/10 text-amber-300'
+function getStatusColor(status: string) {
+  if (status === 'active') return 'green'
+  if (status === 'matched') return 'processing'
+  if (status === 'pending') return 'gold'
+  if (status === 'rejected') return 'volcano'
+  return 'default'
 }
 
 function isImageFile(file: File) {
@@ -138,6 +140,7 @@ async function compressProductAssetImage(file: File) {
 }
 
 export default function AdminProductAssetsPage() {
+  const { modal } = App.useApp()
   const [assetType, setAssetType] = useState<AssetType>('standard_curve')
   const [batches, setBatches] = useState<ProductAssetBatch[]>([])
   const [uploads, setUploads] = useState<ProductAssetUpload[]>([])
@@ -158,6 +161,7 @@ export default function AdminProductAssetsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const fixedSlotInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) || null
   const matchedCount = uploads.filter((upload) => upload.status === 'matched').length
@@ -322,13 +326,6 @@ export default function AdminProductAssetsPage() {
       return
     }
 
-    if (action === 'rollback' && selectedBatch) {
-      const confirmed = window.confirm(
-        `确定撤回批次“${selectedBatch.title}”吗？\n\n未生效图片会从候选记录中撤回并清理上传文件；已生效图片会先恢复到本批次生效前的图片位，如果原来没有图片，会撤下本批次写入的图片。`
-      )
-      if (!confirmed) return
-    }
-
     setError('')
     if (action === 'match') setMatching(true)
     if (action === 'confirm_exact') setConfirming(true)
@@ -352,6 +349,22 @@ export default function AdminProductAssetsPage() {
       if (action === 'confirm_exact') setConfirming(false)
       if (action === 'rollback') setRollingBack(false)
     }
+  }
+
+  const handleRollbackClick = () => {
+    if (!selectedBatch) {
+      runBatchAction('rollback')
+      return
+    }
+    modal.confirm({
+      title: `确定撤回批次“${selectedBatch.title}”吗？`,
+      content:
+        '未生效图片会从候选记录中撤回并清理上传文件；已生效图片会先恢复到本批次生效前的图片位，如果原来没有图片，会撤下本批次写入的图片。',
+      okText: '撤回',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: () => runBatchAction('rollback'),
+    })
   }
 
   const uploadFixedImage = async (file: File, slot: keyof ProductMediaSettings) => {
@@ -409,45 +422,124 @@ export default function AdminProductAssetsPage() {
     }
   }
 
+  const columns: ColumnsType<ProductAssetUpload> = [
+    {
+      title: '图片',
+      key: 'image',
+      width: 120,
+      render: (_, upload) => (
+        <a
+          href={upload.file_url}
+          target="_blank"
+          rel="noreferrer"
+          className="block h-20 w-20 overflow-hidden rounded-lg border border-gray-200 bg-white"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- 后台预览 Supabase 图片，保持原始 URL 即可。 */}
+          <img src={upload.file_url} alt={upload.file_name} className="h-full w-full object-contain" />
+        </a>
+      ),
+    },
+    {
+      title: '文件信息',
+      key: 'file',
+      width: 260,
+      render: (_, upload) => (
+        <div className="min-w-0">
+          <div className="truncate" title={upload.file_name}>
+            {upload.file_name}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            货号 {upload.catalog_number || '-'} / 种属 {upload.species || '-'} / 指标 {upload.target || '-'}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">{formatTime(upload.created_at)}</div>
+        </div>
+      ),
+    },
+    {
+      title: '匹配商品',
+      key: 'product',
+      width: 220,
+      render: (_, upload) =>
+        upload.products ? (
+          <div className="min-w-0">
+            <div className="truncate text-cyan-700" title={upload.products.name}>
+              {upload.products.name}
+            </div>
+            <div className="mt-1 truncate text-xs text-slate-500">
+              {upload.products.catalog_number || upload.products.cat_no || upload.products.target || '-'}
+            </div>
+          </div>
+        ) : (
+          <span className="text-slate-500">未匹配</span>
+        ),
+    },
+    {
+      title: '匹配说明',
+      key: 'match',
+      width: 200,
+      render: (_, upload) => (
+        <div className="text-xs text-slate-600">
+          <div className="truncate" title={upload.match_reason || undefined}>
+            {upload.match_reason || '等待自动匹配'}
+          </div>
+          <div className="mt-1 text-slate-500">
+            {upload.match_method || 'none'} / {upload.match_score || 0}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => <Tag color={getStatusColor(status)}>{STATUS_LABELS[status] || status}</Tag>,
+    },
+    {
+      title: '查看',
+      key: 'view',
+      width: 80,
+      render: (_, upload) => (
+        <Button type="link" size="small" href={upload.file_url} target="_blank" rel="noreferrer">
+          打开
+        </Button>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-white">
-            <ImagePlus className="h-5 w-5 text-cyan-400" />
-            产品图片管理
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            用于标准曲线图和预留图片位的批量上传。上传后先生成候选，确认生效后才会显示到产品详情页。
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={assetType}
-            onChange={(e) => {
-              setAssetType(e.target.value as AssetType)
-              setSelectedBatchId('')
-            }}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
-          >
-            <option value="standard_curve">标准曲线图</option>
-            <option value="additional">第 4 图片位</option>
-            <option value="reserved">第 5 预留图片位</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              loadBatches()
-              loadUploads()
-            }}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            <RefreshCw className="h-4 w-4" />
-            刷新
-          </button>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500">
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            上传图片
+      <PageHeader
+        icon={<PictureOutlined />}
+        title="产品图片管理"
+        description="用于标准曲线图和预留图片位的批量上传。上传后先生成候选，确认生效后才会显示到产品详情页。"
+        extra={
+          <>
+            <Select<AssetType>
+              value={assetType}
+              onChange={(value) => {
+                setAssetType(value)
+                setSelectedBatchId('')
+              }}
+              style={{ width: 160 }}
+              options={[
+                { value: 'standard_curve', label: '标准曲线图' },
+                { value: 'additional', label: '第 4 图片位' },
+                { value: 'reserved', label: '第 5 预留图片位' },
+              ]}
+            />
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                loadBatches()
+                loadUploads()
+              }}
+            >
+              刷新
+            </Button>
+            <Button type="primary" icon={<UploadOutlined />} loading={uploading} onClick={() => fileInputRef.current?.click()}>
+              上传图片
+            </Button>
             <input
               ref={fileInputRef}
               type="file"
@@ -456,236 +548,185 @@ export default function AdminProductAssetsPage() {
               className="hidden"
               onChange={(e) => handleUploadFiles(e.target.files)}
             />
-          </label>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-        文件名建议使用 <span className="font-semibold">货号__种属__指标__standard_curve.png</span>，也支持
-        <span className="font-semibold"> 种属__指标__standard_curve.png</span>。系统优先按货号匹配，其次按“种属 + 指标”唯一匹配。
-      </div>
+      <Alert
+        type="info"
+        showIcon
+        message={
+          <>
+            文件名建议使用 <b>货号__种属__指标__standard_curve.png</b>，也支持
+            <b> 种属__指标__standard_curve.png</b>。系统优先按货号匹配，其次按“种属 + 指标”唯一匹配。
+          </>
+        }
+      />
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-white">固定图片位</h2>
-            <p className="mt-1 text-xs text-slate-400">
-              第 1 位“产品展示”和第 3 位“检测方法”是全站固定图，客户进入任意 ELISA 产品详情页都会看到。
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={saveFixedSettings}
+      <Card
+        size="small"
+        title="固定图片位"
+        extra={
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={savingFixedSettings}
             disabled={savingFixedSettings || loadingFixedSettings}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            onClick={saveFixedSettings}
           >
-            {savingFixedSettings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             保存固定图配置
-          </button>
-        </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {([
-            ['product_ad_image_url', '第 1 图片位：产品展示图'],
-            ['method_image_url', '第 3 图片位：检测方法图'],
-          ] as Array<[keyof ProductMediaSettings, string]>).map(([slot, label]) => (
-            <div key={slot} className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-white">{label}</div>
-                  <div className="mt-1 text-xs text-slate-500">上传后保存配置才会正式生效。</div>
-                </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800">
-                  {uploadingFixedSlot === slot ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                  上传
+          </Button>
+        }
+      >
+        <p className="mb-4 text-xs text-slate-500">
+          第 1 位“产品展示”和第 3 位“检测方法”是全站固定图，客户进入任意 ELISA 产品详情页都会看到。
+        </p>
+        <Row gutter={[12, 12]}>
+          {(
+            [
+              ['product_ad_image_url', '第 1 图片位：产品展示图'],
+              ['method_image_url', '第 3 图片位：检测方法图'],
+            ] as Array<[keyof ProductMediaSettings, string]>
+          ).map(([slot, label]) => (
+            <Col key={slot} xs={24} lg={12}>
+              <div className="h-full rounded-lg border border-gray-200 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-slate-900">{label}</div>
+                    <div className="mt-1 text-xs text-slate-500">上传后保存配置才会正式生效。</div>
+                  </div>
+                  <Button
+                    size="small"
+                    icon={<UploadOutlined />}
+                    loading={uploadingFixedSlot === slot}
+                    onClick={() => fixedSlotInputRefs.current[slot]?.click()}
+                  >
+                    上传
+                  </Button>
                   <input
+                    ref={(el) => {
+                      fixedSlotInputRefs.current[slot] = el
+                    }}
                     type="file"
                     accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
                     className="hidden"
                     onChange={(e) => e.target.files?.[0] && uploadFixedImage(e.target.files[0], slot)}
                   />
-                </label>
-              </div>
-              <div className="mt-3 h-40 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-                {fixedSettings[slot] ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- 后台预览外部存储图片。
-                  <img src={fixedSettings[slot]} alt={label} className="h-full w-full object-contain" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-500">未设置图片</div>
-                )}
-              </div>
-              <input
-                value={fixedSettings[slot] || ''}
-                onChange={(e) => setFixedSettings((prev) => ({ ...prev, [slot]: e.target.value }))}
-                className="mt-3 w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300"
-                placeholder="也可以直接粘贴图片 URL"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-white">批次中心</h2>
-            <p className="mt-1 text-xs text-slate-400">
-              每次上传会生成独立批次。建议按批次自动匹配、人工核对、确认生效；发现错误可以撤回本批次。
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={selectedBatchId}
-              onChange={(e) => setSelectedBatchId(e.target.value)}
-              className="min-w-[260px] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-            >
-              <option value="">请选择具体批次</option>
-              {batches.map((batch) => (
-                <option key={batch.id} value={batch.id}>
-                  {batch.title}（{batch.total_count} 张）
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => runBatchAction('match')}
-              disabled={!selectedBatchId || matching}
-              title={!selectedBatchId ? '请选择具体批次后再自动匹配' : undefined}
-              className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-50"
-            >
-              {matching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              自动匹配
-            </button>
-            <button
-              type="button"
-              onClick={() => runBatchAction('confirm_exact')}
-              disabled={!selectedBatchId || confirming || matchedCount === 0}
-              title={!selectedBatchId ? '请选择具体批次后再确认' : matchedCount === 0 ? '需要先完成自动匹配，且至少有 1 张精确匹配图片' : undefined}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
-              {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              确认精确匹配
-            </button>
-            <button
-              type="button"
-              onClick={() => runBatchAction('rollback')}
-              disabled={!selectedBatchId || rollingBack || rollbackableCount === 0}
-              title={!selectedBatchId ? '请选择具体批次后再撤回' : rollbackableCount === 0 ? '当前批次没有可撤回图片' : undefined}
-              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/50 px-3 py-2 text-sm text-amber-200 hover:bg-amber-500/10 disabled:opacity-50"
-            >
-              {rollingBack ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArchiveRestore className="h-4 w-4" />}
-              撤回本批次
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-300">
-          {batchOperationHint}
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:grid-cols-6">
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <div className="text-slate-500">当前显示</div>
-            <div className="mt-1 text-lg font-semibold text-white">{uploads.length}</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <div className="text-slate-500">待匹配</div>
-            <div className="mt-1 text-lg font-semibold text-amber-300">{pendingCount}</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <div className="text-slate-500">待确认</div>
-            <div className="mt-1 text-lg font-semibold text-cyan-300">{matchedCount}</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <div className="text-slate-500">已生效</div>
-            <div className="mt-1 text-lg font-semibold text-emerald-300">{activeCount}</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <div className="text-slate-500">批次状态</div>
-            <div className="mt-1 truncate text-sm font-semibold text-white">{selectedBatch?.status || '-'}</div>
-          </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <div className="text-slate-500">创建时间</div>
-            <div className="mt-1 truncate text-sm font-semibold text-white">{formatTime(selectedBatch?.created_at)}</div>
-          </div>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-200">
-          {message}
-        </div>
-      )}
-
-      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-        <div className="grid grid-cols-12 gap-2 border-b border-slate-800 bg-slate-950 px-4 py-3 text-xs font-medium text-slate-400">
-          <div className="col-span-2">图片</div>
-          <div className="col-span-3">文件信息</div>
-          <div className="col-span-3">匹配商品</div>
-          <div className="col-span-2">匹配说明</div>
-          <div className="col-span-1">状态</div>
-          <div className="col-span-1 text-right">查看</div>
-        </div>
-
-        {loadingUploads || loadingBatches ? (
-          <div className="px-4 py-10 text-center text-sm text-slate-400">加载中...</div>
-        ) : uploads.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-slate-400">暂无图片上传记录</div>
-        ) : (
-          <div className="divide-y divide-slate-800">
-            {uploads.map((upload) => (
-              <div key={upload.id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm text-slate-200">
-                <div className="col-span-2">
-                  <a href={upload.file_url} target="_blank" rel="noreferrer" className="block h-20 overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- 后台预览 Supabase 图片，保持原始 URL 即可。 */}
-                    <img src={upload.file_url} alt={upload.file_name} className="h-full w-full object-contain" />
-                  </a>
                 </div>
-                <div className="col-span-3 min-w-0">
-                  <div className="truncate" title={upload.file_name}>{upload.file_name}</div>
-                  <div className="mt-1 text-[11px] text-slate-500">
-                    货号 {upload.catalog_number || '-'} / 种属 {upload.species || '-'} / 指标 {upload.target || '-'}
-                  </div>
-                  <div className="mt-1 text-[11px] text-slate-500">{formatTime(upload.created_at)}</div>
-                </div>
-                <div className="col-span-3 min-w-0">
-                  {upload.products ? (
-                    <>
-                      <div className="truncate text-cyan-300" title={upload.products.name}>{upload.products.name}</div>
-                      <div className="mt-1 truncate text-[11px] text-slate-500">
-                        {upload.products.catalog_number || upload.products.cat_no || upload.products.target || '-'}
-                      </div>
-                    </>
+                <div className="mt-3 h-40 overflow-hidden rounded-lg border border-gray-200 bg-slate-50">
+                  {fixedSettings[slot] ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- 后台预览外部存储图片。
+                    <img src={fixedSettings[slot]} alt={label} className="h-full w-full object-contain" />
                   ) : (
-                    <span className="text-slate-500">未匹配</span>
+                    <div className="flex h-full items-center justify-center text-sm text-slate-500">未设置图片</div>
                   )}
                 </div>
-                <div className="col-span-2 text-xs text-slate-400">
-                  <div className="truncate">{upload.match_reason || '等待自动匹配'}</div>
-                  <div className="mt-1 text-[11px] text-slate-500">
-                    {upload.match_method || 'none'} / {upload.match_score || 0}
-                  </div>
-                </div>
-                <div className="col-span-1">
-                  <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium ${getStatusClass(upload.status)}`}>
-                    {upload.status === 'active' ? <CheckCircle2 className="h-3 w-3" /> : <CircleAlert className="h-3 w-3" />}
-                    {STATUS_LABELS[upload.status] || upload.status}
-                  </span>
-                </div>
-                <div className="col-span-1 text-right">
-                  <a href={upload.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800">
-                    打开
-                  </a>
-                </div>
+                <Input
+                  className="mt-3"
+                  value={fixedSettings[slot] || ''}
+                  onChange={(e) => setFixedSettings((prev) => ({ ...prev, [slot]: e.target.value }))}
+                  placeholder="也可以直接粘贴图片 URL"
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </Col>
+          ))}
+        </Row>
+      </Card>
+
+      <Card
+        size="small"
+        title="批次中心"
+        extra={
+          <Space wrap>
+            <Select
+              value={selectedBatchId}
+              onChange={setSelectedBatchId}
+              style={{ minWidth: 260 }}
+              options={[
+                { value: '', label: '请选择具体批次' },
+                ...batches.map((batch) => ({
+                  value: batch.id,
+                  label: `${batch.title}（${batch.total_count} 张）`,
+                })),
+              ]}
+            />
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined />}
+              loading={matching}
+              disabled={!selectedBatchId}
+              title={!selectedBatchId ? '请选择具体批次后再自动匹配' : undefined}
+              onClick={() => runBatchAction('match')}
+            >
+              自动匹配
+            </Button>
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              loading={confirming}
+              disabled={!selectedBatchId || matchedCount === 0}
+              title={
+                !selectedBatchId
+                  ? '请选择具体批次后再确认'
+                  : matchedCount === 0
+                    ? '需要先完成自动匹配，且至少有 1 张精确匹配图片'
+                    : undefined
+              }
+              onClick={() => runBatchAction('confirm_exact')}
+            >
+              确认精确匹配
+            </Button>
+            <Button
+              danger
+              icon={<RollbackOutlined />}
+              loading={rollingBack}
+              disabled={!selectedBatchId || rollbackableCount === 0}
+              title={!selectedBatchId ? '请选择具体批次后再撤回' : rollbackableCount === 0 ? '当前批次没有可撤回图片' : undefined}
+              onClick={handleRollbackClick}
+            >
+              撤回本批次
+            </Button>
+          </Space>
+        }
+      >
+        <p className="mb-3 text-xs text-slate-500">
+          每次上传会生成独立批次。建议按批次自动匹配、人工核对、确认生效；发现错误可以撤回本批次。
+        </p>
+        <Alert className="mb-4" type="info" message={batchOperationHint} />
+        <Row gutter={[8, 8]}>
+          <Col xs={12} sm={8} lg={4}>
+            <Statistic title="当前显示" value={uploads.length} />
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <Statistic title="待匹配" value={pendingCount} />
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <Statistic title="待确认" value={matchedCount} />
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <Statistic title="已生效" value={activeCount} />
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <Statistic title="批次状态" value={selectedBatch?.status || '-'} />
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <Statistic title="创建时间" value={formatTime(selectedBatch?.created_at)} />
+          </Col>
+        </Row>
+      </Card>
+
+      {error && <Alert type="error" showIcon message={error} />}
+      {message && <Alert type="info" showIcon message={message} />}
+
+      <Table<ProductAssetUpload>
+        rowKey="id"
+        columns={columns}
+        dataSource={uploads}
+        loading={loadingUploads || loadingBatches}
+        locale={{ emptyText: '暂无图片上传记录' }}
+        pagination={{ pageSize: 20, showTotal: (total) => `共 ${total} 条记录` }}
+        scroll={{ x: 900 }}
+      />
     </div>
   )
 }

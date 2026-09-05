@@ -172,14 +172,17 @@ export default async function SearchPage({
   const searchExamples = ['IL-6', 'TNF-alpha', 'IL-1β', 'SOD', 'LV10001']
 
   return (
-    <div className="h-full bg-gray-50 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="h-full bg-[#F2F6FA] py-10 px-4">
+      <div className="max-w-7xl mx-auto">
         {/* Search Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+            aimeng.products / elisa catalog
+          </p>
+          <h1 className="mt-3 text-3xl font-black tracking-normal text-slate-950 mb-1">
             {hasFilters ? 'ELISA 试剂盒筛选结果' : 'ELISA 试剂盒搜索'}
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-slate-500 mt-1">
             {hasFilters
               ? `按货号、指标、种属、希腊字母快速查找试剂盒，共找到 ${dedupedProducts.length} 款产品`
               : '请选择种属，或输入货号、指标名称、英文缩写开始检索。'}
@@ -191,7 +194,7 @@ export default async function SearchPage({
           )}
         </div>
 
-        <div className="mb-8 rounded-xl border border-emerald-100 bg-white px-5 py-4 shadow-sm">
+        <div className="mb-8 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-900">需要 ELISA 代测服务？</p>
@@ -202,7 +205,7 @@ export default async function SearchPage({
             <a
               href={elisaTestingServiceForm.href}
               download={elisaTestingServiceForm.fileName}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700"
             >
               <FileText className="h-4 w-4" />
               下载代测申请表
@@ -212,7 +215,7 @@ export default async function SearchPage({
 
         {/* Advanced Search */}
         <div className="mb-8">
-          <Suspense fallback={<div className="h-40 bg-white rounded-xl border border-gray-200 animate-pulse" />}>
+          <Suspense fallback={<div className="h-40 bg-white rounded-lg border border-slate-200 animate-pulse" />}>
             <AdvancedSearch
               availableSpecies={speciesList}
               targetPath="/products/elisa"
@@ -222,11 +225,11 @@ export default async function SearchPage({
         </div>
 
         {!hasFilters && (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
               <div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#123A63] text-white">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white">
                     <Search className="h-5 w-5" />
                   </div>
                   <div>
@@ -238,30 +241,30 @@ export default async function SearchPage({
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <Microscope className="h-5 w-5 text-[#123A63]" />
+                    <Microscope className="h-5 w-5 text-teal-700" />
                     <p className="mt-3 text-sm font-semibold text-slate-900">按种属筛选</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">适合先确定样本来源，如人、小鼠、大鼠、牛、犬等。</p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <Tags className="h-5 w-5 text-[#123A63]" />
+                    <Tags className="h-5 w-5 text-teal-700" />
                     <p className="mt-3 text-sm font-semibold text-slate-900">按指标搜索</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">适合输入 IL-6、TNF-alpha、SOD 等靶标或中文名称。</p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <FileText className="h-5 w-5 text-[#123A63]" />
+                    <FileText className="h-5 w-5 text-teal-700" />
                     <p className="mt-3 text-sm font-semibold text-slate-900">按货号精准查询</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">适合已有货号时快速进入产品页查看规格、价格和说明书。</p>
                   </div>
                 </div>
               </div>
-              <div className="rounded-lg border border-blue-100 bg-blue-50 p-5">
-                <p className="text-sm font-semibold text-[#123A63]">常用搜索示例</p>
+              <div className="rounded-lg border border-teal-100 bg-teal-50/60 p-5">
+                <p className="text-sm font-semibold text-teal-700">常用搜索示例</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {searchExamples.map((example) => (
                     <a
                       key={example}
                       href={`/products/elisa?q=${encodeURIComponent(example)}`}
-                      className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-[#123A63] hover:border-blue-400 hover:bg-blue-100"
+                      className="rounded-full border border-teal-200 bg-white px-3 py-1.5 text-sm font-medium text-teal-800 hover:border-teal-400 hover:bg-teal-100"
                     >
                       {example}
                     </a>
@@ -298,9 +301,9 @@ export default async function SearchPage({
             </div>
 
             {dedupedProducts.length === 0 && (
-              <div className="text-center py-20 bg-white rounded-xl border border-gray-200">
-                <p className="text-gray-400 text-lg mb-2">未找到匹配的产品</p>
-                <p className="text-gray-400 text-sm">
+              <div className="text-center py-20 bg-white rounded-lg border border-slate-200">
+                <p className="text-slate-400 text-lg mb-2">未找到匹配的产品</p>
+                <p className="text-slate-400 text-sm">
                   试试搜索 IL-6、TNF-alpha、IL-1β 等靶标，或联系人工客服确认
                 </p>
               </div>

@@ -1,24 +1,24 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Alert, App, Button, Card, Checkbox, Input, Modal, Popconfirm, Select, Space, Tag } from 'antd'
 import {
-  AlertTriangle,
-  Bot,
-  CheckCircle2,
-  Copy,
-  Database,
-  FileText,
-  KeyRound,
-  Plus,
-  RotateCcw,
-  Save,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Trash2,
-  Wrench,
-  X,
-} from 'lucide-react'
+  CheckCircleOutlined,
+  ControlOutlined,
+  CopyOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  RobotOutlined,
+  SafetyCertificateOutlined,
+  SaveOutlined,
+  StarOutlined,
+  ToolOutlined,
+  UndoOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 type AgentAudience = 'customer' | 'admin'
 type AgentStatus = 'enabled' | 'draft' | 'paused'
@@ -181,7 +181,20 @@ function uniqueAgents(agents: AiAgentConfig[]) {
   })
 }
 
+function getStatusTag(status: AgentStatus) {
+  if (status === 'enabled') return <Tag color="green">已启用</Tag>
+  if (status === 'paused') return <Tag color="gold">已暂停</Tag>
+  return <Tag>草稿</Tag>
+}
+
+function getRiskTag(level: RiskLevel) {
+  if (level === 'high') return <Tag color="volcano">高风险</Tag>
+  if (level === 'medium') return <Tag color="gold">中风险</Tag>
+  return <Tag color="blue">低风险</Tag>
+}
+
 export default function AdminAiAgentsPage() {
+  const { message } = App.useApp()
   const [agents, setAgents] = useState<AiAgentConfig[]>(DEFAULT_AGENTS)
   const [editing, setEditing] = useState<AiAgentConfig | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -226,7 +239,7 @@ export default function AdminAiAgentsPage() {
 
   const saveAgent = () => {
     if (!editing?.id.trim() || !editing.name.trim()) {
-      alert('请填写 Agent ID 和名称')
+      message.error('请填写 Agent ID 和名称')
       return
     }
 
@@ -258,12 +271,10 @@ export default function AdminAiAgentsPage() {
   }
 
   const deleteAgent = (id: string) => {
-    if (!confirm('确定删除这个 Agent 草稿吗？')) return
     setAgents((prev) => prev.filter((agent) => agent.id !== id))
   }
 
   const resetDefaults = () => {
-    if (!confirm('确定恢复默认 6 个 Agent 配置吗？当前浏览器草稿会被覆盖。')) return
     setAgents(DEFAULT_AGENTS)
     setSavedAt(new Date().toLocaleString('zh-CN'))
   }
@@ -279,398 +290,322 @@ export default function AdminAiAgentsPage() {
   }
 
   return (
-    <div className="space-y-6 text-slate-100">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Bot className="h-6 w-6 text-cyan-400" />
-            <h1 className="text-2xl font-bold text-white">Agent 中台</h1>
-          </div>
-          <p className="mt-1 text-sm text-slate-400">
-            管理网站里的 AI 工作岗位：在哪里出现、能调用什么工具、能读哪些知识库、是否需要审核。
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={resetDefaults}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-900"
-          >
-            <RotateCcw className="h-4 w-4" />
-            恢复默认
-          </button>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
-          >
-            <Plus className="h-4 w-4" />
-            新增 Agent
-          </button>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        icon={<RobotOutlined />}
+        title="Agent 中台"
+        description="管理网站里的 AI 工作岗位：在哪里出现、能调用什么工具、能读哪些知识库、是否需要审核。"
+        extra={
+          <>
+            <Popconfirm
+              title="确定恢复默认 6 个 Agent 配置吗？"
+              description="当前浏览器草稿会被覆盖。"
+              onConfirm={resetDefaults}
+            >
+              <Button icon={<UndoOutlined />}>恢复默认</Button>
+            </Popconfirm>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              新增 Agent
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Agent 总数', value: stats.total, icon: <Bot className="h-4 w-4 text-cyan-300" /> },
-          { label: '已启用', value: stats.enabled, icon: <CheckCircle2 className="h-4 w-4 text-emerald-300" /> },
-          { label: '需审核', value: stats.review, icon: <ShieldCheck className="h-4 w-4 text-amber-300" /> },
-          { label: '客户可见', value: stats.customer, icon: <Sparkles className="h-4 w-4 text-blue-300" /> },
+          { label: 'Agent 总数', value: stats.total, icon: <RobotOutlined className="text-cyan-600" /> },
+          { label: '已启用', value: stats.enabled, icon: <CheckCircleOutlined className="text-emerald-600" /> },
+          { label: '需审核', value: stats.review, icon: <SafetyCertificateOutlined className="text-amber-500" /> },
+          { label: '客户可见', value: stats.customer, icon: <StarOutlined className="text-blue-600" /> },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <Card key={item.label} size="small">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">{item.label}</span>
+              <span className="text-xs text-slate-500">{item.label}</span>
               {item.icon}
             </div>
-            <p className="mt-2 text-2xl font-bold text-white">{item.value}</p>
-          </div>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{item.value}</p>
+          </Card>
         ))}
       </div>
 
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
-          <div>
-            <p className="text-sm font-semibold text-amber-100">当前版本说明</p>
-            <p className="mt-1 text-xs leading-5 text-amber-100/80">
+      <Alert
+        className="mt-4"
+        type="warning"
+        showIcon
+        message="当前版本说明"
+        description={
+          <>
+            <p>
               这里已经是后台新增 Agent 的可视化入口。当前配置先保存为本机浏览器草稿，方便确定“在哪里加、怎么加、加什么、怎么设置”。
               后续接入数据库后，会把这些字段保存到 `agents` 表，并支持全站生效、版本记录和管理员审核。
             </p>
-            {savedAt && <p className="mt-2 text-xs text-amber-100/70">最近保存：{savedAt}</p>}
-          </div>
-        </div>
-      </div>
+            {savedAt && <p className="mt-2">最近保存：{savedAt}</p>}
+          </>
+        }
+      />
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
-            <Plus className="h-4 w-4 text-cyan-300" />
-            怎么加？
-          </div>
-          <ol className="mt-4 space-y-2 text-sm text-slate-400">
-            <li>1. 点击右上角“新增 Agent”。</li>
-            <li>2. 填写 ID、名称、出现入口和职责。</li>
-            <li>3. 勾选可调用工具和知识库范围。</li>
-            <li>4. 设置客户可见或后台可见。</li>
-            <li>5. 高风险 Agent 必须开启管理员审核。</li>
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card size="small" title={<Space><PlusOutlined className="text-cyan-600" />怎么加？</Space>}>
+          <ol className="list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-500">
+            <li>点击右上角“新增 Agent”。</li>
+            <li>填写 ID、名称、出现入口和职责。</li>
+            <li>勾选可调用工具和知识库范围。</li>
+            <li>设置客户可见或后台可见。</li>
+            <li>高风险 Agent 必须开启管理员审核。</li>
           </ol>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
-            <Wrench className="h-4 w-4 text-cyan-300" />
-            加什么？
-          </div>
-          <p className="mt-4 text-sm leading-6 text-slate-400">
+        </Card>
+        <Card size="small" title={<Space><ToolOutlined className="text-cyan-600" />加什么？</Space>}>
+          <p className="text-sm leading-6 text-slate-500">
             适合新增的 Agent 包括：文献解析、COA 导入、产品数据清洗、客户运营推送、网站巡检、备份恢复。
             不建议把同一职责拆得太碎。
           </p>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
-            <KeyRound className="h-4 w-4 text-cyan-300" />
-            怎么设置？
-          </div>
-          <p className="mt-4 text-sm leading-6 text-slate-400">
+        </Card>
+        <Card size="small" title={<Space><KeyOutlined className="text-cyan-600" />怎么设置？</Space>}>
+          <p className="text-sm leading-6 text-slate-500">
             前台 Agent 权限要小，主要读产品库和知识库；后台 Agent 可以调用生成、导入、审核工具；
             涉及发布、积分、备份恢复的操作必须走管理员确认。
           </p>
-        </div>
-      </section>
+        </Card>
+      </div>
 
-      <section className="grid gap-4">
+      <div className="mt-4 grid gap-4">
         {agents.map((agent) => (
-          <div key={agent.id} className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-bold text-white">{agent.name}</h2>
-                  <span className="rounded-full bg-slate-800 px-2 py-1 text-xs font-mono text-slate-300">{agent.id}</span>
-                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                    agent.status === 'enabled'
-                      ? 'bg-emerald-500/10 text-emerald-300'
-                      : agent.status === 'paused'
-                        ? 'bg-orange-500/10 text-orange-300'
-                        : 'bg-slate-700 text-slate-300'
-                  }`}>
-                    {agent.status === 'enabled' ? '已启用' : agent.status === 'paused' ? '已暂停' : '草稿'}
-                  </span>
-                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                    agent.riskLevel === 'high'
-                      ? 'bg-red-500/10 text-red-300'
-                      : agent.riskLevel === 'medium'
-                        ? 'bg-amber-500/10 text-amber-300'
-                        : 'bg-blue-500/10 text-blue-300'
-                  }`}>
-                    {agent.riskLevel === 'high' ? '高风险' : agent.riskLevel === 'medium' ? '中风险' : '低风险'}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{agent.description}</p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  onClick={() => duplicateAgent(agent)}
-                  className="rounded-lg border border-slate-700 p-2 text-slate-300 hover:bg-slate-800"
-                  title="复制"
-                >
-                  <Copy className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => openEdit(agent)}
-                  className="rounded-lg border border-cyan-500/30 px-3 py-2 text-sm text-cyan-300 hover:bg-cyan-500/10"
-                >
-                  设置
-                </button>
-                <button
-                  onClick={() => deleteAgent(agent.id)}
-                  className="rounded-lg border border-red-500/30 p-2 text-red-300 hover:bg-red-500/10"
-                  title="删除"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 lg:grid-cols-4">
-              <div className="rounded-lg bg-slate-950 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                  <Sparkles className="h-3.5 w-3.5 text-blue-300" />
+          <Card
+            key={agent.id}
+            title={
+              <Space wrap size={[8, 8]}>
+                <span className="text-base font-bold text-slate-900">{agent.name}</span>
+                <Tag className="font-mono">{agent.id}</Tag>
+                {getStatusTag(agent.status)}
+                {getRiskTag(agent.riskLevel)}
+              </Space>
+            }
+            extra={
+              <Space>
+                <Button icon={<CopyOutlined />} title="复制" onClick={() => duplicateAgent(agent)} />
+                <Button onClick={() => openEdit(agent)}>设置</Button>
+                <Popconfirm title="确定删除这个 Agent 草稿吗？" onConfirm={() => deleteAgent(agent.id)}>
+                  <Button danger icon={<DeleteOutlined />} title="删除" />
+                </Popconfirm>
+              </Space>
+            }
+          >
+            <p className="text-sm leading-6 text-slate-500">{agent.description}</p>
+            <div className="mt-4 grid gap-3 lg:grid-cols-4">
+              <div className="rounded-md bg-slate-50 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <StarOutlined className="text-blue-500" />
                   出现位置
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{agent.audience === 'customer' ? '客户前台' : '管理后台'}</p>
-                <p className="mt-1 font-mono text-xs text-cyan-300">{agent.entryPath}</p>
+                <p className="mt-2 text-sm text-slate-600">{agent.audience === 'customer' ? '客户前台' : '管理后台'}</p>
+                <p className="mt-1 font-mono text-xs text-cyan-700">{agent.entryPath}</p>
               </div>
-              <div className="rounded-lg bg-slate-950 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                  <Wrench className="h-3.5 w-3.5 text-cyan-300" />
+              <div className="rounded-md bg-slate-50 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <ToolOutlined className="text-cyan-600" />
                   可调用工具
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{agent.tools.length || 0} 个工具</p>
-                <p className="mt-1 text-xs text-slate-500">{agent.tools.join('、') || '未设置'}</p>
+                <p className="mt-2 text-sm text-slate-600">{agent.tools.length || 0} 个工具</p>
+                <p className="mt-1 text-xs text-slate-400">{agent.tools.join('、') || '未设置'}</p>
               </div>
-              <div className="rounded-lg bg-slate-950 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                  <Database className="h-3.5 w-3.5 text-emerald-300" />
+              <div className="rounded-md bg-slate-50 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <DatabaseOutlined className="text-emerald-600" />
                   知识库范围
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{agent.ragScopes.length || 0} 个范围</p>
-                <p className="mt-1 text-xs text-slate-500">{agent.ragScopes.join('、') || '未设置'}</p>
+                <p className="mt-2 text-sm text-slate-600">{agent.ragScopes.length || 0} 个范围</p>
+                <p className="mt-1 text-xs text-slate-400">{agent.ragScopes.join('、') || '未设置'}</p>
               </div>
-              <div className="rounded-lg bg-slate-950 p-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-300" />
+              <div className="rounded-md bg-slate-50 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  <SafetyCertificateOutlined className="text-amber-500" />
                   审核要求
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{agent.requiresReview ? '需要管理员审核' : '可直接回复/执行'}</p>
-                <p className="mt-1 text-xs text-slate-500">负责人：{agent.owner || '未设置'}</p>
+                <p className="mt-2 text-sm text-slate-600">{agent.requiresReview ? '需要管理员审核' : '可直接回复/执行'}</p>
+                <p className="mt-1 text-xs text-slate-400">负责人：{agent.owner || '未设置'}</p>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
-      </section>
+      </div>
 
-      {showForm && editing && (
-        <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 p-3 sm:items-center sm:p-4">
-          <div className="flex h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-2xl sm:h-[calc(100dvh-2rem)]">
-            <div className="shrink-0 border-b border-slate-800 bg-slate-950 px-5 py-4">
-              <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-white">{editing.id ? '设置 Agent' : '新增 Agent'}</h2>
-                <p className="text-xs text-slate-400">填写后会保存为后台草稿配置。</p>
+      {editing && (
+        <Modal
+          open={showForm}
+          onCancel={() => setShowForm(false)}
+          width={1000}
+          title={
+            <div>
+              <div>{editing.id ? '设置 Agent' : '新增 Agent'}</div>
+              <div className="text-xs font-normal text-slate-500">填写后会保存为后台草稿配置。</div>
+            </div>
+          }
+          footer={[
+            <Button key="cancel" onClick={() => setShowForm(false)}>
+              取消
+            </Button>,
+            <Button key="save" type="primary" icon={<SaveOutlined />} onClick={saveAgent}>
+              保存 Agent
+            </Button>,
+          ]}
+        >
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-600">Agent ID</span>
+                  <Input
+                    value={editing.id}
+                    onChange={(e) => setEditing({ ...editing, id: e.target.value })}
+                    placeholder="citation_checker"
+                  />
+                </div>
+                <div className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-600">名称</span>
+                  <Input
+                    value={editing.name}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    placeholder="文献解析 Agent"
+                  />
+                </div>
               </div>
-              <button onClick={() => setShowForm(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-900">
-                <X className="h-5 w-5" />
-              </button>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-600">面向对象</span>
+                  <Select<AgentAudience>
+                    className="w-full"
+                    value={editing.audience}
+                    onChange={(value) => setEditing({ ...editing, audience: value })}
+                    options={[
+                      { value: 'customer', label: '客户前台' },
+                      { value: 'admin', label: '管理后台' },
+                    ]}
+                  />
+                </div>
+                <div className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-600">状态</span>
+                  <Select<AgentStatus>
+                    className="w-full"
+                    value={editing.status}
+                    onChange={(value) => setEditing({ ...editing, status: value })}
+                    options={[
+                      { value: 'draft', label: '草稿' },
+                      { value: 'enabled', label: '启用' },
+                      { value: 'paused', label: '暂停' },
+                    ]}
+                  />
+                </div>
+                <div className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-600">风险级别</span>
+                  <Select<RiskLevel>
+                    className="w-full"
+                    value={editing.riskLevel}
+                    onChange={(value) => setEditing({ ...editing, riskLevel: value })}
+                    options={[
+                      { value: 'low', label: '低风险' },
+                      { value: 'medium', label: '中风险' },
+                      { value: 'high', label: '高风险' },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-600">入口路径</span>
+                <Input
+                  value={editing.entryPath}
+                  onChange={(e) => setEditing({ ...editing, entryPath: e.target.value })}
+                  placeholder="/admin/citations"
+                />
+              </div>
+
+              <div className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-600">一句话说明</span>
+                <Input.TextArea
+                  value={editing.description}
+                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-600">职责边界</span>
+                <Input.TextArea
+                  value={editing.responsibilities}
+                  onChange={(e) => setEditing({ ...editing, responsibilities: e.target.value })}
+                  rows={4}
+                />
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 [-webkit-overflow-scrolling:touch]">
-              <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-300">Agent ID</span>
-                    <input
-                      value={editing.id}
-                      onChange={(e) => setEditing({ ...editing, id: e.target.value })}
-                      placeholder="citation_checker"
-                      className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-300">名称</span>
-                    <input
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                      placeholder="文献解析 Agent"
-                      className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                    />
-                  </label>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-300">面向对象</span>
-                    <select
-                      value={editing.audience}
-                      onChange={(e) => setEditing({ ...editing, audience: e.target.value as AgentAudience })}
-                      className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                    >
-                      <option value="customer">客户前台</option>
-                      <option value="admin">管理后台</option>
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-300">状态</span>
-                    <select
-                      value={editing.status}
-                      onChange={(e) => setEditing({ ...editing, status: e.target.value as AgentStatus })}
-                      className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                    >
-                      <option value="draft">草稿</option>
-                      <option value="enabled">启用</option>
-                      <option value="paused">暂停</option>
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-300">风险级别</span>
-                    <select
-                      value={editing.riskLevel}
-                      onChange={(e) => setEditing({ ...editing, riskLevel: e.target.value as RiskLevel })}
-                      className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                    >
-                      <option value="low">低风险</option>
-                      <option value="medium">中风险</option>
-                      <option value="high">高风险</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-slate-300">入口路径</span>
-                  <input
-                    value={editing.entryPath}
-                    onChange={(e) => setEditing({ ...editing, entryPath: e.target.value })}
-                    placeholder="/admin/citations"
-                    className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                  />
-                </label>
-
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-slate-300">一句话说明</span>
-                  <textarea
-                    value={editing.description}
-                    onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                    rows={3}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-cyan-400"
-                  />
-                </label>
-
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-slate-300">职责边界</span>
-                  <textarea
-                    value={editing.responsibilities}
-                    onChange={(e) => setEditing({ ...editing, responsibilities: e.target.value })}
-                    rows={4}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-cyan-400"
-                  />
-                </label>
+            <div className="space-y-4">
+              <div className="grid gap-1 text-sm">
+                <span className="font-medium text-slate-600">系统提示词</span>
+                <Input.TextArea
+                  value={editing.systemPrompt}
+                  onChange={(e) => setEditing({ ...editing, systemPrompt: e.target.value })}
+                  rows={6}
+                />
               </div>
 
-              <div className="space-y-4">
-                <label className="grid gap-1 text-sm">
-                  <span className="font-medium text-slate-300">系统提示词</span>
-                  <textarea
-                    value={editing.systemPrompt}
-                    onChange={(e) => setEditing({ ...editing, systemPrompt: e.target.value })}
-                    rows={6}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-cyan-400"
+              <Card size="small" title={<Space><ControlOutlined className="text-cyan-600" />可调用工具</Space>}>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {TOOL_OPTIONS.map((tool) => (
+                    <Checkbox
+                      key={tool.id}
+                      checked={editing.tools.includes(tool.id)}
+                      onChange={() => toggleArrayValue('tools', tool.id)}
+                    >
+                      {tool.label}
+                    </Checkbox>
+                  ))}
+                </div>
+              </Card>
+
+              <Card size="small" title={<Space><DatabaseOutlined className="text-emerald-600" />知识库范围</Space>}>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {RAG_SCOPE_OPTIONS.map((scope) => (
+                    <Checkbox
+                      key={scope.id}
+                      checked={editing.ragScopes.includes(scope.id)}
+                      onChange={() => toggleArrayValue('ragScopes', scope.id)}
+                    >
+                      {scope.label}
+                    </Checkbox>
+                  ))}
+                </div>
+              </Card>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1 text-sm">
+                  <span className="font-medium text-slate-600">负责人</span>
+                  <Input
+                    value={editing.owner}
+                    onChange={(e) => setEditing({ ...editing, owner: e.target.value })}
+                    placeholder="管理员/产品/技术支持"
                   />
-                </label>
-
-                <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white">
-                    <SlidersHorizontal className="h-4 w-4 text-cyan-300" />
-                    可调用工具
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {TOOL_OPTIONS.map((tool) => (
-                      <label key={tool.id} className="flex items-center gap-2 rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300">
-                        <input
-                          type="checkbox"
-                          checked={editing.tools.includes(tool.id)}
-                          onChange={() => toggleArrayValue('tools', tool.id)}
-                        />
-                        {tool.label}
-                      </label>
-                    ))}
-                  </div>
                 </div>
-
-                <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-bold text-white">
-                    <Database className="h-4 w-4 text-emerald-300" />
-                    知识库范围
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {RAG_SCOPE_OPTIONS.map((scope) => (
-                      <label key={scope.id} className="flex items-center gap-2 rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-300">
-                        <input
-                          type="checkbox"
-                          checked={editing.ragScopes.includes(scope.id)}
-                          onChange={() => toggleArrayValue('ragScopes', scope.id)}
-                        />
-                        {scope.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-300">负责人</span>
-                    <input
-                      value={editing.owner}
-                      onChange={(e) => setEditing({ ...editing, owner: e.target.value })}
-                      placeholder="管理员/产品/技术支持"
-                      className="h-10 rounded-lg border border-slate-700 bg-slate-900 px-3 text-slate-100 outline-none focus:border-cyan-400"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-3 text-sm text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={editing.requiresReview}
-                      onChange={(e) => setEditing({ ...editing, requiresReview: e.target.checked })}
-                    />
+                <div className="flex items-end pb-2">
+                  <Checkbox
+                    checked={editing.requiresReview}
+                    onChange={(e) => setEditing({ ...editing, requiresReview: e.target.checked })}
+                  >
                     需要管理员审核
-                  </label>
+                  </Checkbox>
                 </div>
               </div>
-              </div>
-            </div>
-
-            <div className="shrink-0 flex items-center justify-end gap-2 border-t border-slate-800 bg-slate-950 px-5 py-4">
-              <button
-                onClick={() => setShowForm(false)}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-900"
-              >
-                取消
-              </button>
-              <button
-                onClick={saveAgent}
-                className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
-              >
-                <Save className="h-4 w-4" />
-                保存 Agent
-              </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-        <div className="flex items-center gap-2 text-sm font-bold text-white">
-          <FileText className="h-4 w-4 text-cyan-300" />
-          后期接数据库时需要的表字段
-        </div>
-        <pre className="mt-4 overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs leading-6 text-slate-400">
+      <Card
+        className="mt-4"
+        size="small"
+        title={<Space><FileTextOutlined className="text-cyan-600" />后期接数据库时需要的表字段</Space>}
+      >
+        <pre className="overflow-x-auto rounded-md bg-slate-50 p-4 text-xs leading-6 text-slate-500">
 {`agents:
   id, name, audience, status, risk_level, entry_path
   description, responsibilities, system_prompt
@@ -681,7 +616,7 @@ agent_runs:
   id, agent_id, user_id/admin_id, input, output, status
   tool_calls, sources, review_status, created_at`}
         </pre>
-      </div>
+      </Card>
     </div>
   )
 }

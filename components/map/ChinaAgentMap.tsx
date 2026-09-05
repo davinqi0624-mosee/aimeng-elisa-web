@@ -126,7 +126,7 @@ export default function ChinaAgentMap({ agents, onProvinceClick }: ChinaAgentMap
         emphasis: {
           label: { show: true, fontSize: 12, fontWeight: 'bold' },
           itemStyle: {
-            areaColor: '#10b981',
+            areaColor: '#14b8a6',
             shadowBlur: 10,
             shadowColor: 'rgba(0,0,0,0.2)',
           },
@@ -141,7 +141,7 @@ export default function ChinaAgentMap({ agents, onProvinceClick }: ChinaAgentMap
             (a) => (PROVINCE_NAME_MAP[a.province] || a.province) === name
           ).length,
           itemStyle: {
-            areaColor: '#3b82f6',
+            areaColor: '#0f766e',
           },
         })),
       },

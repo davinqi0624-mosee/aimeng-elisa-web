@@ -2,7 +2,19 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Settings, Shield, Loader2, AlertCircle, Save, Upload, QrCode, FileSpreadsheet, Download, FileText, Cpu } from 'lucide-react'
+import { Alert, Button, Card, Input, Select, Spin, Switch, Tag, Upload } from 'antd'
+import {
+  DownloadOutlined,
+  FileExcelOutlined,
+  FileTextOutlined,
+  QrcodeOutlined,
+  RobotOutlined,
+  SafetyOutlined,
+  SaveOutlined,
+  SettingOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 type CustomerServiceSettings = {
   service_name: string
@@ -353,60 +365,46 @@ export default function AdminSettingsPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        <Spin size="large" />
       </div>
     )
   }
 
   if (role !== 'super') {
     return (
-      <div className="max-w-md mx-auto px-4 py-12 text-center">
-        <AlertCircle className="w-10 h-10 mx-auto mb-3 text-red-400" />
-        <p className="text-sm text-gray-500">仅超级管理员可访问系统设置</p>
+      <div className="mx-auto max-w-md px-4 py-12 text-center">
+        <Alert type="warning" showIcon message="仅超级管理员可访问系统设置" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings className="w-5 h-5 text-gray-600" />
-          系统设置
-        </h1>
-        <p className="text-sm text-gray-500">系统环境变量与 API 配置（仅 super 可见）</p>
-      </div>
+      <PageHeader icon={<SettingOutlined />} title="系统设置" description="系统环境变量与 API 配置（仅 super 可见）" />
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5">
-        <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-          <QrCode className="w-5 h-5 text-blue-600" />
-          <div>
-            <h3 className="text-sm font-medium text-gray-900">官方客服配置</h3>
-            <p className="text-xs text-gray-500">
-              仅用于商品详情页“联系客服咨询”弹窗；代理商二维码仍在代理商分布页面单独管理。
-            </p>
-          </div>
-        </div>
+      <Card
+        title={
+          <span className="flex items-center gap-2">
+            <QrcodeOutlined className="text-blue-600" />
+            官方客服配置
+          </span>
+        }
+      >
+        <p className="mb-4 text-xs text-slate-500">
+          仅用于商品详情页“联系客服咨询”弹窗；代理商二维码仍在代理商分布页面单独管理。
+        </p>
 
-        {serviceError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {serviceError}
-          </div>
-        )}
-        {serviceMessage && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {serviceMessage}
-          </div>
-        )}
+        {serviceError && <Alert type="error" showIcon message={serviceError} className="mb-3" />}
+        {serviceMessage && <Alert type="success" showIcon message={serviceMessage} className="mb-3" />}
 
         {serviceLoading ? (
           <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            <Spin />
           </div>
         ) : (
           <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
             <div className="space-y-3">
-              <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-gray-200 bg-gray-50">
+              <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
                 {serviceSettings.wechat_qr_url ? (
                   <Image
                     src={serviceSettings.wechat_qr_url}
@@ -416,218 +414,218 @@ export default function AdminSettingsPage() {
                     className="h-48 w-48 rounded-xl object-contain"
                   />
                 ) : (
-                  <div className="text-center text-xs text-gray-400">
-                    <QrCode className="mx-auto mb-2 h-8 w-8" />
+                  <div className="text-center text-xs text-slate-400">
+                    <QrcodeOutlined className="mb-2 block text-2xl" />
                     未上传二维码
                   </div>
                 )}
               </div>
-              <label className="inline-flex w-48 cursor-pointer items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
-                {uploadingQr ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                上传官方二维码
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && uploadOfficialQr(e.target.files[0])}
-                />
-              </label>
+              <Upload
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  uploadOfficialQr(file)
+                  return false
+                }}
+              >
+                <Button icon={<UploadOutlined />} loading={uploadingQr} className="w-48">
+                  上传官方二维码
+                </Button>
+              </Upload>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-1">
-                <span className="text-xs text-gray-500">客服名称</span>
-                <input value={serviceSettings.service_name} onChange={(e) => updateServiceField('service_name', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">客服名称</span>
+                <Input value={serviceSettings.service_name} onChange={(e) => updateServiceField('service_name', e.target.value)} />
               </label>
               <label className="space-y-1">
-                <span className="text-xs text-gray-500">客服电话</span>
-                <input value={serviceSettings.phone} onChange={(e) => updateServiceField('phone', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">客服电话</span>
+                <Input value={serviceSettings.phone} onChange={(e) => updateServiceField('phone', e.target.value)} />
               </label>
               <label className="space-y-1">
-                <span className="text-xs text-gray-500">客服邮箱</span>
-                <input value={serviceSettings.email} onChange={(e) => updateServiceField('email', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">客服邮箱</span>
+                <Input value={serviceSettings.email} onChange={(e) => updateServiceField('email', e.target.value)} />
               </label>
               <label className="space-y-1">
-                <span className="text-xs text-gray-500">客服微信号</span>
-                <input value={serviceSettings.wechat_id} onChange={(e) => updateServiceField('wechat_id', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">客服微信号</span>
+                <Input value={serviceSettings.wechat_id} onChange={(e) => updateServiceField('wechat_id', e.target.value)} />
               </label>
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-gray-500">工作时间</span>
-                <input value={serviceSettings.work_hours} onChange={(e) => updateServiceField('work_hours', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">工作时间</span>
+                <Input value={serviceSettings.work_hours} onChange={(e) => updateServiceField('work_hours', e.target.value)} />
               </label>
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-gray-500">公司地址</span>
-                <input value={serviceSettings.address} onChange={(e) => updateServiceField('address', e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">公司地址</span>
+                <Input value={serviceSettings.address} onChange={(e) => updateServiceField('address', e.target.value)} />
               </label>
               <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-gray-500">弹窗说明</span>
-                <textarea value={serviceSettings.note} onChange={(e) => updateServiceField('note', e.target.value)} rows={3} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <span className="text-xs text-slate-500">弹窗说明</span>
+                <Input.TextArea rows={3} value={serviceSettings.note} onChange={(e) => updateServiceField('note', e.target.value)} />
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={serviceSettings.is_active} onChange={(e) => updateServiceField('is_active', e.target.checked)} />
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <Switch
+                  checked={serviceSettings.is_active}
+                  onChange={(checked) => updateServiceField('is_active', checked)}
+                />
                 启用官方客服弹窗配置
-              </label>
+              </div>
               <div className="flex justify-end sm:col-span-2">
-                <button
-                  type="button"
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
                   onClick={saveServiceSettings}
-                  disabled={savingService}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  loading={savingService}
                 >
-                  {savingService ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   保存官方客服配置
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5">
-        <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-          <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-          <div>
-            <h3 className="text-sm font-medium text-gray-900">常用下载文件</h3>
-            <p className="text-xs text-gray-500">
-              用于前台客户下载的通用文件；上传新版文件后，相关前台入口会自动下载最新版本。
-            </p>
-          </div>
-        </div>
+      <Card
+        title={
+          <span className="flex items-center gap-2">
+            <FileExcelOutlined className="text-emerald-600" />
+            常用下载文件
+          </span>
+        }
+      >
+        <p className="mb-4 text-xs text-slate-500">
+          用于前台客户下载的通用文件；上传新版文件后，相关前台入口会自动下载最新版本。
+        </p>
 
-        {labTemplateError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {labTemplateError}
-          </div>
-        )}
-        {labTemplateMessage && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {labTemplateMessage}
-          </div>
-        )}
+        {labTemplateError && <Alert type="error" showIcon message={labTemplateError} className="mb-3" />}
+        {labTemplateMessage && <Alert type="success" showIcon message={labTemplateMessage} className="mb-3" />}
 
         {labTemplateLoading ? (
           <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            <Spin />
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                <p className="text-sm font-semibold text-gray-900">ELISA 数据分析模板</p>
-              </div>
-              <p className="text-xs text-gray-500">用于实验数据分析页面的“下载 Excel 模板”。</p>
-              <div className="mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs text-gray-500">当前文件</p>
-                <p className="mt-1 break-all text-sm font-medium text-gray-900">
+            <Card
+              size="small"
+              title={
+                <span className="flex items-center gap-2">
+                  <FileExcelOutlined className="text-emerald-600" />
+                  ELISA 数据分析模板
+                </span>
+              }
+            >
+              <p className="text-xs text-slate-500">用于实验数据分析页面的“下载 Excel 模板”。</p>
+              <div className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs text-slate-500">当前文件</p>
+                <p className="mt-1 break-all text-sm font-medium text-slate-900">
                   {labTemplateSettings.elisa_analysis_template_name}
                 </p>
-                <p className="mt-1 break-all text-xs text-gray-500">
+                <p className="mt-1 break-all text-xs text-slate-500">
                   {labTemplateSettings.elisa_analysis_template_url}
                 </p>
                 {labTemplateSettings.elisa_analysis_template_uploaded_at && (
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-slate-400">
                     更新时间：{new Date(labTemplateSettings.elisa_analysis_template_uploaded_at).toLocaleString('zh-CN')}
                   </p>
                 )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <a
+                <Button
+                  icon={<DownloadOutlined />}
                   href={labTemplateSettings.elisa_analysis_template_url}
                   download={labTemplateSettings.elisa_analysis_template_name}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                  <Download className="w-4 h-4" />
                   下载检查
-                </a>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
-                  {uploadingLabTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  上传替换
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    className="hidden"
-                    disabled={uploadingLabTemplate}
-                    onChange={(e) => e.target.files?.[0] && uploadLabTemplate(e.target.files[0])}
-                  />
-                </label>
+                </Button>
+                <Upload
+                  accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  showUploadList={false}
+                  disabled={uploadingLabTemplate}
+                  beforeUpload={(file) => {
+                    uploadLabTemplate(file)
+                    return false
+                  }}
+                >
+                  <Button icon={<UploadOutlined />} loading={uploadingLabTemplate}>
+                    上传替换
+                  </Button>
+                </Upload>
               </div>
-            </div>
+            </Card>
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <p className="text-sm font-semibold text-gray-900">ELISA 代测申请表</p>
-              </div>
-              <p className="text-xs text-gray-500">用于产品详情页、订购区域和搜索页的“下载代测申请表”。</p>
-              <div className="mt-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs text-gray-500">当前文件</p>
-                <p className="mt-1 break-all text-sm font-medium text-gray-900">
+            <Card
+              size="small"
+              title={
+                <span className="flex items-center gap-2">
+                  <FileTextOutlined className="text-blue-600" />
+                  ELISA 代测申请表
+                </span>
+              }
+            >
+              <p className="text-xs text-slate-500">用于产品详情页、订购区域和搜索页的“下载代测申请表”。</p>
+              <div className="mt-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs text-slate-500">当前文件</p>
+                <p className="mt-1 break-all text-sm font-medium text-slate-900">
                   {labTemplateSettings.elisa_testing_service_form_name}
                 </p>
-                <p className="mt-1 break-all text-xs text-gray-500">
+                <p className="mt-1 break-all text-xs text-slate-500">
                   {labTemplateSettings.elisa_testing_service_form_url}
                 </p>
                 {labTemplateSettings.elisa_testing_service_form_uploaded_at && (
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-slate-400">
                     更新时间：{new Date(labTemplateSettings.elisa_testing_service_form_uploaded_at).toLocaleString('zh-CN')}
                   </p>
                 )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <a
+                <Button
+                  icon={<DownloadOutlined />}
                   href={labTemplateSettings.elisa_testing_service_form_url}
                   download={labTemplateSettings.elisa_testing_service_form_name}
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                  <Download className="w-4 h-4" />
                   下载检查
-                </a>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
-                  {uploadingServiceForm ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  上传替换
-                  <input
-                    type="file"
-                    accept=".docx,.doc,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
-                    className="hidden"
-                    disabled={uploadingServiceForm}
-                    onChange={(e) => e.target.files?.[0] && uploadTestingServiceForm(e.target.files[0])}
-                  />
-                </label>
+                </Button>
+                <Upload
+                  accept=".docx,.doc,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+                  showUploadList={false}
+                  disabled={uploadingServiceForm}
+                  beforeUpload={(file) => {
+                    uploadTestingServiceForm(file)
+                    return false
+                  }}
+                >
+                  <Button icon={<UploadOutlined />} loading={uploadingServiceForm}>
+                    上传替换
+                  </Button>
+                </Upload>
               </div>
-            </div>
+            </Card>
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5">
-        <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-          <Cpu className="w-5 h-5 text-indigo-600" />
-          <div>
-            <h3 className="text-sm font-medium text-gray-900">AI 模型设置</h3>
-            <p className="text-xs text-gray-500">
-              API Key 只在服务器环境变量中维护；这里切换不同任务优先调用的模型。
-            </p>
-          </div>
-        </div>
+      <Card
+        title={
+          <span className="flex items-center gap-2">
+            <RobotOutlined className="text-indigo-600" />
+            AI 模型设置
+          </span>
+        }
+      >
+        <p className="mb-4 text-xs text-slate-500">
+          API Key 只在服务器环境变量中维护；这里切换不同任务优先调用的模型。
+        </p>
 
-        {aiModelError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {aiModelError}
-          </div>
-        )}
-        {aiModelMessage && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {aiModelMessage}
-          </div>
-        )}
+        {aiModelError && <Alert type="error" showIcon message={aiModelError} className="mb-3" />}
+        {aiModelMessage && <Alert type="success" showIcon message={aiModelMessage} className="mb-3" />}
 
         {aiModelLoading ? (
           <div className="flex justify-center py-6">
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            <Spin />
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               {([
                 { key: 'default_chat_provider', label: 'AI 客服日常回答', hint: '保存后作为客服主模型；失败时可按备用策略切换。' },
@@ -635,39 +633,32 @@ export default function AdminSettingsPage() {
                 { key: 'protocol_provider', label: '实验方案生成', hint: '保存后作为实验方案 protocol 的主模型。' },
                 { key: 'datasheet_provider', label: '说明书生成 / 总结', hint: '保存后作为说明书生成和总结的主模型。' },
               ] as Array<{ key: keyof Pick<AiModelSettings, 'default_chat_provider' | 'longform_provider' | 'protocol_provider' | 'datasheet_provider'>; label: string; hint: string }>).map((item) => (
-                <label key={item.key} className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <span className="block text-sm font-semibold text-gray-900">{item.label}</span>
-                  <span className="block text-xs text-gray-500">{item.hint}</span>
-                  <select
+                <div key={item.key} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <span className="block text-sm font-semibold text-slate-900">{item.label}</span>
+                  <span className="block text-xs text-slate-500">{item.hint}</span>
+                  <Select
+                    className="w-full"
                     value={aiModelSettings[item.key]}
-                    onChange={(e) => updateAiModelField(item.key, e.target.value as AiProvider)}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
-                  >
-                    {AI_PROVIDER_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={(value: AiProvider) => updateAiModelField(item.key, value)}
+                    options={AI_PROVIDER_OPTIONS}
+                  />
+                </div>
               ))}
             </div>
 
             <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
-              <label className="flex items-start gap-3 text-sm text-gray-800">
-                <input
-                  type="checkbox"
+              <div className="flex items-start gap-3 text-sm text-slate-800">
+                <Switch
                   checked={aiModelSettings.fallback_enabled}
-                  onChange={(e) => updateAiModelField('fallback_enabled', e.target.checked)}
-                  className="mt-1"
+                  onChange={(checked) => updateAiModelField('fallback_enabled', checked)}
                 />
                 <span>
                   <span className="block font-semibold">启用备用模型自动切换</span>
-                  <span className="mt-1 block text-xs text-gray-600">
+                  <span className="mt-1 block text-xs text-slate-600">
                     当前策略：主模型失败时自动切到另一个模型，例如 DeepSeek 报错或额度不足时切 Kimi。
                   </span>
                 </span>
-              </label>
+              </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -677,46 +668,46 @@ export default function AdminSettingsPage() {
               ] as const).map((item) => {
                 const env = aiModelEnv[item.key] || {}
                 return (
-                  <div key={item.key} className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+                  <div key={item.key} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-gray-900">{item.label}</p>
-                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${env.keyExists ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                      <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                      <Tag color={env.keyExists ? 'green' : 'gold'}>
                         {env.keyExists ? 'Key 已配置' : 'Key 未配置'}
-                      </span>
+                      </Tag>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500">模型：{env.model || '未设置'}</p>
-                    <p className="mt-1 break-all text-xs text-gray-400">接口：{env.baseURL || '未设置'}</p>
+                    <p className="mt-2 text-xs text-slate-500">模型：{env.model || '未设置'}</p>
+                    <p className="mt-1 break-all text-xs text-slate-400">接口：{env.baseURL || '未设置'}</p>
                   </div>
                 )
               })}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
-              <p className="text-xs text-gray-500">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              <p className="text-xs text-slate-500">
                 当前配置：客服 {providerLabel(aiModelSettings.default_chat_provider)}；每日知识/长文 {providerLabel(aiModelSettings.longform_provider)}；实验方案 {providerLabel(aiModelSettings.protocol_provider)}；说明书 {providerLabel(aiModelSettings.datasheet_provider)}。
               </p>
-              <button
-                type="button"
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
                 onClick={saveAiModelSettings}
-                disabled={savingAiModel}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                loading={savingAiModel}
               >
-                {savingAiModel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 保存 AI 模型设置
-              </button>
+              </Button>
             </div>
-          </>
-        )}
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-          <Shield className="w-5 h-5 text-blue-600" />
-          <div>
-            <h3 className="text-sm font-medium text-gray-900">环境变量</h3>
-            <p className="text-xs text-gray-500">请在 Vercel/服务器环境变量中管理以下配置</p>
           </div>
-        </div>
+        )}
+      </Card>
+
+      <Card
+        title={
+          <span className="flex items-center gap-2">
+            <SafetyOutlined className="text-blue-600" />
+            环境变量
+          </span>
+        }
+      >
+        <p className="mb-4 text-xs text-slate-500">请在 Vercel/服务器环境变量中管理以下配置</p>
         <div className="grid grid-cols-1 gap-3 text-sm">
           {[
             { key: 'NEXT_PUBLIC_SUPABASE_URL', desc: 'Supabase 项目 URL' },
@@ -727,20 +718,20 @@ export default function AdminSettingsPage() {
             { key: 'KIMI_CHAT_MODEL', desc: 'Kimi 对话模型' },
             { key: 'OLLAMA_HOST', desc: 'Ollama 本地服务地址（可选）' },
           ].map((item) => (
-            <div key={item.key} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-              <code className="text-xs font-mono text-gray-700">{item.key}</code>
-              <span className="text-xs text-gray-500">{item.desc}</span>
+            <div key={item.key} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+              <code className="font-mono text-xs text-slate-700">{item.key}</code>
+              <span className="text-xs text-slate-500">{item.desc}</span>
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <p className="text-sm text-amber-800 font-medium">安全提示</p>
-        <p className="text-xs text-amber-700 mt-1">
-          API Key 与数据库密钥属于敏感信息，请勿在客户端代码中硬编码。如需修改，请通过 Vercel Dashboard 或服务器环境变量管理。
-        </p>
-      </div>
+      <Alert
+        type="warning"
+        showIcon
+        message="安全提示"
+        description="API Key 与数据库密钥属于敏感信息，请勿在客户端代码中硬编码。如需修改，请通过 Vercel Dashboard 或服务器环境变量管理。"
+      />
     </div>
   )
 }

@@ -2,22 +2,36 @@
 
 import { useState, useEffect, useRef } from 'react'
 import {
-  MapPin,
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  Search,
-  Upload,
-  CheckCircle2,
-  FileSpreadsheet,
-  Archive,
-  AlertTriangle,
-  Image as ImageIcon,
-  ChevronRight,
-  Download,
-  Loader2,
-} from 'lucide-react'
+  Alert,
+  App,
+  Button,
+  Checkbox,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Steps,
+  Table,
+  Tag,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  CheckCircleOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
+  FileExcelOutlined,
+  FileZipOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  UploadOutlined,
+  WarningOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 import { readExcelWithImages } from '@/lib/xlsx-images'
 import JSZip from 'jszip'
 
@@ -77,6 +91,7 @@ function createImportBatchId() {
 }
 
 export default function AgentsAdminPage() {
+  const { message } = App.useApp()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -201,13 +216,13 @@ export default function AgentsAdminPage() {
     const allowedExts = ['.jpg', '.jpeg', '.png', '.gif']
     const fileExt = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
     if (!allowedTypes.includes(file.type) && !allowedExts.includes(fileExt)) {
-      alert('仅支持 JPG、JPEG、PNG、GIF 格式的图片')
+      message.error('仅支持 JPG、JPEG、PNG、GIF 格式的图片')
       return
     }
 
     // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      alert('文件超过大小限制')
+      message.error('文件超过大小限制')
       return
     }
 
@@ -238,7 +253,7 @@ export default function AgentsAdminPage() {
       const data = await res.json()
       if (!res.ok) {
         console.error('QR upload error:', data.error)
-        alert('二维码上传失败: ' + (data.error || '未知错误'))
+        message.error('二维码上传失败: ' + (data.error || '未知错误'))
         setQrUploading(false)
         return
       }
@@ -247,7 +262,7 @@ export default function AgentsAdminPage() {
       setForm((prev) => ({ ...prev, wechat_qr: data.url }))
     } catch (err: unknown) {
       console.error('QR upload exception:', err)
-      alert('二维码上传失败: ' + (err instanceof Error ? err.message : '网络或服务器错误'))
+      message.error('二维码上传失败: ' + (err instanceof Error ? err.message : '网络或服务器错误'))
     } finally {
       setQrUploading(false)
     }
@@ -255,7 +270,10 @@ export default function AgentsAdminPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.province || !form.company_name) return
+    if (!form.province || !form.company_name) {
+      message.warning('请填写省份和单位名称')
+      return
+    }
 
     setSaving(true)
     try {
@@ -273,7 +291,7 @@ export default function AgentsAdminPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as ApiErrorResponse
-        alert(err.error || '保存失败')
+        message.error(err.error || '保存失败')
         return
       }
 
@@ -281,24 +299,23 @@ export default function AgentsAdminPage() {
       resetForm()
       fetchAgents()
     } catch {
-      alert('保存失败')
+      message.error('保存失败')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定删除该代理商？')) return
     try {
       const res = await fetch(`/api/admin/agents?id=${id}`, { method: 'DELETE' })
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as ApiErrorResponse
-        alert(err.error || '删除失败')
+        message.error(err.error || '删除失败')
         return
       }
       fetchAgents()
     } catch {
-      alert('删除失败')
+      message.error('删除失败')
     }
   }
 
@@ -411,7 +428,7 @@ export default function AgentsAdminPage() {
       setQrValidation(validations)
       setWizardStep(2)
     } catch (e: unknown) {
-      alert('解析失败: ' + (e instanceof Error ? e.message : '未知错误'))
+      message.error('解析失败: ' + (e instanceof Error ? e.message : '未知错误'))
     }
     setParsing(false)
   }
@@ -549,538 +566,465 @@ export default function AgentsAdminPage() {
       (a.contact_name || '').includes(searchQuery)
   )
 
-  return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-cyan-400" />
-            代理商管理
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">管理全国各地代理商信息</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWizardOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            批量导入
-          </button>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            新增代理商
-          </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      {pageError && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {pageError}
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索省份、单位名称、联系人..."
-          className="w-full pl-9 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder:text-slate-500 outline-none focus:border-cyan-500"
-        />
-      </div>
-
-      {/* Agent List Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-500 border-b border-gray-200">
-          <div className="col-span-2">省份</div>
-          <div className="col-span-2">单位名称</div>
-          <div className="col-span-2">联系人</div>
-          <div className="col-span-2">电话</div>
-          <div className="col-span-1">微信二维码</div>
-          <div className="col-span-1">状态</div>
-          <div className="col-span-2 text-right">操作</div>
-        </div>
-
-        {loading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">加载中...</div>
-        ) : filteredAgents.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">暂无代理商数据</div>
+  const columns: ColumnsType<Agent> = [
+    {
+      title: '省份',
+      dataIndex: 'province',
+      key: 'province',
+      width: 100,
+    },
+    {
+      title: '单位名称',
+      dataIndex: 'company_name',
+      key: 'company_name',
+      ellipsis: true,
+    },
+    {
+      title: '联系人',
+      dataIndex: 'contact_name',
+      key: 'contact_name',
+      width: 110,
+      render: (v?: string) => v || '-',
+    },
+    {
+      title: '电话',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 140,
+      render: (v?: string) => v || '-',
+    },
+    {
+      title: '微信二维码',
+      key: 'wechat_qr',
+      width: 100,
+      render: (_, agent) =>
+        agent.wechat_qr ? (
+          <img src={agent.wechat_qr} alt="QR" className="h-8 w-8 rounded border border-slate-200 object-cover" />
         ) : (
-          <div className="divide-y divide-gray-100">
-            {filteredAgents.map((agent) => (
-              <div
-                key={agent.id}
-                className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors"
-              >
-                <div className="col-span-2 text-sm text-gray-900">{agent.province}</div>
-                <div className="col-span-2 text-sm text-gray-700 truncate">{agent.company_name}</div>
-                <div className="col-span-2 text-sm text-gray-600">{agent.contact_name || '-'}</div>
-                <div className="col-span-2 text-sm text-gray-600">{agent.phone || '-'}</div>
-                <div className="col-span-1">
-                  {agent.wechat_qr ? (
-                    <img src={agent.wechat_qr} alt="QR" className="w-8 h-8 object-cover rounded border border-gray-200" />
-                  ) : (
-                    <span className="text-sm text-gray-400">-</span>
-                  )}
-                </div>
-                <div className="col-span-1">
-                  <span
-                    className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                      agent.is_active
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-gray-50 text-gray-500'
-                    }`}
-                  >
-                    {agent.is_active ? '启用' : '禁用'}
-                  </span>
-                </div>
-                <div className="col-span-2 flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => openEdit(agent)}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(agent.id)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+          <span className="text-slate-400">-</span>
+        ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 90,
+      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 110,
+      align: 'right',
+      render: (_, agent) => (
+        <Space>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEdit(agent)} />
+          <Popconfirm
+            title="确定删除该代理商？"
+            onConfirm={() => handleDelete(agent.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
-      {/* Create/Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">
-                {editingAgent ? '编辑代理商' : '新增代理商'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowForm(false)
-                  resetForm()
-                }}
-                className="p-1 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    省份 *
-                  </label>
-                  <select
-                    value={form.province}
-                    onChange={(e) => {
-                      const province = e.target.value
-                      setForm({
-                        ...form,
-                        province,
-                        province_code: province,
-                      })
-                    }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                    required
-                  >
-                    <option value="">请选择省份</option>
-                    {PROVINCE_OPTIONS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">城市</label>
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="如：浦东新区"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  单位名称 *
-                </label>
-                <input
-                  type="text"
-                  value={form.company_name}
-                  onChange={(e) =>
-                    setForm({ ...form, company_name: e.target.value })
-                  }
-                  placeholder="代理商公司名称"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">联系人</label>
-                  <input
-                    type="text"
-                    value={form.contact_name}
-                    onChange={(e) =>
-                      setForm({ ...form, contact_name: e.target.value })
-                    }
-                    placeholder="如：张经理"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">电话</label>
-                  <input
-                    type="text"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="如：138-0000-0000"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">邮箱</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="如：xxx@company.com"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-5">
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={form.is_active}
-                    onChange={(e) =>
-                      setForm({ ...form, is_active: e.target.checked })
-                    }
-                    className="w-4 h-4 rounded border-gray-300 text-cyan-600"
-                  />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">
-                    启用
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">详细地址</label>
-                <textarea
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="代理商详细地址"
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
-                />
-              </div>
-
-              {/* QR Code Upload */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">微信二维码</label>
-                <div className="flex items-center gap-4">
-                  {qrPreview && (
-                    <div className="relative">
-                      <img
-                        src={qrPreview}
-                        alt="QR Preview"
-                        className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <input
-                      ref={qrInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleQrFileChange}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => qrInputRef.current?.click()}
-                      disabled={qrUploading}
-                      className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <Upload className="w-4 h-4" />
-                      {qrUploading ? '上传中...' : qrPreview ? '更换二维码' : '上传二维码'}
-                    </button>
-                    {qrPreview && (
-                      <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{qrPreview}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false)
-                    resetForm()
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving || qrUploading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:opacity-50"
-                >
-                  {saving ? '保存中...' : '保存'}
-                </button>
-              </div>
-            </form>
-          </div>
+  const previewColumns: ColumnsType<ParsedAgentRow> = [
+    {
+      title: '省份 / 城市',
+      key: 'province',
+      render: (_, row) => (
+        <div>
+          <div className="text-sm font-medium text-slate-900">{row.province}</div>
+          <div className="text-xs text-slate-400">{row.city || '-'}</div>
         </div>
-      )}
-
-      {/* Bulk Import Wizard */}
-      {wizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-            {/* Wizard Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">批量导入代理商</h3>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {[1, 2, 3].map((step) => (
-                    <div key={step} className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                        wizardStep >= step ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        {step}
-                      </div>
-                      <span className={`text-xs ${wizardStep >= step ? 'text-gray-700' : 'text-gray-400'}`}>
-                        {step === 1 ? '上传文件' : step === 2 ? '预览校验' : '导入结果'}
-                      </span>
-                      {step < 3 && <ChevronRight className="w-3.5 h-3.5 text-gray-300" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <button onClick={closeWizard} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X className="w-5 h-5" /></button>
-            </div>
-
-            {/* Wizard Body */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {wizardStep === 1 && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-500">上传 Excel 数据表和 ZIP 二维码包（可选），二维码列支持填写文件名或嵌入图片。</p>
-                    <button onClick={downloadAgentTemplate} className="flex items-center gap-1.5 text-sm text-cyan-600 hover:text-cyan-700">
-                      <Download className="w-4 h-4" /> 下载模板
-                    </button>
-                  </div>
-
-                  <div
-                    className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-cyan-400 transition-colors cursor-pointer bg-gray-50/50"
-                    onClick={() => excelInputRef.current?.click()}
-                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setExcelFile(f) }}
-                    onDragOver={(e) => e.preventDefault()}
-                  >
-                    <input
-                      ref={excelInputRef}
-                      type="file"
-                      accept=".xlsx,.xls"
-                      className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setExcelFile(f) }}
-                    />
-                    <FileSpreadsheet className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-700">{excelFile ? excelFile.name : '点击或拖拽上传 Excel 文件'}</p>
-                    <p className="text-xs text-gray-400 mt-1">支持 .xlsx, .xls 格式</p>
-                  </div>
-
-                  <div
-                    className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-cyan-400 transition-colors cursor-pointer bg-gray-50/50"
-                    onClick={() => zipInputRef.current?.click()}
-                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setZipFile(f) }}
-                    onDragOver={(e) => e.preventDefault()}
-                  >
-                    <input
-                      ref={zipInputRef}
-                      type="file"
-                      accept=".zip"
-                      className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setZipFile(f) }}
-                    />
-                    <Archive className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-700">{zipFile ? zipFile.name : '点击或拖拽上传 ZIP 二维码包（可选）'}</p>
-                    <p className="text-xs text-gray-400 mt-1">将二维码文件名填入 Excel 对应列即可自动匹配</p>
-                  </div>
-                </div>
-              )}
-
-              {wizardStep === 2 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-500">
-                      共解析 <span className="font-medium text-gray-900">{parsedRows.length}</span> 条代理商数据
-                    </p>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="w-3.5 h-3.5" /> 校验通过</span>
-                      <span className="flex items-center gap-1 text-amber-600"><AlertTriangle className="w-3.5 h-3.5" /> 尺寸不符</span>
-                      <span className="flex items-center gap-1 text-gray-400"><ImageIcon className="w-3.5 h-3.5" /> 无图片</span>
-                    </div>
-                  </div>
-
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 text-xs text-gray-500">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium">省份 / 城市</th>
-                          <th className="px-3 py-2 text-left font-medium">单位名称</th>
-                          <th className="px-3 py-2 text-left font-medium">联系人 / 电话</th>
-                          <th className="px-3 py-2 text-left font-medium">状态</th>
-                          <th className="px-3 py-2 text-left font-medium">二维码</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {parsedRows.map((row, idx) => {
-                          const rowKey = `row-${idx + 1}`
-                          const v = qrValidation[rowKey]
-                          const img = row.wechat_qr
-                          let status: 'ok' | 'warn' | 'none' = 'none'
-                          if (img.blob) status = v?.valid ? 'ok' : 'warn'
-                          return (
-                            <tr key={idx} className="hover:bg-gray-50/50">
-                              <td className="px-3 py-2.5">
-                                <div className="font-medium text-gray-900">{row.province}</div>
-                                <div className="text-xs text-gray-400">{row.city || '-'}</div>
-                              </td>
-                              <td className="px-3 py-2.5 text-gray-700">{row.company_name}</td>
-                              <td className="px-3 py-2.5">
-                                <div className="text-gray-700">{row.contact_name || '-'}</div>
-                                <div className="text-xs text-gray-400">{row.phone || '-'}</div>
-                              </td>
-                              <td className="px-3 py-2.5">
-                                <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${row.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
-                                  {row.is_active ? '启用' : '禁用'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2.5">
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                  status === 'ok' ? 'bg-emerald-50 text-emerald-700' :
-                                  status === 'warn' ? 'bg-amber-50 text-amber-700' :
-                                  'bg-gray-50 text-gray-400'
-                                }`}>
-                                  {status === 'ok' ? <CheckCircle2 className="w-3 h-3" /> :
-                                   status === 'warn' ? <AlertTriangle className="w-3 h-3" /> :
-                                   <ImageIcon className="w-3 h-3" />}
-                                  {QR_REQUIREMENTS.label}
-                                </span>
-                                {status === 'warn' && v?.error && (
-                                  <p className="text-[10px] text-amber-600 mt-0.5">{v.error}</p>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {wizardStep === 3 && (
-                <div className="space-y-6 text-center py-8">
-                  {importing ? (
-                    <>
-                      <Loader2 className="w-10 h-10 animate-spin text-cyan-600 mx-auto" />
-                      <p className="text-sm text-gray-600 mt-4">{importProgress}</p>
-                    </>
-                  ) : importResult ? (
-                    <>
-                      <div className="flex items-center justify-center gap-6">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-emerald-600">{importResult.success}</div>
-                          <div className="text-xs text-gray-500 mt-1">导入成功</div>
-                        </div>
-                        <div className="w-px h-10 bg-gray-200" />
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-red-500">{importResult.failed}</div>
-                          <div className="text-xs text-gray-500 mt-1">导入失败</div>
-                        </div>
-                        <div className="w-px h-10 bg-gray-200" />
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-amber-500">{importResult.skippedImages}</div>
-                          <div className="text-xs text-gray-500 mt-1">二维码跳过</div>
-                        </div>
-                      </div>
-                      {importResult.errors.length > 0 && (
-                        <div className="text-left bg-red-50 border border-red-100 rounded-lg p-4 max-h-48 overflow-y-auto">
-                          <p className="text-xs font-medium text-red-700 mb-2">错误详情：</p>
-                          <ul className="space-y-1">
-                            {importResult.errors.map((err, i) => (
-                              <li key={i} className="text-xs text-red-600">{err}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      <button onClick={closeWizard} className="px-5 py-2 bg-cyan-600 text-white rounded-lg text-sm hover:bg-cyan-700">
-                        完成
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            {/* Wizard Footer */}
-            {wizardStep !== 3 && (
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-                {wizardStep === 1 && (
-                  <>
-                    <button onClick={closeWizard} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">取消</button>
-                    <button
-                      onClick={parseFiles}
-                      disabled={!excelFile || parsing}
-                      className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {parsing ? <><Loader2 className="w-4 h-4 animate-spin" /> 解析中...</> : '下一步'}
-                    </button>
-                  </>
-                )}
-                {wizardStep === 2 && (
-                  <>
-                    <button onClick={() => setWizardStep(1)} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">返回</button>
-                    <button
-                      onClick={importRows}
-                      disabled={parsedRows.length === 0 || importing}
-                      className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 disabled:opacity-50"
-                    >
-                      开始导入
-                    </button>
-                  </>
-                )}
-              </div>
+      ),
+    },
+    {
+      title: '单位名称',
+      dataIndex: 'company_name',
+      key: 'company_name',
+    },
+    {
+      title: '联系人 / 电话',
+      key: 'contact',
+      render: (_, row) => (
+        <div>
+          <div className="text-slate-700">{row.contact_name || '-'}</div>
+          <div className="text-xs text-slate-400">{row.phone || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 80,
+      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
+    },
+    {
+      title: '二维码',
+      key: 'qr',
+      width: 190,
+      render: (_, row, idx) => {
+        const v = qrValidation[`row-${idx + 1}`]
+        let status: 'ok' | 'warn' | 'none' = 'none'
+        if (row.wechat_qr.blob) status = v?.valid ? 'ok' : 'warn'
+        return (
+          <div>
+            {status === 'ok' ? (
+              <Tag color="green" icon={<CheckCircleOutlined />}>{QR_REQUIREMENTS.label}</Tag>
+            ) : status === 'warn' ? (
+              <Tag color="warning" icon={<WarningOutlined />}>{QR_REQUIREMENTS.label}</Tag>
+            ) : (
+              <Tag icon={<PictureOutlined />}>{QR_REQUIREMENTS.label}</Tag>
+            )}
+            {status === 'warn' && v?.error && (
+              <p className="mt-0.5 text-xs text-amber-600">{v.error}</p>
             )}
           </div>
-        </div>
-      )}
+        )
+      },
+    },
+  ]
+
+  return (
+    <div>
+      <PageHeader
+        icon={<EnvironmentOutlined />}
+        title="代理商管理"
+        description="管理全国各地代理商信息"
+        extra={
+          <>
+            <Button icon={<FileExcelOutlined />} onClick={() => setWizardOpen(true)}>
+              批量导入
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              新增代理商
+            </Button>
+          </>
+        }
+      />
+
+      {/* Error */}
+      {pageError && <Alert type="error" showIcon message={pageError} style={{ marginBottom: 16 }} />}
+
+      {/* Search */}
+      <Input
+        className="mb-4"
+        allowClear
+        prefix={<SearchOutlined className="text-slate-400" />}
+        placeholder="搜索省份、单位名称、联系人..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+
+      {/* Agent List Table */}
+      <Table<Agent>
+        rowKey="id"
+        columns={columns}
+        dataSource={filteredAgents}
+        loading={loading}
+        locale={{ emptyText: '暂无代理商数据' }}
+        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 家代理商` }}
+        scroll={{ x: 900 }}
+      />
+
+      {/* Create/Edit Modal */}
+      <Modal
+        open={showForm}
+        title={editingAgent ? '编辑代理商' : '新增代理商'}
+        width={600}
+        footer={null}
+        maskClosable={false}
+        keyboard={false}
+        onCancel={() => {
+          setShowForm(false)
+          resetForm()
+        }}
+      >
+        <form onSubmit={handleSave} className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">省份 *</label>
+              <Select
+                className="w-full"
+                value={form.province}
+                onChange={(province) => setForm({ ...form, province, province_code: province })}
+                options={PROVINCE_OPTIONS.map((p) => ({ value: p, label: p }))}
+                placeholder="请选择省份"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">城市</label>
+              <Input
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="如：浦东新区"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">单位名称 *</label>
+            <Input
+              value={form.company_name}
+              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              placeholder="代理商公司名称"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">联系人</label>
+              <Input
+                value={form.contact_name}
+                onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+                placeholder="如：张经理"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">电话</label>
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="如：138-0000-0000"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">邮箱</label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="如：xxx@company.com"
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-5">
+              <Checkbox
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+              >
+                启用
+              </Checkbox>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">详细地址</label>
+            <Input.TextArea
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="代理商详细地址"
+              rows={2}
+              className="resize-none"
+            />
+          </div>
+
+          {/* QR Code Upload */}
+          <div>
+            <label className="mb-1 block text-xs text-slate-500">微信二维码</label>
+            <div className="flex items-center gap-4">
+              {qrPreview && (
+                <div className="relative">
+                  <img
+                    src={qrPreview}
+                    alt="QR Preview"
+                    className="h-20 w-20 rounded-lg border border-slate-200 object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex-1">
+                <input
+                  ref={qrInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleQrFileChange}
+                />
+                <Button
+                  icon={<UploadOutlined />}
+                  disabled={qrUploading}
+                  onClick={() => qrInputRef.current?.click()}
+                >
+                  {qrUploading ? '上传中...' : qrPreview ? '更换二维码' : '上传二维码'}
+                </Button>
+                {qrPreview && (
+                  <p className="mt-1 max-w-[200px] truncate text-xs text-slate-400">{qrPreview}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              onClick={() => {
+                setShowForm(false)
+                resetForm()
+              }}
+            >
+              取消
+            </Button>
+            <Button type="primary" htmlType="submit" loading={saving} disabled={qrUploading}>
+              {saving ? '保存中...' : '保存'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Bulk Import Wizard */}
+      <Modal
+        open={wizardOpen}
+        title="批量导入代理商"
+        width={896}
+        maskClosable={false}
+        keyboard={false}
+        onCancel={closeWizard}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
+        footer={
+          wizardStep === 3
+            ? null
+            : wizardStep === 1
+              ? [
+                  <Button key="cancel" onClick={closeWizard}>取消</Button>,
+                  <Button key="next" type="primary" onClick={parseFiles} disabled={!excelFile || parsing} loading={parsing}>
+                    {parsing ? '解析中...' : '下一步'}
+                  </Button>,
+                ]
+              : [
+                  <Button key="back" onClick={() => setWizardStep(1)}>返回</Button>,
+                  <Button key="import" type="primary" onClick={importRows} disabled={parsedRows.length === 0 || importing}>
+                    开始导入
+                  </Button>,
+                ]
+        }
+      >
+        <Steps
+          className="mb-6"
+          size="small"
+          current={wizardStep - 1}
+          items={[{ title: '上传文件' }, { title: '预览校验' }, { title: '导入结果' }]}
+        />
+
+        {wizardStep === 1 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">上传 Excel 数据表和 ZIP 二维码包（可选），二维码列支持填写文件名或嵌入图片。</p>
+              <Button type="link" icon={<DownloadOutlined />} onClick={downloadAgentTemplate}>
+                下载模板
+              </Button>
+            </div>
+
+            <div
+              className="cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-8 text-center transition-colors hover:border-cyan-400"
+              onClick={() => excelInputRef.current?.click()}
+              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setExcelFile(f) }}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) setExcelFile(f) }}
+              />
+              <FileExcelOutlined className="mx-auto mb-3 text-4xl text-slate-300" />
+              <p className="text-sm font-medium text-slate-700">{excelFile ? excelFile.name : '点击或拖拽上传 Excel 文件'}</p>
+              <p className="mt-1 text-xs text-slate-400">支持 .xlsx, .xls 格式</p>
+            </div>
+
+            <div
+              className="cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-8 text-center transition-colors hover:border-cyan-400"
+              onClick={() => zipInputRef.current?.click()}
+              onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setZipFile(f) }}
+              onDragOver={(e) => e.preventDefault()}
+            >
+              <input
+                ref={zipInputRef}
+                type="file"
+                accept=".zip"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) setZipFile(f) }}
+              />
+              <FileZipOutlined className="mx-auto mb-3 text-4xl text-slate-300" />
+              <p className="text-sm font-medium text-slate-700">{zipFile ? zipFile.name : '点击或拖拽上传 ZIP 二维码包（可选）'}</p>
+              <p className="mt-1 text-xs text-slate-400">将二维码文件名填入 Excel 对应列即可自动匹配</p>
+            </div>
+          </div>
+        )}
+
+        {wizardStep === 2 && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-slate-500">
+                共解析 <span className="font-medium text-slate-900">{parsedRows.length}</span> 条代理商数据
+              </p>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex items-center gap-1 text-emerald-600"><CheckCircleOutlined /> 校验通过</span>
+                <span className="flex items-center gap-1 text-amber-600"><WarningOutlined /> 尺寸不符</span>
+                <span className="flex items-center gap-1 text-slate-400"><PictureOutlined /> 无图片</span>
+              </div>
+            </div>
+
+            <Table<ParsedAgentRow>
+              size="small"
+              rowKey={(_, idx) => `row-${(idx ?? 0) + 1}`}
+              columns={previewColumns}
+              dataSource={parsedRows}
+              pagination={false}
+            />
+          </div>
+        )}
+
+        {wizardStep === 3 && (
+          <div className="space-y-6 py-8 text-center">
+            {importing ? (
+              <>
+                <Spin size="large" />
+                <p className="mt-4 text-sm text-slate-600">{importProgress}</p>
+              </>
+            ) : importResult ? (
+              <>
+                <div className="flex items-center justify-center gap-6">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-emerald-600">{importResult.success}</div>
+                    <div className="mt-1 text-xs text-slate-500">导入成功</div>
+                  </div>
+                  <div className="h-10 w-px bg-slate-200" />
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-red-500">{importResult.failed}</div>
+                    <div className="mt-1 text-xs text-slate-500">导入失败</div>
+                  </div>
+                  <div className="h-10 w-px bg-slate-200" />
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-amber-500">{importResult.skippedImages}</div>
+                    <div className="mt-1 text-xs text-slate-500">二维码跳过</div>
+                  </div>
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-red-100 bg-red-50 p-4 text-left">
+                    <p className="mb-2 text-xs font-medium text-red-700">错误详情：</p>
+                    <ul className="space-y-1">
+                      {importResult.errors.map((err, i) => (
+                        <li key={i} className="text-xs text-red-600">{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <Button type="primary" onClick={closeWizard}>
+                  完成
+                </Button>
+              </>
+            ) : null}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

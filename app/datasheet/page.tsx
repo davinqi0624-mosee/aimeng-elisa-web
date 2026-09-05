@@ -69,6 +69,7 @@ export default function DatasheetListPage() {
   }
 
   return (
+    <div className="min-h-full bg-[#F2F6FA]">
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -76,7 +77,7 @@ export default function DatasheetListPage() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">智能说明书</h1>
+            <h1 className="text-xl font-black tracking-normal text-slate-950">智能说明书</h1>
             <p className="text-xs text-gray-500">AI 生成的 ELISA 试剂盒说明书</p>
           </div>
         </div>
@@ -181,6 +182,7 @@ export default function DatasheetListPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

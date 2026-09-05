@@ -3,18 +3,24 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, ShieldAlert } from 'lucide-react'
+import { Alert, Button, Card, Form, Input, Spin } from 'antd'
+import { ArrowLeftOutlined, EyeInvisibleOutlined, EyeOutlined, KeyOutlined } from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
+
+interface ChangePasswordForm {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}
 
 export default function AdminChangePasswordPage() {
   const router = useRouter()
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [form] = Form.useForm<ChangePasswordForm>()
 
   useEffect(() => {
     fetch('/api/admin/me')
@@ -25,8 +31,7 @@ export default function AdminChangePasswordPage() {
       .finally(() => setLoading(false))
   }, [router])
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  async function handleSubmit(values: ChangePasswordForm) {
     setError('')
     setSuccess('')
     setSubmitting(true)
@@ -35,7 +40,11 @@ export default function AdminChangePasswordPage() {
       const res = await fetch('/api/admin/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+        body: JSON.stringify({
+          currentPassword: values.currentPassword,
+          newPassword: values.newPassword,
+          confirmPassword: values.confirmPassword,
+        }),
       })
       const data = await res.json()
 
@@ -45,9 +54,7 @@ export default function AdminChangePasswordPage() {
       }
 
       setSuccess(data.message || '密码已修改，请重新登录')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      form.resetFields()
       window.setTimeout(() => router.replace('/admin/login'), 1200)
     } catch {
       setError('无法连接服务器，请稍后重试')
@@ -58,111 +65,79 @@ export default function AdminChangePasswordPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
+      <div className="flex justify-center py-24">
+        <Spin size="large" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto w-full max-w-md">
-        <Link href="/admin" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white">
-          <ArrowLeft className="h-4 w-4" />
-          返回后台
-        </Link>
+    <div className="mx-auto w-full max-w-md">
+      <Link href="/admin" className="mb-2 inline-flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-700">
+        <ArrowLeftOutlined />
+        返回后台
+      </Link>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-black/20">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300">
-              <KeyRound className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-white">修改管理员密码</h1>
-              <p className="mt-1 text-sm text-slate-400">修改后需要使用新密码重新登录后台。</p>
-            </div>
-          </div>
+      <PageHeader icon={<KeyOutlined />} title="修改管理员密码" description="修改后需要使用新密码重新登录后台。" />
 
-          {error && (
-            <div className="mb-4 flex gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-3 text-sm text-red-200">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+      <Card>
+        {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+        {success && <Alert type="success" showIcon message={success} style={{ marginBottom: 16 }} />}
 
-          {success && (
-            <div className="mb-4 flex gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3 text-sm text-emerald-200">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{success}</span>
-            </div>
-          )}
+        <Form<ChangePasswordForm>
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          autoComplete="off"
+        >
+          <Form.Item
+            name="currentPassword"
+            label="当前密码"
+            rules={[
+              { required: true, message: '请输入当前密码' },
+              { min: 8, message: '密码长度不能少于 8 位' },
+            ]}
+          >
+            <Input size="large" type={showPassword ? 'text' : 'password'} placeholder="请输入当前密码" />
+          </Form.Item>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <PasswordField
-              label="当前密码"
-              value={currentPassword}
-              showPassword={showPassword}
-              onChange={setCurrentPassword}
-            />
-            <PasswordField
-              label="新密码"
-              value={newPassword}
-              showPassword={showPassword}
-              onChange={setNewPassword}
-            />
-            <PasswordField
-              label="确认新密码"
-              value={confirmPassword}
-              showPassword={showPassword}
-              onChange={setConfirmPassword}
-            />
+          <Form.Item
+            name="newPassword"
+            label="新密码"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 8, message: '密码长度不能少于 8 位' },
+            ]}
+          >
+            <Input size="large" type={showPassword ? 'text' : 'password'} placeholder="请输入新密码" />
+          </Form.Item>
 
-            <button
-              type="button"
-              onClick={() => setShowPassword((value) => !value)}
-              className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              {showPassword ? '隐藏密码' : '显示密码'}
-            </button>
+          <Form.Item
+            name="confirmPassword"
+            label="确认新密码"
+            rules={[
+              { required: true, message: '请再次输入新密码' },
+              { min: 8, message: '密码长度不能少于 8 位' },
+            ]}
+          >
+            <Input size="large" type={showPassword ? 'text' : 'password'} placeholder="请再次输入新密码" />
+          </Form.Item>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              确认修改
-            </button>
-          </form>
-        </div>
-      </div>
+          <Button
+            type="text"
+            size="small"
+            icon={showPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            onClick={() => setShowPassword((value) => !value)}
+            style={{ marginBottom: 16 }}
+          >
+            {showPassword ? '隐藏密码' : '显示密码'}
+          </Button>
+
+          <Button type="primary" size="large" block htmlType="submit" loading={submitting}>
+            确认修改
+          </Button>
+        </Form>
+      </Card>
     </div>
-  )
-}
-
-function PasswordField({
-  label,
-  value,
-  showPassword,
-  onChange,
-}: {
-  label: string
-  value: string
-  showPassword: boolean
-  onChange: (value: string) => void
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-slate-300">{label}</span>
-      <input
-        type={showPassword ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required
-        minLength={8}
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 focus:border-cyan-400"
-      />
-    </label>
   )
 }

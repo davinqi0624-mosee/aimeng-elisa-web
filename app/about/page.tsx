@@ -3,15 +3,18 @@ import { FlaskConical, Microscope, Users, Award } from 'lucide-react'
 
 export default function AboutPage() {
   return (
-    <div className="min-h-full bg-gray-50">
+    <div className="min-h-full bg-[#F2F6FA]">
       <DynamicPage
         pageId="about"
         fallback={
           <div>
             {/* Static Hero */}
-            <section className="bg-slate-900 py-24 md:py-32">
-              <div className="max-w-7xl mx-auto px-6 md:px-8 text-center">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
+            <section className="bg-slate-950 py-24 md:py-32">
+              <div className="max-w-7xl mx-auto px-4 text-center">
+                <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-300">
+                  aimeng.about / who we are
+                </p>
+                <h1 className="mt-4 text-4xl md:text-5xl font-black tracking-normal text-white mb-4">
                   关于 AIMENG UNING
                 </h1>
                 <p className="text-lg text-slate-400 max-w-2xl mx-auto">
@@ -22,22 +25,22 @@ export default function AboutPage() {
 
             {/* Stats */}
             <section className="border-y border-slate-200 bg-white">
-              <div className="max-w-7xl mx-auto px-6 md:px-8 py-12">
+              <div className="max-w-7xl mx-auto px-4 py-12">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
                   <div>
-                    <p className="text-3xl font-bold text-slate-900">3,484+</p>
+                    <p className="text-3xl font-black tracking-normal text-slate-950">3,484+</p>
                     <p className="text-sm text-slate-500 mt-1">试剂盒产品</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-slate-900">100+</p>
+                    <p className="text-3xl font-black tracking-normal text-slate-950">100+</p>
                     <p className="text-sm text-slate-500 mt-1">种属覆盖</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-slate-900">10年</p>
+                    <p className="text-3xl font-black tracking-normal text-slate-950">10年</p>
                     <p className="text-sm text-slate-500 mt-1">行业经验</p>
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-slate-900">24h</p>
+                    <p className="text-3xl font-black tracking-normal text-slate-950">24h</p>
                     <p className="text-sm text-slate-500 mt-1">技术支持</p>
                   </div>
                 </div>
@@ -46,9 +49,10 @@ export default function AboutPage() {
 
             {/* Values */}
             <section className="py-24 md:py-32 bg-white">
-              <div className="max-w-7xl mx-auto px-6 md:px-8">
+              <div className="max-w-7xl mx-auto px-4">
                 <div className="text-center mb-16">
-                  <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-4">
+                  <span className="text-sm font-bold uppercase tracking-widest text-teal-700">Advantages</span>
+                  <h2 className="mt-4 text-3xl md:text-4xl font-black tracking-normal text-slate-950 mb-4">
                     我们的优势
                   </h2>
                 </div>
@@ -59,8 +63,8 @@ export default function AboutPage() {
                     { icon: <Users className="w-6 h-6" />, title: '全国服务', desc: '代理商网络覆盖全国' },
                     { icon: <FlaskConical className="w-6 h-6" />, title: '技术支持', desc: '专业团队全程支持' },
                   ].map((item) => (
-                    <div key={item.title} className="bg-slate-50 rounded-xl p-8 text-center">
-                      <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center mx-auto mb-4 text-slate-600">
+                    <div key={item.title} className="bg-slate-50 rounded-lg p-8 text-center">
+                      <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 text-teal-700">
                         {item.icon}
                       </div>
                       <h3 className="text-lg font-bold text-slate-900 mb-2">{item.title}</h3>

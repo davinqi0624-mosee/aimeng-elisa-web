@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Clock3, ExternalLink, Play, Volume2, VolumeX } from 'lucide-react'
-import Link from 'next/link'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -72,7 +71,7 @@ export default function VideosPage() {
     <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B]">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">Video Library</p>
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">aimeng.videos / media library</p>
           <h1 className="mt-3 text-3xl font-black tracking-normal text-slate-950 md:text-4xl">实验视频库</h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
             首页上传的本地短视频和外链内容都会在这里汇总。左侧直接播放，右侧按分类浏览，适合放 ELISA 实操、细胞培养和动画短片。
@@ -95,7 +94,7 @@ export default function VideosPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-[#09111F] text-white shadow-sm">
+          <section className="overflow-hidden rounded-lg border border-slate-200 bg-slate-950 text-white shadow-sm">
             <div className="relative aspect-video overflow-hidden bg-slate-950">
               {isPlayableHomeMediaUrl(selectedItem.external_url) ? (
                 <video
@@ -186,7 +185,7 @@ export default function VideosPage() {
             </div>
           </section>
 
-          <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Playlist</p>
@@ -205,7 +204,7 @@ export default function VideosPage() {
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedId(item.id)}
-                    className={`grid w-full grid-cols-[88px_1fr] items-center gap-3 rounded-xl border p-3 text-left transition ${
+                    className={`grid w-full grid-cols-[88px_1fr] items-center gap-3 rounded-lg border p-3 text-left transition ${
                       active ? 'border-cyan-300 bg-cyan-50 shadow-sm' : 'border-slate-100 bg-slate-50 hover:border-cyan-200 hover:bg-cyan-50'
                     }`}
                   >
@@ -223,13 +222,13 @@ export default function VideosPage() {
                       )}
                       <div className="absolute inset-0 grid place-items-center bg-slate-950/20">
                         <div className="rounded-full bg-white/90 p-2 shadow-sm">
-                          <Play className="h-4 w-4 text-blue-600" />
+                          <Play className="h-4 w-4 text-teal-700" />
                         </div>
                       </div>
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        <span className="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800">
                           {HOME_MEDIA_CATEGORY_LABELS[item.category]}
                         </span>
                         <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">

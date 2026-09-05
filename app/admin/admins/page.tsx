@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Alert, App, Button, Checkbox, Input, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  UserX,
-  UserCheck,
-  Shield,
-  User,
-  X,
-  Loader2,
-} from 'lucide-react'
+  CheckCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+  StopOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 interface AdminAccount {
   id: string
@@ -50,6 +50,7 @@ const ALL_PERMISSIONS = [
 ]
 
 export default function AdminManagementPage() {
+  const { message } = App.useApp()
   const [admins, setAdmins] = useState<AdminAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -135,7 +136,7 @@ export default function AdminManagementPage() {
         if (!res.ok) throw new Error(data.error || '更新失败')
       } else {
         if (!form.password) {
-          alert('请设置初始密码')
+          message.error('请设置初始密码')
           setSubmitting(false)
           return
         }
@@ -150,9 +151,9 @@ export default function AdminManagementPage() {
       setShowModal(false)
       loadAdmins()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '保存失败'
-      setError(message)
-      alert(message)
+      const errorMessage = err instanceof Error ? err.message : '保存失败'
+      setError(errorMessage)
+      message.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -173,14 +174,13 @@ export default function AdminManagementPage() {
       if (!res.ok) throw new Error(data.error || '操作失败')
       loadAdmins()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '操作失败'
-      setError(message)
-      alert(message)
+      const errorMessage = err instanceof Error ? err.message : '操作失败'
+      setError(errorMessage)
+      message.error(errorMessage)
     }
   }
 
   async function handleDelete(admin: AdminAccount) {
-    if (!confirm(`确定删除管理员 "${admin.display_name || admin.username}" 吗？此操作不可恢复。`)) return
     setError('')
     try {
       const res = await fetch(`/api/admin/accounts?id=${admin.id}`, { method: 'DELETE' })
@@ -188,232 +188,215 @@ export default function AdminManagementPage() {
       if (!res.ok) throw new Error(data.error || '删除失败')
       loadAdmins()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '删除失败'
-      setError(message)
-      alert(message)
+      const errorMessage = err instanceof Error ? err.message : '删除失败'
+      setError(errorMessage)
+      message.error(errorMessage)
     }
   }
 
+  const columns: ColumnsType<AdminAccount> = [
+    {
+      title: '用户名',
+      dataIndex: 'username',
+      key: 'username',
+      width: 150,
+      render: (username: string) => <span className="font-mono">{username}</span>,
+    },
+    {
+      title: '显示名',
+      dataIndex: 'display_name',
+      key: 'display_name',
+      width: 120,
+      render: (name: string) => <span className="text-slate-700">{name}</span>,
+    },
+    {
+      title: '角色',
+      dataIndex: 'role',
+      key: 'role',
+      width: 120,
+      render: (role: 'super' | 'admin') =>
+        role === 'super' ? (
+          <Tag color="gold">超级管理员</Tag>
+        ) : (
+          <Tag color="processing">管理员</Tag>
+        ),
+    },
+    {
+      title: '权限',
+      key: 'permissions',
+      render: (_, admin) => (
+        <div className="flex flex-wrap gap-1">
+          {admin.permissions.map((code) => {
+            const p = ALL_PERMISSIONS.find((x) => x.code === code)
+            return <Tag key={code}>{p?.label || code}</Tag>
+          })}
+          {admin.role === 'super' && <Tag>全部权限</Tag>}
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 90,
+      render: (active: boolean) =>
+        active ? <Tag color="green">正常</Tag> : <Tag color="volcano">已禁用</Tag>,
+    },
+    {
+      title: '创建人',
+      dataIndex: 'created_by_name',
+      key: 'created_by_name',
+      width: 110,
+      render: (name: string) => <span className="text-slate-500">{name}</span>,
+    },
+    {
+      title: '最后登录',
+      dataIndex: 'last_login_at',
+      key: 'last_login_at',
+      width: 150,
+      render: (v: string | null) => (
+        <span className="text-xs text-slate-500">
+          {v ? new Date(v).toLocaleString('zh-CN') : '从未登录'}
+        </span>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 140,
+      render: (_, admin) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => openEdit(admin)}
+            title="编辑"
+          />
+          <Button
+            type="text"
+            danger={admin.is_active}
+            icon={admin.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+            onClick={() => toggleStatus(admin)}
+            title={admin.is_active ? '禁用' : '启用'}
+          />
+          <Popconfirm
+            title={`确定删除管理员 "${admin.display_name || admin.username}" 吗？此操作不可恢复。`}
+            onConfirm={() => handleDelete(admin)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="text" danger icon={<DeleteOutlined />} title="删除" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">管理员管理</h1>
-          <p className="text-sm text-gray-500">管理系统管理员账号与权限</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          新增管理员
-        </button>
-      </div>
+    <div>
+      <PageHeader
+        icon={<SafetyCertificateOutlined />}
+        title="管理员管理"
+        description="管理系统管理员账号与权限"
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增管理员
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <Alert type="error" showIcon message={error} className="mb-4" />}
 
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">用户名</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">显示名</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">角色</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">权限</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">状态</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">创建人</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">最后登录</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-700">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {admins.map((admin) => (
-                <tr key={admin.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-gray-900">{admin.username}</td>
-                  <td className="px-4 py-3 text-gray-700">{admin.display_name}</td>
-                  <td className="px-4 py-3">
-                    {admin.role === 'super' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-medium">
-                        <Shield className="w-3 h-3" />
-                        超级管理员
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                        <User className="w-3 h-3" />
-                        管理员
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {admin.permissions.map((code) => {
-                        const p = ALL_PERMISSIONS.find((x) => x.code === code)
-                        return (
-                          <span key={code} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">
-                            {p?.label || code}
-                          </span>
-                        )
-                      })}
-                      {admin.role === 'super' && (
-                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">全部权限</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {admin.is_active ? (
-                      <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs">正常</span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded text-xs">已禁用</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{admin.created_by_name}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
-                    {admin.last_login_at
-                      ? new Date(admin.last_login_at).toLocaleString('zh-CN')
-                      : '从未登录'}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(admin)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="编辑"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => toggleStatus(admin)}
-                        className={`p-1.5 rounded transition-colors ${
-                          admin.is_active
-                            ? 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                            : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
-                        }`}
-                        title={admin.is_active ? '禁用' : '启用'}
-                      >
-                        {admin.is_active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(admin)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="删除"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Table<AdminAccount>
+        rowKey="id"
+        columns={columns}
+        dataSource={admins}
+        loading={loading}
+        scroll={{ x: 1000 }}
+        locale={{ emptyText: '暂无管理员账号' }}
+        pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 个管理员` }}
+      />
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-900">
-                {editing ? '编辑管理员' : '新增管理员'}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-                <input
-                  type="text"
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="如 admin-zhangsan"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {editing ? '重置密码（可选）' : '初始密码'}
-                </label>
-                <input
-                  type="text"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required={!editing}
-                  minLength={form.password ? 8 : undefined}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  placeholder={editing ? '不填写则不修改密码，填写至少 8 位' : '请输入初始密码，至少 8 位'}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">显示名</label>
-                <input
-                  type="text"
-                  value={form.display_name}
-                  onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="如 张三"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">角色</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as 'super' | 'admin' })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="admin">管理员</option>
-                  <option value="super">超级管理员</option>
-                </select>
-              </div>
-              {form.role === 'admin' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">权限配置</label>
-                  <div className="space-y-2">
-                    {ALL_PERMISSIONS.map((perm) => (
-                      <label key={perm.code} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={form.permissions.includes(perm.code)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setForm({ ...form, permissions: [...form.permissions, perm.code] })
-                            } else {
-                              setForm({ ...form, permissions: form.permissions.filter((p) => p !== perm.code) })
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-600"
-                        />
-                        <span className="text-sm text-gray-700">{perm.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {editing ? '保存修改' : '创建管理员'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showModal}
+        title={editing ? '编辑管理员' : '新增管理员'}
+        onCancel={() => setShowModal(false)}
+        footer={null}
+        maskClosable={false}
+        keyboard={false}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">用户名</label>
+            <Input
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              required
+              placeholder="如 admin-zhangsan"
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              {editing ? '重置密码（可选）' : '初始密码'}
+            </label>
+            <Input
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required={!editing}
+              minLength={form.password ? 8 : undefined}
+              placeholder={editing ? '不填写则不修改密码，填写至少 8 位' : '请输入初始密码，至少 8 位'}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">显示名</label>
+            <Input
+              value={form.display_name}
+              onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+              placeholder="如 张三"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">角色</label>
+            <Select<'super' | 'admin'>
+              className="w-full"
+              value={form.role}
+              onChange={(value) => setForm({ ...form, role: value })}
+              options={[
+                { value: 'admin', label: '管理员' },
+                { value: 'super', label: '超级管理员' },
+              ]}
+            />
+          </div>
+          {form.role === 'admin' && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">权限配置</label>
+              <div className="space-y-2">
+                {ALL_PERMISSIONS.map((perm) => (
+                  <Checkbox
+                    key={perm.code}
+                    checked={form.permissions.includes(perm.code)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setForm({ ...form, permissions: [...form.permissions, perm.code] })
+                      } else {
+                        setForm({ ...form, permissions: form.permissions.filter((p) => p !== perm.code) })
+                      }
+                    }}
+                  >
+                    {perm.label}
+                  </Checkbox>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="pt-2">
+            <Button type="primary" htmlType="submit" block loading={submitting}>
+              {editing ? '保存修改' : '创建管理员'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

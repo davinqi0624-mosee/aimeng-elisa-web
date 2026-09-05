@@ -49,12 +49,12 @@ export default function RegisterPage() {
       <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B]">
         <div className="min-h-screen flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-md text-center">
-            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-[#1E293B] mb-2">注册成功</h2>
-            <p className="text-sm text-[#94A3B8] mb-6">请查收邮箱并完成验证，验证成功后将自动发放50积分。</p>
+            <CheckCircle2 className="w-12 h-12 text-teal-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-black tracking-normal text-slate-950 mb-2">注册成功</h2>
+            <p className="text-sm text-slate-500 mb-6">请查收邮箱并完成验证，验证成功后将自动发放50积分。</p>
             <Link
               href="/login"
-              className="inline-block px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-medium hover:shadow-lg transition-all"
+              className="inline-block px-6 py-2.5 rounded-lg bg-slate-950 text-white font-bold hover:bg-teal-700 transition-colors"
             >
               去登录
             </Link>
@@ -64,12 +64,16 @@ export default function RegisterPage() {
     )
   }
 
+  const inputClass =
+    'w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500'
+  const labelClass = 'block text-sm font-medium text-slate-600 mb-1'
+
   return (
     <div className="min-h-screen bg-[#F2F6FA] text-[#1E293B]">
       <div className="min-h-screen flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-6xl flex flex-col lg:flex-row lg:items-stretch items-center justify-center gap-8 lg:gap-12 xl:gap-16">
           <div className="w-full max-w-[360px] lg:max-w-[400px] flex items-center justify-center lg:items-stretch lg:self-stretch">
-            <div className="relative w-full h-[420px] lg:h-full rounded-[28px] overflow-hidden bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] border border-white/70">
+            <div className="relative w-full h-[420px] lg:h-full rounded-lg overflow-hidden bg-white shadow-sm border border-slate-200">
               <Image
                 src="/brand/auth-customer-service.jpg"
                 alt="AIMENG UNING AI 客服形象"
@@ -82,12 +86,15 @@ export default function RegisterPage() {
           </div>
 
           <div className="w-full max-w-[560px] flex items-center justify-center lg:items-stretch lg:self-stretch">
-            <div className="w-full h-full bg-white/95 border border-gray-200 rounded-[24px] p-6 sm:p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] flex flex-col justify-center">
-              <div className="text-center mb-8">
-                <p className="text-[34px] sm:text-[38px] font-extrabold leading-tight text-[#2563EB] tracking-normal">
-                  创建您的新账户
+            <div className="w-full h-full bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm flex flex-col justify-center">
+              <div className="mb-8">
+                <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+                  account.access / register
                 </p>
-                <p className="mt-2 text-sm font-medium text-amber-600">注册会员即送50积分</p>
+                <h1 className="mt-3 text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
+                  创建您的新账户
+                </h1>
+                <p className="mt-2 text-sm font-medium text-teal-700">注册会员即送50积分</p>
               </div>
 
               {error && (
@@ -99,56 +106,56 @@ export default function RegisterPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">姓名</label>
+                  <label className={labelClass}>姓名</label>
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    className={inputClass}
                     placeholder="请输入姓名"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">邮箱</label>
+                  <label className={labelClass}>邮箱</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    className={inputClass}
                     placeholder="请输入邮箱"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">密码</label>
+                  <label className={labelClass}>密码</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    className={inputClass}
                     placeholder="至少6位字符"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">单位/机构</label>
+                  <label className={labelClass}>单位/机构</label>
                   <input
                     type="text"
                     value={organization}
                     onChange={(e) => setOrganization(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    className={inputClass}
                     placeholder="请输入单位名称（选填）"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">电话</label>
+                  <label className={labelClass}>电话</label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                    className={inputClass}
                     placeholder="请输入联系电话（选填）"
                   />
                 </div>
@@ -161,16 +168,16 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-slate-950 text-white font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   注册
                 </button>
               </form>
 
-              <div className="mt-6 text-center text-sm text-[#94A3B8]">
+              <div className="mt-6 text-center text-sm text-slate-500">
                 已有账户？{' '}
-                <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                <Link href="/login" className="text-teal-700 hover:text-teal-800 font-semibold">
                   立即登录
                 </Link>
               </div>

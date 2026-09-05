@@ -1,18 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Alert, Button, Card, Empty, Input, Select, Spin, Tag } from 'antd'
 import {
-  FileText,
-  FlaskConical,
-  AlertCircle,
-  Loader2,
-  ChevronDown,
-  CheckCircle2,
-  Download,
-  Search,
-  RotateCcw,
-  WandSparkles,
-} from 'lucide-react'
+  CheckCircleOutlined,
+  DownloadOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  RedoOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 interface Section {
   title: string
@@ -91,6 +90,18 @@ const SPECIES_CODE_MAP: Record<string, string> = {
 
 function performanceCandidateKey(item: TargetPerformanceCandidate, index: number) {
   return `${item.source}-${item.catalogNumber || item.name || 'candidate'}-${index}`
+}
+
+function confidenceLabel(confidence: TargetIntelResult['confidence']) {
+  if (confidence === 'high') return '高'
+  if (confidence === 'low') return '低'
+  return '中'
+}
+
+function confidenceTagColor(confidence: TargetIntelResult['confidence']) {
+  if (confidence === 'high') return 'green'
+  if (confidence === 'low') return 'volcano'
+  return 'gold'
 }
 
 export default function DatasheetAdminPage() {
@@ -281,57 +292,51 @@ export default function DatasheetAdminPage() {
   return (
     <div className="datasheet-page">
       {/* Page header */}
-      <div className="mb-6 no-print">
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <FileText className="w-5 h-5 text-cyan-400" />
-          说明书生成
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          填写 ELISA 试剂盒参数，生成说明书草稿；正式 Word 模板状态会在下方显示
-        </p>
+      <div className="no-print">
+        <PageHeader
+          icon={<FileTextOutlined />}
+          title="说明书生成"
+          description="填写 ELISA 试剂盒参数，生成说明书草稿；正式 Word 模板状态会在下方显示"
+        />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
         {/* Left: Form panel */}
-        <div className="w-full lg:w-[40%] no-print">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <FlaskConical className="w-5 h-5 text-cyan-600" />
-              <h2 className="text-base font-semibold text-gray-900">参数设置</h2>
-            </div>
-
+        <div className="no-print w-full lg:w-[40%]">
+          <Card
+            title={
+              <span className="flex items-center gap-2">
+                <ExperimentOutlined />
+                参数设置
+              </span>
+            }
+          >
             <form onSubmit={handleGenerate} className="space-y-4">
               {templateInfo?.activeTemplate ? (
-                <div className={`rounded-lg border p-3 text-sm ${
-                  templateInfo.placeholderReady
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                    : 'border-amber-200 bg-amber-50 text-amber-800'
-                }`}>
-                  <div className="flex items-start gap-2">
-                    {templateInfo.placeholderReady ? <CheckCircle2 className="mt-0.5 h-4 w-4" /> : <AlertCircle className="mt-0.5 h-4 w-4" />}
-                    <div>
-                      <p className="font-semibold">当前 Word 模板：{templateInfo.activeTemplate.fileName}</p>
-                      <p className="mt-1 text-xs leading-5">
-                        {templateInfo.placeholderReady
-                          ? `已识别 ${templateInfo.activeTemplate.placeholders.length} 个占位符，可进入正式 DOCX 套版流程。`
-                          : '已读取模板文件，但该 Word 还没有 {{field_name}} 占位符；当前先生成网页预览草稿，正式 DOCX/PDF 套版需先改造模板。'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <Alert
+                  type={templateInfo.placeholderReady ? 'success' : 'warning'}
+                  showIcon
+                  message={`当前 Word 模板：${templateInfo.activeTemplate.fileName}`}
+                  description={
+                    templateInfo.placeholderReady
+                      ? `已识别 ${templateInfo.activeTemplate.placeholders.length} 个占位符，可进入正式 DOCX 套版流程。`
+                      : '已读取模板文件，但该 Word 还没有 {{field_name}} 占位符；当前先生成网页预览草稿，正式 DOCX/PDF 套版需先改造模板。'
+                  }
+                />
               ) : (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  未检测到 Word 模板，请确认模板文件位于 project-materials/02-product-data/datasheet-templates。
-                </div>
+                <Alert
+                  type="error"
+                  showIcon
+                  message="未检测到 Word 模板，请确认模板文件位于 project-materials/02-product-data/datasheet-templates。"
+                />
               )}
 
               {/* Target */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                   靶标 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <Input
                   value={target}
                   onChange={(e) => {
                     setTarget(e.target.value)
@@ -341,66 +346,46 @@ export default function DatasheetAdminPage() {
                   }}
                   placeholder="例如：IL-6"
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                 />
               </div>
 
               {/* Species */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                   种属 <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
-                    value={species}
-                    onChange={(e) => {
-                      setSpecies(e.target.value)
-                      setAdoptedPerformanceKey(null)
-                      setIntroAdopted(false)
-                      setTargetIntelFeedback(null)
-                    }}
-                    required
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm appearance-none bg-white"
-                  >
-                    {SPECIES_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
+                <Select
+                  className="w-full"
+                  value={species}
+                  onChange={(value) => {
+                    setSpecies(value)
+                    setAdoptedPerformanceKey(null)
+                    setIntroAdopted(false)
+                    setTargetIntelFeedback(null)
+                  }}
+                  options={SPECIES_OPTIONS.map((s) => ({ value: s, label: s }))}
+                />
               </div>
 
               {/* Method */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                   方法 <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
-                    value={method}
-                    onChange={(e) => setMethod(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm appearance-none bg-white"
-                  >
-                    {METHOD_OPTIONS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
+                <Select
+                  className="w-full"
+                  value={method}
+                  onChange={(value) => setMethod(value)}
+                  options={METHOD_OPTIONS.map((m) => ({ value: m, label: m }))}
+                />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
                     检测范围 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <Input
                     value={detectionRange}
                     onChange={(e) => {
                       setDetectionRange(e.target.value)
@@ -409,15 +394,13 @@ export default function DatasheetAdminPage() {
                     }}
                     placeholder="例如：15.6-1000 pg/ml"
                     required
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
                     灵敏度 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <Input
                     value={sensitivity}
                     onChange={(e) => {
                       setSensitivity(e.target.value)
@@ -426,43 +409,35 @@ export default function DatasheetAdminPage() {
                     }}
                     placeholder="例如：3.1 pg/ml"
                     required
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  样本类型
-                </label>
-                <input
-                  type="text"
+                <label className="mb-1 block text-sm font-medium text-gray-700">样本类型</label>
+                <Input
                   value={sampleTypes}
                   onChange={(e) => setSampleTypes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                 />
               </div>
 
-              <div className="rounded-lg border border-cyan-100 bg-cyan-50 p-3 text-sm text-cyan-900">
-                <p className="font-semibold">产品货号自动生成</p>
-                <p className="mt-1 text-xs leading-5 text-cyan-800">
-                  规则：LV + 种属编号 + 流水号。说明书规格固定显示 96T/48T，不参与货号生成。
-                  种属编号：1 Human、2 Rat、3 Mouse、5 Monkey、6 Canine、7 Porcine、8 Bovine、9 Chicken、17 Guinea pig、18 Sheep、19 Zebrafish、21 Rabbit。
-                </p>
-              </div>
+              <Alert
+                type="info"
+                showIcon
+                message="产品货号自动生成"
+                description="规则：LV + 种属编号 + 流水号。说明书规格固定显示 96T/48T，不参与货号生成。种属编号：1 Human、2 Rat、3 Mouse、5 Monkey、6 Canine、7 Porcine、8 Bovine、9 Chicken、17 Guinea pig、18 Sheep、19 Zebrafish、21 Rabbit。"
+              />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
                   货号流水号 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <Input
                   value={catalogSerial}
                   onChange={(e) => setCatalogSerial(e.target.value.replace(/\D/g, '').slice(0, 8))}
                   placeholder="例如：1770"
                   required
                   inputMode="numeric"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                 />
                 <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
                   最终产品货号：<span className="font-semibold text-cyan-700">{previewCatalogNumber}</span>
@@ -475,36 +450,24 @@ export default function DatasheetAdminPage() {
                     指标简介素材 <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <select
-                        value={targetIntelDirection}
-                        onChange={(e) => setTargetIntelDirection(e.target.value)}
-                        className="h-8 rounded-lg border border-gray-300 bg-white pl-2 pr-7 text-xs text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 appearance-none"
-                      >
-                        {TARGET_INTEL_DIRECTIONS.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                    </div>
-                    <button
-                      type="button"
+                    <Select
+                      size="small"
+                      className="min-w-[120px]"
+                      value={targetIntelDirection}
+                      onChange={(value) => setTargetIntelDirection(value)}
+                      options={TARGET_INTEL_DIRECTIONS.map((item) => ({ value: item, label: item }))}
+                    />
+                    <Button
+                      size="small"
+                      icon={<ThunderboltOutlined />}
+                      loading={targetIntelLoading}
                       onClick={handleTargetIntelSearch}
-                      disabled={targetIntelLoading}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50 px-2.5 text-xs font-medium text-cyan-700 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {targetIntelLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <WandSparkles className="h-3.5 w-3.5" />
-                      )}
                       智能检索
-                    </button>
+                    </Button>
                   </div>
                 </div>
-                <textarea
+                <Input.TextArea
                   value={targetIntro}
                   onChange={(e) => {
                     setTargetIntro(e.target.value)
@@ -514,42 +477,44 @@ export default function DatasheetAdminPage() {
                   placeholder="请粘贴已审核的指标简介素材；该内容会自动填入说明书“简介”区域。"
                   rows={3}
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm resize-none"
                 />
                 {targetIntelError && (
-                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-2 text-xs leading-5 text-red-700">
-                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{targetIntelError}</span>
-                  </div>
+                  <Alert className="mt-2" type="error" showIcon message={targetIntelError} />
                 )}
                 {targetIntelResult && (
-                  <div className="mt-3 rounded-lg border border-cyan-100 bg-slate-50 p-3 text-sm text-slate-800">
-                    {targetIntelFeedback && (
-                      <div
-                        aria-live="polite"
-                        className="mb-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs font-medium leading-5 text-emerald-800"
-                      >
-                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        <span>{targetIntelFeedback}</span>
-                      </div>
-                    )}
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 font-semibold text-slate-900">
-                        <Search className="h-4 w-4 text-cyan-600" />
+                  <Card
+                    size="small"
+                    className="mt-3"
+                    title={
+                      <span className="flex items-center gap-2 text-sm">
+                        <SearchOutlined />
                         候选简介素材
-                      </div>
-                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-500">
-                        可信度：{targetIntelResult.confidence === 'high' ? '高' : targetIntelResult.confidence === 'low' ? '低' : '中'}
                       </span>
-                    </div>
+                    }
+                    extra={
+                      <Tag color={confidenceTagColor(targetIntelResult.confidence)}>
+                        可信度：{confidenceLabel(targetIntelResult.confidence)}
+                      </Tag>
+                    }
+                  >
+                    {targetIntelFeedback && (
+                      <Alert
+                        aria-live="polite"
+                        className="mb-3"
+                        type="success"
+                        showIcon
+                        message={targetIntelFeedback}
+                      />
+                    )}
                     {targetIntelResult.candidateIntro ? (
                       <p className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700">
                         {targetIntelResult.candidateIntro}
                       </p>
                     ) : (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-                        本次未生成简介素材，但已返回检测参数候选；简介请手动填写或再次检索。
-                      </div>
+                      <Alert
+                        type="warning"
+                        message="本次未生成简介素材，但已返回检测参数候选；简介请手动填写或再次检索。"
+                      />
                     )}
                     {targetIntelResult.keyPoints.length > 0 && (
                       <div className="mt-3">
@@ -568,11 +533,14 @@ export default function DatasheetAdminPage() {
                         <p className="text-xs font-semibold text-slate-500">检测范围 / 灵敏度候选</p>
                         <div className="mt-2 space-y-2">
                           {targetIntelResult.performanceCandidates.map((item, index) => (
-                            <div key={performanceCandidateKey(item, index)} className={`rounded-lg border bg-white p-3 transition-colors ${
-                              adoptedPerformanceKey === performanceCandidateKey(item, index)
-                                ? 'border-emerald-300 ring-2 ring-emerald-100'
-                                : 'border-slate-200'
-                            }`}>
+                            <div
+                              key={performanceCandidateKey(item, index)}
+                              className={`rounded-lg border bg-white p-3 transition-colors ${
+                                adoptedPerformanceKey === performanceCandidateKey(item, index)
+                                  ? 'border-emerald-400 bg-emerald-50'
+                                  : 'border-slate-200'
+                              }`}
+                            >
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                   <p className="text-sm font-semibold text-slate-900">
@@ -582,13 +550,9 @@ export default function DatasheetAdminPage() {
                                     {item.confidence === 'verified' ? '来自爱萌产品库' : 'AI 待核验候选'} · {item.note}
                                   </p>
                                 </div>
-                                <span className={`rounded-full px-2 py-0.5 text-[11px] ${
-                                  item.confidence === 'verified'
-                                    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
-                                }`}>
+                                <Tag color={item.confidence === 'verified' ? 'green' : 'gold'}>
                                   {item.confidence === 'verified' ? '已验证' : '待核验'}
-                                </span>
+                                </Tag>
                               </div>
                               <div className="mt-2 grid gap-2 md:grid-cols-2">
                                 <div className="rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
@@ -598,18 +562,15 @@ export default function DatasheetAdminPage() {
                                   灵敏度：<span className="font-semibold">{item.sensitivity || '未提供'}</span>
                                 </div>
                               </div>
-                              <button
-                                type="button"
+                              <Button
+                                className="mt-2"
+                                size="small"
+                                type="primary"
+                                icon={<CheckCircleOutlined />}
                                 onClick={() => adoptPerformanceCandidate(item, index)}
-                                className={`mt-2 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition-all active:scale-[0.98] ${
-                                  adoptedPerformanceKey === performanceCandidateKey(item, index)
-                                    ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
-                                    : 'border-cyan-600 bg-cyan-600 text-white hover:bg-cyan-700'
-                                }`}
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
                                 {adoptedPerformanceKey === performanceCandidateKey(item, index) ? '已采用到上方' : '采用检测参数'}
-                              </button>
+                              </Button>
                               {adoptedPerformanceKey === performanceCandidateKey(item, index) && (
                                 <p className="mt-1.5 text-xs font-medium text-emerald-700">
                                   已填入“检测范围”和“灵敏度”输入框。
@@ -621,162 +582,152 @@ export default function DatasheetAdminPage() {
                       </div>
                     )}
                     {targetIntelResult.reviewNotes.length > 0 && (
-                      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs leading-5 text-amber-800">
-                        <p className="font-semibold">采用前请人工核验</p>
-                        {targetIntelResult.reviewNotes.map((note) => (
-                          <p key={note}>• {note}</p>
-                        ))}
-                      </div>
+                      <Alert
+                        className="mt-3"
+                        type="warning"
+                        showIcon
+                        message="采用前请人工核验"
+                        description={
+                          <div>
+                            {targetIntelResult.reviewNotes.map((note) => (
+                              <p key={note}>• {note}</p>
+                            ))}
+                          </div>
+                        }
+                      />
                     )}
-                    <button
-                      type="button"
+                    <Button
+                      className="mt-3"
+                      size="small"
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
                       disabled={!targetIntelResult.candidateIntro}
                       onClick={adoptCandidateIntro}
-                      className={`mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
-                        introAdopted ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-cyan-600 hover:bg-cyan-700'
-                      }`}
                     >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
                       {introAdopted ? '已采用此简介' : '采用此简介'}
-                    </button>
-                  </div>
+                    </Button>
+                  </Card>
                 )}
               </div>
 
               {/* Buttons */}
-              <div className="pt-2 flex flex-col gap-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-cyan-600 text-white text-sm font-medium hover:bg-cyan-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              <div className="flex flex-col gap-2 pt-2">
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  block
+                  icon={<FileTextOutlined />}
+                  loading={loading}
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      生成中...
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-4 h-4" />
-                      生成说明书
-                    </>
-                  )}
-                </button>
+                  生成说明书
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  block
+                  icon={<RedoOutlined />}
                   onClick={resetFormForNextDatasheet}
                   disabled={loading || targetIntelLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-gray-200"
                 >
-                  <RotateCcw className="w-4 h-4" />
                   一键清空，开始下一个指标
-                </button>
+                </Button>
 
                 {generatedMeta?.id && generatedMeta.templateReady ? (
-                  <a
+                  <Button
+                    type="primary"
+                    block
+                    icon={<DownloadOutlined />}
                     href={`/api/datasheet/docx?id=${encodeURIComponent(generatedMeta.id)}`}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
                   >
-                    <Download className="w-4 h-4" />
                     下载正式 Word
-                  </a>
+                  </Button>
                 ) : generatedMeta?.id ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                    当前 Word 模板没有占位符，暂时不能生成正式 DOCX。请先按占位符规范改造模板。
-                  </div>
+                  <Alert
+                    type="warning"
+                    message="当前 Word 模板没有占位符，暂时不能生成正式 DOCX。请先按占位符规范改造模板。"
+                  />
                 ) : null}
               </div>
 
               {/* Error */}
-              {error && (
-                <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-3">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              )}
+              {error && <Alert type="error" showIcon message={error} />}
             </form>
-          </div>
+          </Card>
         </div>
 
         {/* Right: Preview panel */}
         <div className="w-full lg:w-[60%]">
-          <div
-            ref={previewRef}
-            className="bg-white rounded-xl border border-gray-200 p-8 min-h-[600px] print-card"
-          >
-            {!generated && sections.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center h-[400px] text-center">
-                <FileText className="w-12 h-12 text-gray-300 mb-3" />
-                <p className="text-gray-500 text-sm">
-                  填写左侧信息并点击生成
-                </p>
-                <p className="text-gray-400 text-xs mt-1">
-                  说明书预览将显示在此处
-                </p>
-              </div>
-            ) : loading ? (
-              <div className="flex flex-col items-center justify-center h-[400px]">
-                <Loader2 className="w-8 h-8 text-cyan-600 animate-spin mb-3" />
-                <p className="text-gray-500 text-sm">正在生成说明书...</p>
-              </div>
-            ) : (
-              <div className="datasheet-content space-y-6">
-                {generatedMeta && (
-                  <div className={`rounded-lg border p-4 text-sm ${
-                    generatedMeta.templateReady
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                      : 'border-amber-200 bg-amber-50 text-amber-800'
-                  }`}>
-                    <p className="font-semibold">
-                      已生成草稿：{generatedMeta.catalogNumber || '-'}
-                    </p>
-                    <p className="mt-1 text-xs leading-5">
-                      使用模板：{generatedMeta.template?.fileName || '未检测到模板'}。
-                      {generatedMeta.templateReady
-                        ? '该模板具备占位符，后续可生成正式 DOCX/PDF。'
-                        : '当前 Word 模板尚未设置占位符，因此这里是网页预览草稿，不是最终正式 Word 套版文件。'}
-                    </p>
+          <div ref={previewRef}>
+            <Card className="print-card" styles={{ body: { padding: 32, minHeight: 600 } }}>
+              {!generated && sections.length === 0 && !loading ? (
+                <div className="flex h-[400px] flex-col items-center justify-center text-center">
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <span className="text-sm text-slate-500">
+                        填写左侧信息并点击生成
+                        <span className="mt-1 block text-xs text-slate-400">说明书预览将显示在此处</span>
+                      </span>
+                    }
+                  />
+                </div>
+              ) : loading ? (
+                <div className="flex h-[400px] flex-col items-center justify-center">
+                  <Spin size="large" />
+                  <p className="mt-3 text-sm text-slate-500">正在生成说明书...</p>
+                </div>
+              ) : (
+                <div className="datasheet-content space-y-6">
+                  {generatedMeta && (
+                    <Alert
+                      type={generatedMeta.templateReady ? 'success' : 'warning'}
+                      showIcon
+                      message={`已生成草稿：${generatedMeta.catalogNumber || '-'}`}
+                      description={`使用模板：${generatedMeta.template?.fileName || '未检测到模板'}。${
+                        generatedMeta.templateReady
+                          ? '该模板具备占位符，后续可生成正式 DOCX/PDF。'
+                          : '当前 Word 模板尚未设置占位符，因此这里是网页预览草稿，不是最终正式 Word 套版文件。'
+                      }`}
+                    />
+                  )}
+                  {/* Header for print */}
+                  <div className="print-header hidden print:block border-b border-gray-300 pb-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-xl font-bold text-gray-900">
+                          AIMENG UNING 爱萌优宁
+                        </h1>
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          ELISA 试剂盒产品说明书
+                        </p>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <p>靶标: {target || '-'}</p>
+                        <p>种属: {species}</p>
+                        <p>方法: {method}</p>
+                        <p>规格: 96T/48T</p>
+                      </div>
+                    </div>
                   </div>
-                )}
-                {/* Header for print */}
-                <div className="print-header hidden print:block border-b border-gray-300 pb-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h1 className="text-xl font-bold text-gray-900">
-                        AIMENG UNING 爱萌优宁
-                      </h1>
-                      <p className="text-sm text-gray-600 mt-0.5">
-                        ELISA 试剂盒产品说明书
-                      </p>
+
+                  {sections.map((section, idx) => (
+                    <div key={idx} className="datasheet-section">
+                      <h3 className="text-base font-bold text-gray-900 mb-2 pb-1 border-b border-gray-200">
+                        {section.title}
+                      </h3>
+                      <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {section.content}
+                      </div>
                     </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <p>靶标: {target || '-'}</p>
-                      <p>种属: {species}</p>
-                      <p>方法: {method}</p>
-                      <p>规格: 96T/48T</p>
-                    </div>
+                  ))}
+
+                  {/* Footer for print */}
+                  <div className="print-footer hidden print:block border-t border-gray-300 pt-4 mt-8 text-xs text-gray-500 text-center">
+                    <p>AIMENG UNING 爱萌优宁 · www.animalunion.cn</p>
+                    <p className="mt-0.5">本说明书仅供科研使用，请仔细阅读后操作。</p>
                   </div>
                 </div>
-
-                {sections.map((section, idx) => (
-                  <div key={idx} className="datasheet-section">
-                    <h3 className="text-base font-bold text-gray-900 mb-2 pb-1 border-b border-gray-200">
-                      {section.title}
-                    </h3>
-                    <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {section.content}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Footer for print */}
-                <div className="print-footer hidden print:block border-t border-gray-300 pt-4 mt-8 text-xs text-gray-500 text-center">
-                  <p>AIMENG UNING 爱萌优宁 · www.animalunion.cn</p>
-                  <p className="mt-0.5">本说明书仅供科研使用，请仔细阅读后操作。</p>
-                </div>
-              </div>
-            )}
+              )}
+            </Card>
           </div>
         </div>
       </div>
@@ -799,17 +750,19 @@ export default function DatasheetAdminPage() {
           .datasheet-page > div {
             display: block !important;
           }
-          .datasheet-page .w-full\\.lg\\:w\\[40\\%\\],
           .datasheet-page .w-full.lg\\:w-\\[40\\%\\] {
             display: none !important;
           }
-          .datasheet-page .w-full\\.lg\\:w\\[60\\%\\],
           .datasheet-page .w-full.lg\\:w-\\[60\\%\\] {
             width: 100% !important;
           }
           .print-card {
             border: none !important;
             box-shadow: none !important;
+            padding: 0 !important;
+            min-height: auto !important;
+          }
+          .print-card .ant-card-body {
             padding: 0 !important;
             min-height: auto !important;
           }

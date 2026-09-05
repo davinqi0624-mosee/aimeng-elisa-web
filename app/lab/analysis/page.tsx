@@ -120,9 +120,9 @@ function getConcentrationStatusLabel(status: ConcentrationStatus | undefined) {
 }
 
 function getConcentrationStatusClass(status: ConcentrationStatus | undefined) {
-  if (status === 'below') return 'text-amber-700 bg-amber-50'
-  if (status === 'above' || status === 'invalid') return 'text-red-600 bg-red-50'
-  return 'text-emerald-700 bg-emerald-50'
+  if (status === 'below') return 'text-amber-700 bg-amber-50 border-amber-200'
+  if (status === 'above' || status === 'invalid') return 'text-red-600 bg-red-50 border-red-200'
+  return 'text-emerald-700 bg-emerald-50 border-emerald-200'
 }
 
 function getSampleOverrideKey(sample: { name: string; well?: string; sampleGroup?: string; sortIndex?: number }, index: number) {
@@ -1850,7 +1850,7 @@ export default function ElisaAnalysisPage() {
     const gridY = makeLinearTicks(yMin, yMax, 6)
 
     return (
-      <svg ref={svgRef} width={width} height={height} className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <svg ref={svgRef} width={width} height={height} className="bg-white rounded-lg border border-slate-200 shadow-sm">
         {/* 网格 */}
         {gridX.map(v => (
           <line key={`gx-${v}`} x1={xScale(v)} y1={pad.top} x2={xScale(v)} y2={pad.top + ch}
@@ -1888,19 +1888,19 @@ export default function ElisaAnalysisPage() {
 
         {/* 拟合曲线 */}
         {curvePoints.length > 1 && (
-          <path d={`M ${curvePoints.join(' L ')}`} fill="none" stroke="#3B82F6" strokeWidth={2.5}
+          <path d={`M ${curvePoints.join(' L ')}`} fill="none" stroke="#177E97" strokeWidth={2.5}
             strokeLinecap="round" strokeLinejoin="round" />
         )}
 
         {/* 标准品点 */}
         {fitResult.standards.map((s, i) => (
           <g key={`s-${i}`}>
-            <circle cx={xScale(s.concentration)} cy={yScale(s.mean)} r={6} fill="#3B82F6" stroke="white" strokeWidth={2} />
+            <circle cx={xScale(s.concentration)} cy={yScale(s.mean)} r={6} fill="#48B0C8" stroke="white" strokeWidth={2} />
             {/* 误差线 */}
             {s.sd > 0 && (
               <line x1={xScale(s.concentration)} y1={yScale(s.mean + s.sd)}
                 x2={xScale(s.concentration)} y2={yScale(Math.max(s.mean - s.sd, 0))}
-                stroke="#3B82F6" strokeWidth={1} opacity={0.5} />
+                stroke="#48B0C8" strokeWidth={1} opacity={0.5} />
             )}
             <text x={xScale(s.concentration)} y={yScale(s.mean) - 14} textAnchor="middle" fontSize={10} fill="#1E293B" fontWeight={600}>
               {s.mean.toFixed(3)}
@@ -1931,18 +1931,18 @@ export default function ElisaAnalysisPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">孔位</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">浓度 (pg/mL)</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">复孔 OD</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">均值</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">SD</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">CV%</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">反算浓度</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">终浓度</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">回收率</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">预测 OD</th>
-              <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">残差</th>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">孔位</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">浓度 (pg/mL)</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">复孔 OD</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">均值</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">SD</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">CV%</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">反算浓度</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">终浓度</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">回收率</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">预测 OD</th>
+              <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">残差</th>
             </tr>
           </thead>
           <tbody>
@@ -1955,7 +1955,7 @@ export default function ElisaAnalysisPage() {
               const cvHigh = s.cv > 20
               const resHigh = Math.abs(residual) > 2.5 * fitResult.rmse
               return (
-                <tr key={i} className="border-b border-gray-50 last:border-0">
+                <tr key={i} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50">
                   <td className="py-2 px-3 font-mono text-slate-600">{s.well || '--'}</td>
                   <td className="py-2 px-3 font-mono font-medium">{s.concentration}</td>
                   <td className="py-2 px-3 font-mono text-xs">{s.replicates.map(r => r.toFixed(3)).join(', ')}</td>
@@ -1968,7 +1968,7 @@ export default function ElisaAnalysisPage() {
                   <td className="py-2 px-3 font-mono">{backConc !== undefined ? backConc.toFixed(2) : '--'}</td>
                   <td className="py-2 px-3 font-mono">{finalConc !== undefined ? finalConc.toFixed(2) : '--'}</td>
                   <td className="py-2 px-3 font-mono">{recovery}</td>
-                  <td className="py-2 px-3 font-mono text-blue-600">{pred.toFixed(3)}</td>
+                  <td className="py-2 px-3 font-mono text-[#177E97]">{pred.toFixed(3)}</td>
                   <td className={`py-2 px-3 font-mono ${resHigh ? 'text-red-600 font-bold' : ''}`}>
                     {residual.toFixed(4)}
                     {resHigh && <span className="ml-1 text-xs">⚠</span>}
@@ -1990,47 +1990,51 @@ export default function ElisaAnalysisPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3CB5C0] to-[#2563EB] flex items-center justify-center">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-[#177E97]">
+            lab.analysis / 4pl workbench
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-[#177E97] flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-[#1E293B]">ELISA 实验数据分析工作台</h1>
-              <p className="text-sm text-[#94A3B8]">4PL / 5PL 拟合 · 复孔统计 · 质控检查 · 报告导出</p>
+              <h1 className="text-2xl font-black tracking-normal text-slate-950">ELISA 实验数据分析工作台</h1>
+              <p className="text-sm text-slate-500">4PL / 5PL 拟合 · 复孔统计 · 质控检查 · 报告导出</p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6">
-          {[
-            { key: 'input' as TabType, label: '数据输入', icon: Table },
-            { key: 'curve' as TabType, label: '标准曲线', icon: TrendingUp },
-            { key: 'table' as TabType, label: '数据表格', icon: FileSpreadsheet },
-            { key: 'report' as TabType, label: '实验报告', icon: FileText },
-          ].map(tab => {
-            const Icon = tab.icon, active = activeTab === tab.key
-            return (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${active
-                  ? 'bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white shadow-md'
-                  : 'bg-white text-[#475569] hover:bg-blue-50 border border-gray-200'}`}>
-                <Icon className="w-4 h-4" />{tab.label}
-              </button>
-            )
-          })}
-          <div className="flex-1" />
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-1 rounded-lg bg-slate-200/60 p-1">
+            {[
+              { key: 'input' as TabType, label: '数据输入', icon: Table },
+              { key: 'curve' as TabType, label: '标准曲线', icon: TrendingUp },
+              { key: 'table' as TabType, label: '数据表格', icon: FileSpreadsheet },
+              { key: 'report' as TabType, label: '实验报告', icon: FileText },
+            ].map(tab => {
+              const Icon = tab.icon, active = activeTab === tab.key
+              return (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${active
+                    ? 'bg-white text-[#177E97] shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'}`}>
+                  <Icon className="w-4 h-4" />{tab.label}
+                </button>
+              )
+            })}
+          </div>
           <button onClick={() => setShowSettings(!showSettings)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${showSettings
-              ? 'bg-blue-100 text-blue-700 border border-blue-200'
-              : 'bg-white text-[#475569] hover:bg-blue-50 border border-gray-200'}`}>
+            className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-all ${showSettings
+              ? 'border-[#48B0C8] bg-[#E8F5F8] text-[#0F667C]'
+              : 'border-slate-300 bg-white text-slate-600 hover:border-[#48B0C8] hover:text-[#177E97]'}`}>
             <Settings className="w-4 h-4" />拟合设置
           </button>
         </div>
 
         {/* Settings Panel */}
         {showSettings && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-6">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-[#1E293B]">拟合参数设置</h3>
               <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">
@@ -2039,7 +2043,7 @@ export default function ElisaAnalysisPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
-                <label className="text-sm text-[#94A3B8] mb-2 block">拟合模型</label>
+                <label className="text-sm font-medium text-slate-600 mb-2 block">拟合模型</label>
                 <div className="space-y-2">
                   {([
                     { value: '4pl' as FitModel, label: '4PL (四参数)', desc: '标准 S 型曲线' },
@@ -2047,9 +2051,9 @@ export default function ElisaAnalysisPage() {
                     { value: 'log-log' as FitModel, label: 'Log-Log 线性', desc: '简单线性拟合' },
                   ]).map(opt => (
                     <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${fitModel === opt.value
-                      ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      ? 'border-[#48B0C8] bg-[#E8F5F8]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <input type="radio" name="model" value={opt.value} checked={fitModel === opt.value}
-                        onChange={() => setFitModel(opt.value)} className="w-4 h-4 text-blue-600" />
+                        onChange={() => setFitModel(opt.value)} className="w-4 h-4 accent-[#177E97]" />
                       <div>
                         <div className="text-sm font-medium text-[#1E293B]">{opt.label}</div>
                         <div className="text-xs text-[#94A3B8]">{opt.desc}</div>
@@ -2059,7 +2063,7 @@ export default function ElisaAnalysisPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm text-[#94A3B8] mb-2 block">权重模式</label>
+                <label className="text-sm font-medium text-slate-600 mb-2 block">权重模式</label>
                 <div className="space-y-2">
                   {([
                     { value: 'none' as WeightMode, label: '无权重', desc: '默认推荐，整体曲线更贴合' },
@@ -2067,9 +2071,9 @@ export default function ElisaAnalysisPage() {
                     { value: '1/y²' as WeightMode, label: '1/Y² 权重', desc: '强烈偏重低 OD 点' },
                   ]).map(opt => (
                     <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${weightMode === opt.value
-                      ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      ? 'border-[#48B0C8] bg-[#E8F5F8]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <input type="radio" name="weight" value={opt.value} checked={weightMode === opt.value}
-                        onChange={() => setWeightMode(opt.value)} className="w-4 h-4 text-blue-600" />
+                        onChange={() => setWeightMode(opt.value)} className="w-4 h-4 accent-[#177E97]" />
                       <div>
                         <div className="text-sm font-medium text-[#1E293B]">{opt.label}</div>
                         <div className="text-xs text-[#94A3B8]">{opt.desc}</div>
@@ -2079,16 +2083,16 @@ export default function ElisaAnalysisPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm text-[#94A3B8] mb-2 block">空白处理</label>
+                <label className="text-sm font-medium text-slate-600 mb-2 block">空白处理</label>
                 <div className="space-y-2">
                   {([
                     { value: 'none' as BlankCorrectionMode, label: '保留空白', desc: '默认，不改变原始 OD' },
                     { value: 'subtract' as BlankCorrectionMode, label: '扣除 Blank', desc: '所有 OD 扣除 0 浓度均值' },
                   ]).map(opt => (
                     <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${blankCorrectionMode === opt.value
-                      ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      ? 'border-[#48B0C8] bg-[#E8F5F8]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
                       <input type="radio" name="blank-correction" value={opt.value} checked={blankCorrectionMode === opt.value}
-                        onChange={() => setBlankCorrectionMode(opt.value)} className="w-4 h-4 text-blue-600" />
+                        onChange={() => setBlankCorrectionMode(opt.value)} className="w-4 h-4 accent-[#177E97]" />
                       <div>
                         <div className="text-sm font-medium text-[#1E293B]">{opt.label}</div>
                         <div className="text-xs text-[#94A3B8]">{opt.desc}</div>
@@ -2097,9 +2101,9 @@ export default function ElisaAnalysisPage() {
                   ))}
                 </div>
               </div>
-              <div className="bg-blue-50 rounded-xl p-4">
-                <h4 className="text-sm font-semibold text-blue-800 mb-2">推荐设置</h4>
-                <p className="text-xs text-blue-700 leading-relaxed">
+              <div className="rounded-md bg-[#E8F5F8] p-4">
+                <h4 className="text-sm font-semibold text-[#0F667C] mb-2">推荐设置</h4>
+                <p className="text-xs text-[#0F667C] leading-relaxed">
                   默认建议使用 <strong>4PL + 无权重 + 保留空白</strong>，先保证整条标准曲线贴合。若实验报告或试剂盒 SOP 明确要求
                   扣除 Blank 或使用 1/Y、1/Y² 权重，再切换对应设置。
                 </p>
@@ -2128,44 +2132,44 @@ export default function ElisaAnalysisPage() {
 
         {/* ── 数据输入 Tab ── */}
         {activeTab === 'input' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Table className="w-5 h-5 text-blue-600" />
+                <Table className="w-5 h-5 text-[#177E97]" />
                 <h2 className="text-base font-semibold">实验数据输入</h2>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <button onClick={handleDownloadTemplate}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                  className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-[#48B0C8] hover:text-[#177E97]">
                   <Download className="w-3.5 h-3.5" />下载 Excel 模板
                 </button>
                 <button onClick={handleImportImage} disabled={isOcrLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors disabled:opacity-50">
+                  className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-[#48B0C8] hover:text-[#177E97] disabled:opacity-50">
                   <Eye className="w-3.5 h-3.5" />{isOcrLoading ? '识别中...' : '上传截图识别'}
                 </button>
                 <button onClick={handleImportCSV}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#475569] bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                  className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-[#48B0C8] hover:text-[#177E97]">
                   <Upload className="w-3.5 h-3.5" />上传 Excel / CSV
                 </button>
                 <button onClick={handleClear}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors">
+                  className="flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100">
                   <Trash2 className="w-3.5 h-3.5" />清空
                 </button>
               </div>
             </div>
 
             <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-800">推荐方式</p>
-                <p className="mt-1 text-xs leading-5 text-blue-700">下载模板，按客户常用 ELISACalc 表格习惯填写，再上传 Excel。</p>
+              <div className="rounded-md border border-[#BFE3EC] bg-[#E8F5F8] p-4">
+                <p className="text-sm font-semibold text-[#0F667C]">推荐方式</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">下载模板，按客户常用 ELISACalc 表格习惯填写，再上传 Excel。</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-800">兼容方式</p>
                 <p className="mt-1 text-xs leading-5 text-slate-600">也可以直接从 Excel 复制标准品和样本区域，粘贴到下方文本框。</p>
               </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm font-semibold text-amber-800">截图识别</p>
-                <p className="mt-1 text-xs leading-5 text-amber-700">可点击上传截图，也可以把截图直接粘贴或拖入下方数据框。</p>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-800">截图识别</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">可点击上传截图，也可以把截图直接粘贴或拖入下方数据框。</p>
               </div>
             </div>
 
@@ -2182,14 +2186,14 @@ export default function ElisaAnalysisPage() {
               onDrop={handleDropData}
               onDragOver={event => event.preventDefault()}
               rows={12}
-              className="w-full px-4 py-3 bg-[#F8FAFC] border border-gray-200 rounded-xl text-sm font-mono leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full rounded-md border border-slate-300 bg-white px-4 py-3 font-mono text-sm leading-relaxed resize-y transition-all focus:border-[#48B0C8] focus:outline-none focus:ring-1 focus:ring-[#48B0C8]"
               placeholder={`请上传 Excel / CSV，或从 Excel 复制数据后粘贴到这里。\n也可以把截图直接粘贴或拖入这里识别。\n\n推荐使用下载模板：浓度(pg/mL) + 标准品孔位/OD + 1#到11#样本孔位/样本编号/OD/稀释倍数。\n说明：标准品默认占 01 列，样本孔位默认覆盖 02-12 列。`}
               disabled={isOcrLoading}
             />
 
             <div className="flex items-center gap-3 mt-5">
               <button onClick={handleFit} disabled={isLoading}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 font-medium shadow-md">
+                className="flex-1 flex items-center justify-center gap-2 rounded-md bg-[#177E97] px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0F667C] disabled:opacity-50">
                 <Play className="w-4 h-4" />
                 {isLoading ? '拟合计算中...' : `开始 ${fitModel.toUpperCase()} 拟合`}
               </button>
@@ -2201,25 +2205,25 @@ export default function ElisaAnalysisPage() {
               </div>
             )}
 
-            <div className="mt-4 p-4 bg-blue-50 rounded-xl text-xs text-blue-700 space-y-2">
+            <div className="mt-4 space-y-2 rounded-md bg-[#E8F5F8] p-4 text-xs text-slate-600">
               <p className="font-medium flex items-center gap-1.5">
                 <Info className="w-4 h-4" />数据格式说明
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="font-medium mb-1">标准品区域</p>
-                  <p className="text-blue-600/80">模板预填 A01-H01 孔位</p>
-                  <p className="text-blue-600/80">数据行：浓度值 + 标准品 OD 值</p>
-                  <p className="text-blue-600/80">建议 7-8 个浓度点（含 Blank = 0）</p>
+                  <p className="text-slate-500">模板预填 A01-H01 孔位</p>
+                  <p className="text-slate-500">数据行：浓度值 + 标准品 OD 值</p>
+                  <p className="text-slate-500">建议 7-8 个浓度点（含 Blank = 0）</p>
                 </div>
                 <div>
                   <p className="font-medium mb-1">未知样本区域</p>
-                  <p className="text-blue-600/80">模板预填 A02-H12 孔位</p>
-                  <p className="text-blue-600/80">每组样本包含孔位、样本编号、OD、稀释倍数</p>
-                  <p className="text-blue-600/80">稀释倍数默认为 1，可按实际修改</p>
+                  <p className="text-slate-500">模板预填 A02-H12 孔位</p>
+                  <p className="text-slate-500">每组样本包含孔位、样本编号、OD、稀释倍数</p>
+                  <p className="text-slate-500">稀释倍数默认为 1，可按实际修改</p>
                 </div>
               </div>
-              <p className="text-blue-600/70 mt-2">支持 Excel、CSV、TXT 上传，也支持 Tab、逗号、空格分隔的复制粘贴。模板中的孔位、样本编号和稀释倍数会进入最终报告。</p>
+              <p className="text-slate-400 mt-2">支持 Excel、CSV、TXT 上传，也支持 Tab、逗号、空格分隔的复制粘贴。模板中的孔位、样本编号和稀释倍数会进入最终报告。</p>
             </div>
           </div>
         )}
@@ -2231,19 +2235,19 @@ export default function ElisaAnalysisPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {fitResult.model === '4pl' && (
                 <>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">A (Bottom)</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.A.toFixed(4)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">B (Hill)</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.B.toFixed(4)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">C (EC50)</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.C.toFixed(2)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">D (Top)</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.D.toFixed(4)}</p>
                   </div>
@@ -2251,67 +2255,67 @@ export default function ElisaAnalysisPage() {
               )}
               {fitResult.model === '5pl' && (
                 <>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">A</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.A.toFixed(4)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">B</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.B.toFixed(4)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">C</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.C.toFixed(2)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">D</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.D.toFixed(4)}</p>
                   </div>
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+                  <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                     <p className="text-xs text-[#94A3B8] mb-1">E (不对称)</p>
                     <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.params.E.toFixed(4)}</p>
                   </div>
                 </>
               )}
-              <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4 text-center">
-                <p className="text-xs text-emerald-600 mb-1">R²</p>
-                <p className="text-lg font-bold font-mono text-emerald-700">{fitResult.r2.toFixed(6)}</p>
+              <div className="rounded-md border border-[#BFE3EC] bg-[#E8F5F8] p-4 text-center">
+                <p className="text-xs text-[#177E97] mb-1">R²</p>
+                <p className="text-lg font-bold font-mono text-[#0F667C]">{fitResult.r2.toFixed(6)}</p>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+              <div className="bg-white rounded-md border border-slate-200 p-4 text-center">
                 <p className="text-xs text-[#94A3B8] mb-1">RMSE</p>
                 <p className="text-lg font-bold font-mono text-[#1E293B]">{fitResult.rmse.toFixed(4)}</p>
               </div>
             </div>
 
             {/* 曲线图 */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />标准曲线
+                  <TrendingUp className="w-5 h-5 text-[#177E97]" />标准曲线
                 </h2>
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-blue-500" />标准品</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#177E97]" />标准品</span>
                   <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500" />未知样本</span>
                 </div>
               </div>
               <div className="flex justify-center overflow-x-auto">{renderCurve()}</div>
               {fitResult.model === '4pl' || fitResult.model === '5pl' ? (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-700 font-mono break-all">{formatEquation(fitResult.model, fitResult.params)}</p>
+                <div className="mt-4 rounded-md bg-[#E8F5F8] p-3">
+                  <p className="text-xs text-[#0F667C] font-mono break-all">{formatEquation(fitResult.model, fitResult.params)}</p>
                 </div>
               ) : null}
             </div>
 
             {/* QC 面板 */}
             {qcResult && (
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
                 <h3 className="text-sm font-semibold text-[#1E293B] mb-4 flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />质控检查结果
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className={`p-4 rounded-xl ${qcResult.cvWarnings.length === 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
+                  <div className={`p-4 rounded-md ${qcResult.cvWarnings.length === 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
                     <p className="text-sm font-medium mb-1">{qcResult.cvWarnings.length === 0 ? '复孔 CV% 正常' : `${qcResult.cvWarnings.length} 个 CV% 超标`}</p>
-                    <p className="text-xs text-gray-500">阈值: CV% ≤ 20%</p>
+                    <p className="text-xs text-slate-500">阈值: CV% ≤ 20%</p>
                     {qcResult.cvWarnings.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {qcResult.cvWarnings.map((w, i) => (
@@ -2320,9 +2324,9 @@ export default function ElisaAnalysisPage() {
                       </div>
                     )}
                   </div>
-                  <div className={`p-4 rounded-xl ${qcResult.outlierPoints.length === 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                  <div className={`p-4 rounded-md ${qcResult.outlierPoints.length === 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
                     <p className="text-sm font-medium mb-1">{qcResult.outlierPoints.length === 0 ? '无异常点' : `${qcResult.outlierPoints.length} 个异常点`}</p>
-                    <p className="text-xs text-gray-500">阈值: |残差| {'>'} 2.5×SD</p>
+                    <p className="text-xs text-slate-500">阈值: |残差| {'>'} 2.5×SD</p>
                     {qcResult.outlierPoints.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {qcResult.outlierPoints.map((o, i) => (
@@ -2331,10 +2335,10 @@ export default function ElisaAnalysisPage() {
                       </div>
                     )}
                   </div>
-                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4">
                     <p className="text-sm font-medium mb-1">拟合质量</p>
-                    <p className="text-xs text-gray-500">R² = {fitResult.r2.toFixed(6)}</p>
-                    <p className={`text-sm font-bold mt-1 ${fitResult.quality === 'excellent' ? 'text-emerald-600' : fitResult.quality === 'good' ? 'text-blue-600' : fitResult.quality === 'acceptable' ? 'text-amber-600' : 'text-red-600'}`}>
+                    <p className="text-xs text-slate-500">R² = {fitResult.r2.toFixed(6)}</p>
+                    <p className={`text-sm font-bold mt-1 ${fitResult.quality === 'excellent' ? 'text-emerald-600' : fitResult.quality === 'good' ? 'text-[#177E97]' : fitResult.quality === 'acceptable' ? 'text-amber-600' : 'text-red-600'}`}>
                       {getFitQuality(fitResult.r2).label}
                     </p>
                   </div>
@@ -2345,8 +2349,8 @@ export default function ElisaAnalysisPage() {
         )}
 
         {activeTab === 'curve' && !fitResult && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
-            <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-12 text-center">
+            <TrendingUp className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-[#94A3B8]">请先完成数据拟合</p>
           </div>
         )}
@@ -2354,12 +2358,12 @@ export default function ElisaAnalysisPage() {
         {/* ── 数据表格 Tab ── */}
         {activeTab === 'table' && fitResult && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
               <h3 className="text-sm font-semibold text-[#1E293B] mb-4">标准品拟合详情</h3>
               {renderReplicateTable()}
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <h3 className="text-sm font-semibold text-[#1E293B]">未知样本浓度结果</h3>
                 <span className="text-xs text-slate-500">样本名称和稀释倍数可直接修改，最终浓度会同步更新。</span>
@@ -2367,28 +2371,28 @@ export default function ElisaAnalysisPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">孔位</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">样本名称</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">复孔 OD</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">均值</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">SD</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">CV%</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">稀释倍数</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">反算浓度</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">最终浓度</th>
-                      <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">判定</th>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">孔位</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">样本名称</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">复孔 OD</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">均值</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">SD</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">CV%</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">稀释倍数</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">反算浓度</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">最终浓度</th>
+                      <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">判定</th>
                     </tr>
                   </thead>
                   <tbody>
                     {getSortedUnknowns(fitResult.unknowns).map((u, i) => (
-                      <tr key={i} className="border-b border-gray-50 last:border-0">
+                      <tr key={i} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50">
                         <td className="py-2 px-3 font-mono text-slate-600">{u.well || '--'}</td>
                         <td className="py-2 px-3">
                           <input
                             value={u.name}
                             onChange={event => updateSampleName(u, event.target.value)}
-                            className="w-36 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-36 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#48B0C8] focus:border-[#48B0C8]"
                             aria-label={`修改 ${u.well || u.name} 样本名称`}
                           />
                         </td>
@@ -2405,14 +2409,14 @@ export default function ElisaAnalysisPage() {
                             step="0.1"
                             value={u.dilution || 1}
                             onChange={event => updateSampleDilution(u, event.target.value)}
-                            className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#48B0C8] focus:border-[#48B0C8]"
                             aria-label={`修改 ${u.well || u.name} 稀释倍数`}
                           />
                         </td>
-                        <td className="py-2 px-3 font-mono font-semibold text-blue-600">
+                        <td className="py-2 px-3 font-mono font-semibold text-[#177E97]">
                           {formatConcentrationValue(u.calculatedConcentration)}
                         </td>
-                        <td className="py-2 px-3 font-mono font-semibold text-blue-600">
+                        <td className="py-2 px-3 font-mono font-semibold text-[#177E97]">
                           {formatConcentrationValue(u.concentration)}
                         </td>
                         <td className="py-2 px-3">
@@ -2430,26 +2434,26 @@ export default function ElisaAnalysisPage() {
         )}
 
         {activeTab === 'table' && !fitResult && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
-            <FileSpreadsheet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-12 text-center">
+            <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-[#94A3B8]">请先完成数据拟合</p>
           </div>
         )}
 
         {/* ── 实验报告 Tab ── */}
         {activeTab === 'report' && fitResult && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-base font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />实验报告
+                <FileText className="w-5 h-5 text-[#177E97]" />实验报告
               </h2>
               <div className="flex flex-wrap justify-end gap-2">
                 <button onClick={exportExcelReport}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm font-medium shadow-sm">
+                  className="flex items-center gap-2 rounded-md bg-[#177E97] px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0F667C]">
                   <Download className="w-4 h-4" />导出 Excel 报告
                 </button>
                 <button onClick={exportTXT}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#3CB5C0] to-[#2563EB] text-white rounded-xl hover:opacity-90 transition-opacity text-sm font-medium shadow-md">
+                  className="flex items-center gap-2 rounded-md border border-[#48B0C8] bg-white px-4 py-2 text-sm font-bold text-[#177E97] transition-colors hover:bg-[#E8F5F8]">
                   <ArrowDownToLine className="w-4 h-4" />导出 TXT 报告
                 </button>
               </div>
@@ -2468,7 +2472,7 @@ export default function ElisaAnalysisPage() {
                   <div><span className="text-[#94A3B8]">RMSE：</span><span className="font-mono font-semibold">{fitResult.rmse.toFixed(6)}</span></div>
                   <div><span className="text-[#94A3B8]">标准品数量：</span>{fitResult.standards.length}</div>
                   <div><span className="text-[#94A3B8]">生成时间：</span>{new Date().toLocaleString('zh-CN')}</div>
-                  <div><span className="text-[#94A3B8]">拟合质量：</span><span className={`font-semibold ${fitResult.quality === 'excellent' ? 'text-emerald-600' : fitResult.quality === 'good' ? 'text-blue-600' : 'text-amber-600'}`}>{getFitQuality(fitResult.r2).label}</span></div>
+                  <div><span className="text-[#94A3B8]">拟合质量：</span><span className={`font-semibold ${fitResult.quality === 'excellent' ? 'text-emerald-600' : fitResult.quality === 'good' ? 'text-[#177E97]' : 'text-amber-600'}`}>{getFitQuality(fitResult.r2).label}</span></div>
                 </div>
               </div>
 
@@ -2501,8 +2505,8 @@ export default function ElisaAnalysisPage() {
                   )}
                 </div>
                 {(fitResult.model === '4pl' || fitResult.model === '5pl') && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-xs text-blue-700 font-mono">{formatEquation(fitResult.model, fitResult.params)}</p>
+                  <div className="mt-3 rounded-md bg-[#E8F5F8] p-3">
+                    <p className="text-xs text-[#0F667C] font-mono">{formatEquation(fitResult.model, fitResult.params)}</p>
                   </div>
                 )}
               </div>
@@ -2513,18 +2517,18 @@ export default function ElisaAnalysisPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">孔位</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">标准品</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">浓度</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">复孔</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">均值</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">SD</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">反算浓度</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">终浓度</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">回收率</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">预测 OD</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">残差</th>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">孔位</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">标准品</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">浓度</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">复孔</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">均值</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">SD</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">反算浓度</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">终浓度</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">回收率</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">预测 OD</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">残差</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2534,7 +2538,7 @@ export default function ElisaAnalysisPage() {
                         const finalConc = getStandardFinalConcentration(backConc)
                         const recovery = s.concentration > 0 && backConc !== undefined ? `${((backConc / s.concentration) * 100).toFixed(1)}%` : '--'
                         return (
-                          <tr key={i} className="border-b border-gray-50 last:border-0">
+                          <tr key={i} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50">
                             <td className="py-2 px-3 font-mono text-slate-600">{s.well || '--'}</td>
                             <td className="py-2 px-3 font-mono text-slate-700">{getStandardDisplayLabels(fitResult.standards)[i]}</td>
                             <td className="py-2 px-3 font-mono">{s.concentration}</td>
@@ -2544,7 +2548,7 @@ export default function ElisaAnalysisPage() {
                             <td className="py-2 px-3 font-mono">{backConc !== undefined ? backConc.toFixed(2) : '--'}</td>
                             <td className="py-2 px-3 font-mono">{finalConc !== undefined ? finalConc.toFixed(2) : '--'}</td>
                             <td className="py-2 px-3 font-mono">{recovery}</td>
-                            <td className="py-2 px-3 font-mono text-blue-600">{pred.toFixed(3)}</td>
+                            <td className="py-2 px-3 font-mono text-[#177E97]">{pred.toFixed(3)}</td>
                             <td className="py-2 px-3 font-mono">{(s.mean - pred).toFixed(4)}</td>
                           </tr>
                         )
@@ -2560,21 +2564,21 @@ export default function ElisaAnalysisPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[920px] text-xs">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="py-2 px-2 text-left text-[#94A3B8] font-medium">行</th>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="py-2 px-2 text-left text-xs font-medium text-slate-500">行</th>
                         {Array.from({ length: 12 }, (_, index) => (
-                          <th key={index} className="py-2 px-2 text-left text-[#94A3B8] font-medium">{String(index + 1).padStart(2, '0')}</th>
+                          <th key={index} className="py-2 px-2 text-left text-xs font-medium text-slate-500">{String(index + 1).padStart(2, '0')}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {getPlateMatrixRows().map((row, rowIndex) => (
-                        <tr key={PLATE_ROWS[rowIndex]} className="border-b border-gray-50 last:border-0">
+                        <tr key={PLATE_ROWS[rowIndex]} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50">
                           <td className="py-2 px-2 font-mono font-semibold text-slate-600">{PLATE_ROWS[rowIndex]}</td>
                           {row.map(cell => (
                             <td key={cell.well} className="py-2 px-2 align-top">
                               {cell.label ? (
-                                <div className={`rounded-lg border px-2 py-1.5 ${cell.status === 'standard' ? 'border-blue-100 bg-blue-50 text-blue-700' : getConcentrationStatusClass(cell.status === 'empty' ? undefined : cell.status)}`}>
+                                <div className={`rounded-lg border px-2 py-1.5 ${cell.status === 'standard' ? 'border-[#BFE3EC] bg-[#E8F5F8] text-[#0F667C]' : getConcentrationStatusClass(cell.status === 'empty' ? undefined : cell.status)}`}>
                                   <div className="font-mono font-semibold">{cell.well}</div>
                                   <div className="truncate">{cell.label}</div>
                                   <div className="font-mono">OD {cell.od?.toFixed(3)}</div>
@@ -2598,28 +2602,28 @@ export default function ElisaAnalysisPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">孔位</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">样本</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">复孔</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">均值 OD</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">稀释倍数</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">反算浓度</th>
-                        <th className="text-left py-2 px-3 text-[#94A3B8] font-medium">最终浓度</th>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">孔位</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">样本</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">复孔</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">均值 OD</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">稀释倍数</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">反算浓度</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-medium text-slate-500">最终浓度</th>
                       </tr>
                     </thead>
                     <tbody>
                       {getSortedUnknowns(fitResult.unknowns).map((u, i) => (
-                        <tr key={i} className="border-b border-gray-50 last:border-0">
+                        <tr key={i} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50">
                           <td className="py-2 px-3 font-mono text-slate-600">{u.well || '--'}</td>
                           <td className="py-2 px-3 font-medium">{u.name}</td>
                           <td className="py-2 px-3 font-mono text-xs">{u.replicates.map(r => r.toFixed(3)).join(', ')}</td>
                           <td className="py-2 px-3 font-mono">{u.mean.toFixed(3)}</td>
                           <td className="py-2 px-3 font-mono">{u.dilution || 1}</td>
-                          <td className="py-2 px-3 font-mono font-semibold text-blue-600">
+                          <td className="py-2 px-3 font-mono font-semibold text-[#177E97]">
                             {formatConcentrationValue(u.calculatedConcentration)}
                           </td>
-                          <td className="py-2 px-3 font-mono font-semibold text-blue-600">
+                          <td className="py-2 px-3 font-mono font-semibold text-[#177E97]">
                             {formatConcentrationValue(u.concentration)}
                           </td>
                         </tr>
@@ -2643,8 +2647,8 @@ export default function ElisaAnalysisPage() {
         )}
 
         {activeTab === 'report' && !fitResult && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-12 text-center">
+            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-[#94A3B8]">请先完成数据拟合</p>
           </div>
         )}

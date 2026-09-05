@@ -201,7 +201,7 @@ export default function PlateCalculator() {
           </div>
           <div className="border-t border-slate-200 pt-2 flex justify-between">
             <span className="font-semibold text-slate-900">单板基础需求孔数</span>
-            <span className="font-bold text-blue-600 text-lg">{result.totalWells} 孔</span>
+            <span className="font-bold text-[#177E97] text-lg">{result.totalWells} 孔</span>
           </div>
         </div>
       </div>
@@ -220,7 +220,7 @@ export default function PlateCalculator() {
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-bold text-slate-900">{rec.label}</span>
-              <span className="text-sm font-bold text-blue-600">
+              <span className="text-sm font-bold text-[#177E97]">
                 {formatPlateMix(rec)}
               </span>
             </div>

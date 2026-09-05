@@ -45,7 +45,7 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="group block bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 hover:shadow-md transition-all"
+      className="group block bg-white border border-slate-200 rounded-lg overflow-hidden hover:border-teal-300 hover:shadow-md transition-all"
     >
       {/* Product Image */}
       <div className="relative h-48 w-full overflow-hidden bg-slate-50">
@@ -61,7 +61,7 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
       <div className="p-6">
         {/* Tags */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-semibold">
+          <span className="px-2.5 py-1 bg-teal-50 text-teal-800 text-xs rounded-md font-semibold">
             {product.target}
           </span>
           {displaySpecies.slice(0, 1).map((s) => (
@@ -80,14 +80,14 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
         </div>
 
         {/* Title */}
-        <h3 className="font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-blue-700 transition-colors">
+        <h3 className="font-bold text-slate-900 mb-2 line-clamp-1 group-hover:text-teal-800 transition-colors">
           {product.name}
         </h3>
 
         {/* Detection Range */}
         <div className="mb-4 space-y-1 text-sm text-slate-500">
           {displayCatalogNumber && (
-            <p className="font-mono text-xs text-blue-600">货号 {displayCatalogNumber}</p>
+            <p className="font-mono text-xs text-teal-700">货号 {displayCatalogNumber}</p>
           )}
           <p>检测范围 {product.detection_range || '待确认'}</p>
         </div>
@@ -98,11 +98,11 @@ export default function ProductCard({ product, species = [] }: ProductCardProps)
           <div className="flex items-center gap-3">
             {(product.citation_count || 0) > 0 && (
               <span className="flex items-center gap-1 text-xs text-slate-500 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
                 {product.citation_count} 引用
               </span>
             )}
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 group-hover:translate-x-0.5 transition-transform">
               详情 <ArrowRight className="w-3 h-3" />
             </span>
           </div>

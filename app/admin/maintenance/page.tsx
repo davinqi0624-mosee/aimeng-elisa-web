@@ -1,19 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Button, Card, Col, Empty, Row, Spin, Statistic, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  DatabaseBackup,
-  FileArchive,
-  Loader2,
-  RefreshCw,
-  ShieldCheck,
-  Wrench,
-  XCircle,
-} from 'lucide-react'
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  DatabaseOutlined,
+  ExclamationCircleOutlined,
+  FileZipOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  ToolOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 type CheckStatus = 'pass' | 'warn' | 'fail'
 
@@ -49,16 +50,16 @@ interface BackupPayload {
   notes: string[]
 }
 
-function statusStyle(status: CheckStatus) {
-  if (status === 'pass') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-  if (status === 'warn') return 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-  return 'border-red-500/30 bg-red-500/10 text-red-300'
+const STATUS_META: Record<CheckStatus, { color: string; label: string }> = {
+  pass: { color: 'green', label: '通过' },
+  warn: { color: 'gold', label: '警告' },
+  fail: { color: 'volcano', label: '失败' },
 }
 
 function StatusIcon({ status }: { status: CheckStatus }) {
-  if (status === 'pass') return <CheckCircle2 className="w-4 h-4" />
-  if (status === 'warn') return <AlertTriangle className="w-4 h-4" />
-  return <XCircle className="w-4 h-4" />
+  if (status === 'pass') return <CheckCircleOutlined />
+  if (status === 'warn') return <ExclamationCircleOutlined />
+  return <CloseCircleOutlined />
 }
 
 function formatTime(value?: string) {
@@ -127,165 +128,207 @@ export default function AdminMaintenancePage() {
     }
   }
 
+  const checkColumns: ColumnsType<CheckResult> = [
+    {
+      title: '检查项',
+      dataIndex: 'label',
+      key: 'label',
+      width: 180,
+      render: (label: string) => <span className="font-medium text-slate-700">{label}</span>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: CheckStatus) => (
+        <Tag color={STATUS_META[status].color} icon={<StatusIcon status={status} />}>
+          {STATUS_META[status].label}
+        </Tag>
+      ),
+    },
+    {
+      title: '详情',
+      dataIndex: 'message',
+      key: 'message',
+      render: (msg: string) => <span className="text-slate-500">{msg}</span>,
+    },
+    {
+      title: '耗时',
+      dataIndex: 'latencyMs',
+      key: 'latencyMs',
+      width: 90,
+      render: (latencyMs?: number) => (
+        <span className="text-xs text-slate-500">{latencyMs ? `${latencyMs} ms` : '-'}</span>
+      ),
+    },
+  ]
+
   if (booting) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        <Spin />
       </div>
     )
   }
 
   if (role !== 'super') {
     return (
-      <div className="max-w-md mx-auto py-12 text-center">
-        <ShieldCheck className="w-10 h-10 mx-auto mb-3 text-red-400" />
-        <p className="text-sm text-slate-400">仅超级管理员可访问运维中心</p>
+      <div className="py-12">
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="仅超级管理员可访问运维中心" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 text-slate-100">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Activity className="w-6 h-6 text-cyan-300" />
-            运维中心
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">超级管理员专用：巡检、备份预检、恢复状态</p>
-        </div>
-        <div className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${statusStyle(overallStatus)}`}>
-          <StatusIcon status={overallStatus} />
-          {health ? `通过 ${health.summary.pass} / 警告 ${health.summary.warn} / 失败 ${health.summary.fail}` : '等待巡检'}
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        icon={<ToolOutlined />}
+        title="运维中心"
+        description="超级管理员专用：巡检、备份预检、恢复状态"
+        extra={
+          <Tag
+            color={STATUS_META[overallStatus].color}
+            icon={<StatusIcon status={overallStatus} />}
+            style={{ fontSize: 14, lineHeight: '26px', padding: '0 10px' }}
+          >
+            {health
+              ? `通过 ${health.summary.pass} / 警告 ${health.summary.warn} / 失败 ${health.summary.fail}`
+              : '等待巡检'}
+          </Tag>
+        }
+      />
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-300" />
-            权限
-          </div>
-          <p className="mt-3 text-xl font-semibold text-white">超级管理员</p>
-        </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Clock3 className="w-4 h-4 text-cyan-300" />
-            最近巡检
-          </div>
-          <p className="mt-3 text-xl font-semibold text-white">{formatTime(health?.generatedAt)}</p>
-        </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <DatabaseBackup className="w-4 h-4 text-amber-300" />
-            备份状态
-          </div>
-          <p className="mt-3 text-xl font-semibold text-white">
-            {backup?.status.databaseUrlConfigured ? '本地脚本可导库' : '待配置数据库连接'}
-          </p>
-        </div>
-      </section>
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={24} md={8}>
+          <Card size="small">
+            <Statistic
+              title="权限"
+              value="超级管理员"
+              prefix={<SafetyCertificateOutlined />}
+              valueStyle={{ fontSize: 18 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card size="small">
+            <Statistic
+              title="最近巡检"
+              value={formatTime(health?.generatedAt)}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ fontSize: 18 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card size="small">
+            <Statistic
+              title="备份状态"
+              value={backup?.status.databaseUrlConfigured ? '本地脚本可导库' : '待配置数据库连接'}
+              prefix={<DatabaseOutlined />}
+              valueStyle={{ fontSize: 18 }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <section className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="flex flex-col gap-3 border-b border-slate-800 p-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="font-semibold text-white flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-cyan-300" />
-              一键巡检
-            </h2>
-            <p className="text-sm text-slate-400 mt-1">检查 AI、数据库、关键页面和知识接口</p>
+      <Card
+        className="mb-6"
+        title={
+          <div className="flex items-center gap-2">
+            <ToolOutlined />
+            一键巡检
           </div>
-          <button
+        }
+        extra={
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={runningHealth}
             onClick={runHealthCheck}
-            disabled={runningHealth}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {runningHealth ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             运行巡检
-          </button>
-        </div>
+          </Button>
+        }
+      >
+        <p className="mb-4 text-sm text-slate-500">检查 AI、数据库、关键页面和知识接口</p>
+        <Table<CheckResult>
+          rowKey="key"
+          columns={checkColumns}
+          dataSource={health?.checks || []}
+          loading={runningHealth}
+          pagination={false}
+          locale={{ emptyText: '点击“运行巡检”后显示结果' }}
+        />
+      </Card>
 
-        <div className="divide-y divide-slate-800">
-          {(health?.checks || []).map((item) => (
-            <div key={item.key} className="grid gap-3 p-4 md:grid-cols-[180px_110px_1fr_90px] md:items-center">
-              <div className="text-sm font-medium text-slate-200">{item.label}</div>
-              <div className={`inline-flex w-fit items-center gap-1 rounded-md border px-2 py-1 text-xs ${statusStyle(item.status)}`}>
-                <StatusIcon status={item.status} />
-                {item.status === 'pass' ? '通过' : item.status === 'warn' ? '警告' : '失败'}
-              </div>
-              <div className="text-sm text-slate-400">{item.message}</div>
-              <div className="text-xs text-slate-500">{item.latencyMs ? `${item.latencyMs} ms` : '-'}</div>
-            </div>
-          ))}
-          {!health && (
-            <div className="p-8 text-center text-sm text-slate-500">点击“运行巡检”后显示结果</div>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="flex flex-col gap-3 border-b border-slate-800 p-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="font-semibold text-white flex items-center gap-2">
-              <FileArchive className="w-5 h-5 text-amber-300" />
-              备份与恢复
-            </h2>
-            <p className="text-sm text-slate-400 mt-1">查看备份条件、预检脚本和恢复准备状态</p>
+      <Card
+        title={
+          <div className="flex items-center gap-2">
+            <FileZipOutlined />
+            备份与恢复
           </div>
-          <button
+        }
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            loading={runningBackup}
             onClick={runBackupPreflight}
-            disabled={runningBackup}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {runningBackup ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             备份预检
-          </button>
-        </div>
-
-        <div className="grid gap-4 p-4 md:grid-cols-2">
-          <div className="space-y-3">
-            {backup && [
-              ['备份脚本', backup.status.scriptExists],
-              ['数据库连接', backup.status.databaseUrlConfigured],
-              ['外部对象存储', backup.status.externalStorageConfigured],
-              ['自动定时备份', backup.status.cronConfigured],
-            ].map(([label, ok]) => (
-              <div key={label as string} className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-950 px-3 py-2">
-                <span className="text-sm text-slate-300">{label as string}</span>
-                <span className={`inline-flex items-center gap-1 text-xs ${ok ? 'text-emerald-300' : 'text-amber-300'}`}>
-                  {ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                  {ok ? '已就绪' : '待配置'}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-md border border-slate-800 bg-slate-950 p-3">
-            <h3 className="text-sm font-medium text-slate-200">最近本地备份</h3>
-            <div className="mt-3 space-y-2">
-              {backup?.localBackups.length ? backup.localBackups.map((item) => (
-                <div key={item.path} className="text-xs text-slate-400">
-                  <span className="text-slate-200">{item.name}</span>
-                  <span className="ml-2">{formatTime(item.createdAt)}</span>
+          </Button>
+        }
+      >
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12}>
+            <div className="space-y-3">
+              {backup && [
+                ['备份脚本', backup.status.scriptExists],
+                ['数据库连接', backup.status.databaseUrlConfigured],
+                ['外部对象存储', backup.status.externalStorageConfigured],
+                ['自动定时备份', backup.status.cronConfigured],
+              ].map(([label, ok]) => (
+                <div
+                  key={label as string}
+                  className="flex items-center justify-between rounded-md border border-gray-100 bg-gray-50 px-3 py-2"
+                >
+                  <span className="text-sm text-slate-700">{label as string}</span>
+                  <Tag color={ok ? 'green' : 'gold'} icon={ok ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}>
+                    {ok ? '已就绪' : '待配置'}
+                  </Tag>
                 </div>
-              )) : (
-                <p className="text-sm text-slate-500">暂无本地备份记录</p>
-              )}
+              ))}
             </div>
-          </div>
-        </div>
+          </Col>
+
+          <Col xs={24} md={12}>
+            <div className="h-full rounded-md border border-gray-100 p-3">
+              <h3 className="text-sm font-medium text-slate-700">最近本地备份</h3>
+              <div className="mt-3 space-y-2">
+                {backup?.localBackups.length ? backup.localBackups.map((item) => (
+                  <div key={item.path} className="text-xs text-slate-500">
+                    <span className="text-slate-700">{item.name}</span>
+                    <span className="ml-2">{formatTime(item.createdAt)}</span>
+                  </div>
+                )) : (
+                  <p className="text-sm text-slate-400">暂无本地备份记录</p>
+                )}
+              </div>
+            </div>
+          </Col>
+        </Row>
 
         {backupDryRun && (
-          <pre className="mx-4 mb-4 max-h-44 overflow-auto rounded-md border border-slate-800 bg-black p-3 text-xs text-slate-300">
+          <pre className="mt-4 max-h-44 overflow-auto rounded-md border border-gray-100 bg-gray-50 p-3 text-xs text-slate-600">
             {backupDryRun}
           </pre>
         )}
 
-        <div className="border-t border-slate-800 p-4 text-sm text-slate-400">
-          <p className="font-medium text-slate-300">恢复入口</p>
+        <div className="mt-4 border-t border-gray-100 pt-4 text-sm text-slate-500">
+          <p className="font-medium text-slate-700">恢复入口</p>
           <p className="mt-1">生产环境恢复会在这里选择干净备份，依次恢复数据库、文件资产、环境变量和健康检查。目前先显示备份准备状态，正式云备份接入后启用一键恢复流程。</p>
         </div>
-      </section>
+      </Card>
     </div>
   )
 }

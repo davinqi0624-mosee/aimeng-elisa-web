@@ -3,11 +3,17 @@
 import Image from 'next/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Upload, FileText, X, Save, Plus, Search, Download,
-  Image as ImageIcon, FileUp, ChevronLeft, ChevronRight,
-  Trash2, Edit3, CheckCircle, AlertCircle, FileSpreadsheet,
-  Loader2
-} from 'lucide-react';
+  Alert, App, Button, Card, Input, InputNumber, Modal, Popconfirm,
+  Select, Space, Spin, Statistic, Table, Tag
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  CheckCircleOutlined, CloseOutlined, DeleteOutlined, DownloadOutlined,
+  EditOutlined, ExclamationCircleOutlined, FileExcelOutlined, FilePdfOutlined,
+  FileTextOutlined, PictureOutlined, PlusOutlined, SaveOutlined, SearchOutlined,
+  UploadOutlined
+} from '@ant-design/icons';
+import PageHeader from '@/components/admin/PageHeader';
 import { generateExcelTemplate } from '@/lib/xlsx-images';
 import { normalizeElisaCatalogNumber } from '@/lib/products/catalog';
 
@@ -78,11 +84,11 @@ function displayStatus(status?: string) {
   return normalized || '-';
 }
 
-function statusBadgeClass(status?: string) {
+function statusTagColor(status?: string) {
   const normalized = (status || '').trim();
-  if (normalized === 'active' || normalized === '上架') return 'bg-green-900/50 text-green-300';
-  if (normalized === 'draft' || normalized === '草稿') return 'bg-yellow-900/50 text-yellow-300';
-  return 'bg-slate-800 text-slate-400';
+  if (normalized === 'active' || normalized === '上架') return 'green';
+  if (normalized === 'draft' || normalized === '草稿') return 'gold';
+  return 'default';
 }
 
 function isSignificantPriceChange(oldPrice?: number, nextPrice?: number) {
@@ -94,6 +100,7 @@ function isSignificantPriceChange(oldPrice?: number, nextPrice?: number) {
 }
 
 export default function AdminProductsPage() {
+  const { message, modal } = App.useApp();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -136,15 +143,15 @@ export default function AdminProductsPage() {
       setProducts(nextProducts);
       setTotal(nextTotal);
     } catch (error: unknown) {
-      const message = getErrorMessage(error, '网络错误');
-      setLoadError('加载商品失败: ' + message);
-      alert('加载商品失败: ' + message);
+      const msg = getErrorMessage(error, '网络错误');
+      setLoadError('加载商品失败: ' + msg);
+      message.error('加载商品失败: ' + msg);
       setProducts([]);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [loadProducts, page, search]);
+  }, [loadProducts, page, search, message]);
 
   useEffect(() => {
     let active = true;
@@ -174,17 +181,17 @@ export default function AdminProductsPage() {
   const handleImageUpload = async (file: File, type: 'product' | 'standard_curve' | 'validation' | 'additional') => {
     if (!editing) return;
     if (isCreating || !editing.id) {
-      alert('请先保存商品，再上传图片。这样文件会归档到对应商品目录，避免进入临时目录后难以追溯。');
+      message.error('请先保存商品，再上传图片。这样文件会归档到对应商品目录，避免进入临时目录后难以追溯。');
       return;
     }
     const key = `${type}_image` as ProductImageField;
 
     if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件，支持 JPG、PNG、WebP 等图片格式');
+      message.error('请选择图片文件，支持 JPG、PNG、WebP 等图片格式');
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      alert('图片不能超过 8MB，请压缩后再上传');
+      message.error('图片不能超过 8MB，请压缩后再上传');
       return;
     }
 
@@ -207,13 +214,13 @@ export default function AdminProductsPage() {
       const response = await fetch('/api/admin/upload', { method: 'POST', body });
       const result = await response.json().catch(() => ({} as AdminApiError & { url?: string }));
       if (!response.ok) {
-        alert('上传失败: ' + (result.error || '未知错误'));
+        message.error('上传失败: ' + (result.error || '未知错误'));
         return;
       }
 
       setEditing(prev => prev ? ({ ...prev, [key]: result.url } as Product) : null);
     } catch (error: unknown) {
-      alert('上传失败: ' + getErrorMessage(error, '网络错误'));
+      message.error('上传失败: ' + getErrorMessage(error, '网络错误'));
     } finally {
       setUploadingImages(prev => ({ ...prev, [key]: false }));
     }
@@ -221,11 +228,11 @@ export default function AdminProductsPage() {
 
   const validatePdfFile = (file: File) => {
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      alert('说明书只能上传 PDF 文件');
+      message.error('说明书只能上传 PDF 文件');
       return false;
     }
     if (file.size > 20 * 1024 * 1024) {
-      alert('PDF 不能超过 20MB，请压缩后再上传');
+      message.error('PDF 不能超过 20MB，请压缩后再上传');
       return false;
     }
     return true;
@@ -260,118 +267,129 @@ export default function AdminProductsPage() {
       const url = await uploadPdfForProduct(file, editing.id, editing.datasheet_pdf);
       setEditing(prev => prev ? { ...prev, datasheet_pdf: url } : null);
     } catch (error: unknown) {
-      alert('PDF上传失败: ' + getErrorMessage(error, '网络错误'));
+      message.error('PDF上传失败: ' + getErrorMessage(error, '网络错误'));
     } finally {
       setUploadingImages(prev => ({ ...prev, datasheet_pdf: false }));
     }
   };
 
-  const handleSave = async () => {
+  const closeEditor = () => {
+    setEditing(null);
+    setIsCreating(false);
+    setPendingPdfFile(null);
+  };
+
+  const handleSave = () => {
     if (!editing) return;
     const name = editing.name.trim();
     const target = editing.target.trim();
     const catalogNumber = editing.catalog_number?.trim() || '';
     if (!name || !target || !catalogNumber) {
       setSaveStatus('error');
-      alert('请填写商品名称、靶标和货号。货号是说明书、COA 和批量文件匹配的核心字段。');
+      message.error('请填写商品名称、靶标和货号。货号是说明书、COA 和批量文件匹配的核心字段。');
       return;
     }
     const originalProduct = isCreating ? null : products.find((product) => product.id === editing.id);
-    if (
-      originalProduct &&
-      isSignificantPriceChange(originalProduct.price, Number(editing.price)) &&
-      !confirm(`价格从 ¥${originalProduct.price} 调整为 ¥${Number(editing.price)}，变动超过 20%。请确认这是有意修改后再保存。`)
-    ) {
-      return;
-    }
-    setSaveStatus('saving');
-    const payload = {
-      name,
-      target,
-      catalog_number: catalogNumber,
-      species: editing.species || null,
-      description: editing.description || null,
-      detection_method: editing.detection_method || null,
-      assay_time: editing.assay_time || null,
-      platform: editing.platform || null,
-      sample_types_text: editing.sample_types_text || null,
-      detection_range: editing.detection_range,
-      sensitivity: editing.sensitivity,
-      price: Number(editing.price),
-      price_48t: editing.price_48t || null,
-      price_96t: editing.price_96t || null,
-      stock_status: editing.stock_status,
-      status: editing.status,
-      product_image: editing.product_image,
-      standard_curve_image: editing.standard_curve_image,
-      validation_image: editing.validation_image,
-      additional_image: editing.additional_image,
-      datasheet_pdf: editing.datasheet_pdf,
-    };
+    const doSave = async () => {
+      setSaveStatus('saving');
+      const payload = {
+        name,
+        target,
+        catalog_number: catalogNumber,
+        species: editing.species || null,
+        description: editing.description || null,
+        detection_method: editing.detection_method || null,
+        assay_time: editing.assay_time || null,
+        platform: editing.platform || null,
+        sample_types_text: editing.sample_types_text || null,
+        detection_range: editing.detection_range,
+        sensitivity: editing.sensitivity,
+        price: Number(editing.price),
+        price_48t: editing.price_48t || null,
+        price_96t: editing.price_96t || null,
+        stock_status: editing.stock_status,
+        status: editing.status,
+        product_image: editing.product_image,
+        standard_curve_image: editing.standard_curve_image,
+        validation_image: editing.validation_image,
+        additional_image: editing.additional_image,
+        datasheet_pdf: editing.datasheet_pdf,
+      };
 
-    let response: Response;
-    try {
-      response = await fetch('/api/admin/products', {
-        method: isCreating ? 'POST' : 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isCreating ? payload : { id: editing.id, ...payload }),
-      });
-    } catch (error: unknown) {
-      setSaveStatus('error');
-      alert((isCreating ? '创建失败: ' : '保存失败: ') + getErrorMessage(error, '网络连接失败，请稍后重试'));
-      return;
-    }
-
-    let responseData: { id?: string; message?: string } = {};
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({} as AdminApiError));
-      setSaveStatus('error');
-      if (error.requireConfirm) {
-        alert('保存失败：价格变动超过 20%，当前账号无权直接保存。请让超级管理员复核价格后再提交。');
-        return;
-      }
-      alert((isCreating ? '创建失败: ' : '保存失败: ') + (error.error || '未知错误'));
-      return;
-    }
-
-    responseData = await response.json().catch(() => ({}));
-
-    const createdProductId = isCreating ? responseData.id : editing.id;
-    if (pendingPdfFile && createdProductId) {
-      setUploadingImages(prev => ({ ...prev, datasheet_pdf: true }));
+      let response: Response;
       try {
-        const pdfUrl = await uploadPdfForProduct(pendingPdfFile, createdProductId, editing.datasheet_pdf);
-        const pdfResponse = await fetch('/api/admin/products', {
-          method: 'PUT',
+        response = await fetch('/api/admin/products', {
+          method: isCreating ? 'POST' : 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: createdProductId, datasheet_pdf: pdfUrl }),
+          body: JSON.stringify(isCreating ? payload : { id: editing.id, ...payload }),
         });
-        if (!pdfResponse.ok) {
-          const error = await pdfResponse.json().catch(() => ({} as AdminApiError));
-          throw new Error(error.error || '说明书地址写回失败');
-        }
-        setPendingPdfFile(null);
       } catch (error: unknown) {
         setSaveStatus('error');
-        alert(`商品已保存，但说明书 PDF 上传或绑定失败：${getErrorMessage(error, '未知错误')}。请进入该商品编辑页重新上传说明书。`);
-        setUploadingImages(prev => ({ ...prev, datasheet_pdf: false }));
+        message.error((isCreating ? '创建失败: ' : '保存失败: ') + getErrorMessage(error, '网络连接失败，请稍后重试'));
         return;
-      } finally {
-        setUploadingImages(prev => ({ ...prev, datasheet_pdf: false }));
       }
-    }
 
-    setSaveStatus('saved');
-    setTimeout(() => { setSaveStatus('idle'); setEditing(null); setIsCreating(false); setPendingPdfFile(null); fetchProducts(); }, 800);
+      let responseData: { id?: string; message?: string } = {};
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({} as AdminApiError));
+        setSaveStatus('error');
+        if (error.requireConfirm) {
+          message.error('保存失败：价格变动超过 20%，当前账号无权直接保存。请让超级管理员复核价格后再提交。');
+          return;
+        }
+        message.error((isCreating ? '创建失败: ' : '保存失败: ') + (error.error || '未知错误'));
+        return;
+      }
+
+      responseData = await response.json().catch(() => ({}));
+
+      const createdProductId = isCreating ? responseData.id : editing.id;
+      if (pendingPdfFile && createdProductId) {
+        setUploadingImages(prev => ({ ...prev, datasheet_pdf: true }));
+        try {
+          const pdfUrl = await uploadPdfForProduct(pendingPdfFile, createdProductId, editing.datasheet_pdf);
+          const pdfResponse = await fetch('/api/admin/products', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: createdProductId, datasheet_pdf: pdfUrl }),
+          });
+          if (!pdfResponse.ok) {
+            const error = await pdfResponse.json().catch(() => ({} as AdminApiError));
+            throw new Error(error.error || '说明书地址写回失败');
+          }
+          setPendingPdfFile(null);
+        } catch (error: unknown) {
+          setSaveStatus('error');
+          message.error(`商品已保存，但说明书 PDF 上传或绑定失败：${getErrorMessage(error, '未知错误')}。请进入该商品编辑页重新上传说明书。`);
+          setUploadingImages(prev => ({ ...prev, datasheet_pdf: false }));
+          return;
+        } finally {
+          setUploadingImages(prev => ({ ...prev, datasheet_pdf: false }));
+        }
+      }
+
+      setSaveStatus('saved');
+      setTimeout(() => { setSaveStatus('idle'); setEditing(null); setIsCreating(false); setPendingPdfFile(null); fetchProducts(); }, 800);
+    };
+
+    if (
+      originalProduct &&
+      isSignificantPriceChange(originalProduct.price, Number(editing.price))
+    ) {
+      modal.confirm({
+        content: `价格从 ¥${originalProduct.price} 调整为 ¥${Number(editing.price)}，变动超过 20%。请确认这是有意修改后再保存。`,
+        onOk: doSave,
+      });
+      return;
+    }
+    void doSave();
   };
 
   const handleDelete = async (product: Product) => {
-    const label = product.catalog_number ? `${product.name}（货号：${product.catalog_number}）` : product.name;
-    if (!confirm(`确定删除商品「${label}」？\n\n删除后前台将无法访问该商品，相关图片和说明书链接也会失去商品归属。`)) return;
     const response = await fetch(`/api/admin/products?id=${encodeURIComponent(product.id)}`, { method: 'DELETE' });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      alert('删除失败: ' + (error.error || '未知错误'));
+      message.error('删除失败: ' + (error.error || '未知错误'));
       return;
     }
     fetchProducts();
@@ -393,344 +411,365 @@ export default function AdminProductsPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <ImageIcon className="w-6 h-6 text-blue-400" />
-              商品管理
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">管理 ELISA 试剂盒：编辑信息、上传图片、导入批量数据</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowCatalogReset(true)} className="px-4 py-2 rounded-lg border border-amber-500/50 text-amber-200 hover:bg-amber-500/10 text-sm font-medium transition-colors flex items-center gap-2">
-              <Trash2 className="w-4 h-4" /> 归档旧目录
-            </button>
-            <button onClick={() => setShowBulkImport(true)} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors flex items-center gap-2">
-              <Download className="w-4 h-4" /> 批量导入
-            </button>
-            <button onClick={openCreate} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors flex items-center gap-2">
-              <Plus className="w-4 h-4" /> 新增商品
-            </button>
-          </div>
+  const columns: ColumnsType<Product> = [
+    {
+      title: '名称 / 靶标',
+      key: 'name',
+      render: (_, p) => (
+        <div>
+          <div className="text-sm font-medium text-slate-900">{p.name}</div>
+          <div className="text-xs text-slate-500">{p.target}</div>
+          {p.catalog_number && <div className="mt-0.5 font-mono text-xs text-blue-600">货号：{p.catalog_number}</div>}
+          {p.species && <div className="mt-0.5 text-xs text-emerald-600">种属：{p.species}</div>}
         </div>
-
-        {/* 搜索 */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
+      ),
+    },
+    {
+      title: '检测范围',
+      key: 'detection_range',
+      render: (_, p) => <span className="text-slate-600">{p.detection_range || '-'}</span>,
+    },
+    {
+      title: '灵敏度',
+      key: 'sensitivity',
+      render: (_, p) => <span className="text-slate-600">{p.sensitivity || '-'}</span>,
+    },
+    {
+      title: '价格',
+      key: 'price',
+      width: 110,
+      render: (_, p) => p.price_48t || p.price_96t ? (
+        <div className="space-y-0.5">
+          {p.price_48t && <div className="text-xs"><span className="text-blue-600">48T</span> ¥{p.price_48t}</div>}
+          {p.price_96t && <div className="text-xs"><span className="text-emerald-600">96T</span> ¥{p.price_96t}</div>}
+        </div>
+      ) : (
+        <span>¥{p.price}</span>
+      ),
+    },
+    {
+      title: '图片',
+      key: 'images',
+      width: 90,
+      render: (_, p) => (
+        <div className="flex gap-1">
+          {p.product_image && <span className="h-2 w-2 rounded-full bg-green-500" title="产品图" />}
+          {p.standard_curve_image && <span className="h-2 w-2 rounded-full bg-blue-500" title="标准曲线" />}
+          {p.validation_image && <span className="h-2 w-2 rounded-full bg-purple-500" title="验证图" />}
+          {p.additional_image && <span className="h-2 w-2 rounded-full bg-yellow-500" title="其他图" />}
+          {!p.product_image && !p.standard_curve_image && !p.validation_image && !p.additional_image && (
+            <span className="text-xs text-slate-400">无</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '说明书',
+      key: 'datasheet',
+      width: 90,
+      render: (_, p) => p.datasheet_pdf ? (
+        <span className="inline-flex items-center gap-1 text-xs text-green-600">
+          <FileTextOutlined /> 已上传
+        </span>
+      ) : (
+        <span className="text-xs text-slate-400">-</span>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 80,
+      render: (status: string) => <Tag color={statusTagColor(status)}>{displayStatus(status)}</Tag>,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 100,
+      render: (_, p) => (
+        <Space>
+          <Button
             type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            placeholder="搜索商品名称或靶标..."
-            className="w-full max-w-md pl-10 pr-4 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            icon={<EditOutlined />}
+            onClick={() => { setSaveStatus('idle'); setUploadingImages({}); setPendingPdfFile(null); setEditing({ ...p, status: normalizePublishStatus(p.status), stock_status: normalizeStockStatus(p.stock_status) }); setIsCreating(false); }}
           />
-        </div>
+          <Popconfirm
+            title={`确定删除商品「${p.catalog_number ? `${p.name}（货号：${p.catalog_number}）` : p.name}」？`}
+            description="删除后前台将无法访问该商品，相关图片和说明书链接也会失去商品归属。"
+            okText="删除"
+            cancelText="取消"
+            onConfirm={() => handleDelete(p)}
+          >
+            <Button type="text" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
-        {loadError && (
-          <div className="mb-4 rounded-lg border border-red-800/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-            {loadError}
-          </div>
-        )}
+  return (
+    <div>
+      <PageHeader
+        icon={<PictureOutlined />}
+        title="商品管理"
+        description="管理 ELISA 试剂盒：编辑信息、上传图片、导入批量数据"
+        extra={
+          <Space>
+            <Button icon={<DeleteOutlined />} onClick={() => setShowCatalogReset(true)}>归档旧目录</Button>
+            <Button icon={<DownloadOutlined />} onClick={() => setShowBulkImport(true)}>批量导入</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增商品</Button>
+          </Space>
+        }
+      />
 
-        {/* 表格 */}
-        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800/50 text-slate-400">
-              <tr>
-                <th className="px-4 py-3 text-left">名称 / 靶标</th>
-                <th className="px-4 py-3 text-left">检测范围</th>
-                <th className="px-4 py-3 text-left">灵敏度</th>
-                <th className="px-4 py-3 text-left">价格</th>
-                <th className="px-4 py-3 text-left">图片</th>
-                <th className="px-4 py-3 text-left">说明书</th>
-                <th className="px-4 py-3 text-left">状态</th>
-                <th className="px-4 py-3 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">加载中...</td></tr>
-              ) : products.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">暂无商品</td></tr>
-              ) : products.map(p => (
-                <tr key={p.id} className="hover:bg-slate-800/30">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-white">{p.name}</div>
-                    <div className="text-slate-500 text-xs">{p.target}</div>
-                    {p.catalog_number && <div className="text-blue-400 text-xs font-mono mt-0.5">货号：{p.catalog_number}</div>}
-                    {p.species && <div className="text-emerald-400 text-xs mt-0.5">种属：{p.species}</div>}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">{p.detection_range || '-'}</td>
-                  <td className="px-4 py-3 text-slate-300">{p.sensitivity || '-'}</td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {p.price_48t || p.price_96t ? (
-                      <div className="space-y-0.5">
-                        {p.price_48t && <div className="text-xs"><span className="text-blue-400">48T</span> ¥{p.price_48t}</div>}
-                        {p.price_96t && <div className="text-xs"><span className="text-emerald-400">96T</span> ¥{p.price_96t}</div>}
-                      </div>
-                    ) : (
-                      <span>¥{p.price}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1">
-                      {p.product_image && <span className="w-2 h-2 rounded-full bg-green-400" title="产品图" />}
-                      {p.standard_curve_image && <span className="w-2 h-2 rounded-full bg-blue-400" title="标准曲线" />}
-                      {p.validation_image && <span className="w-2 h-2 rounded-full bg-purple-400" title="验证图" />}
-                      {p.additional_image && <span className="w-2 h-2 rounded-full bg-yellow-400" title="其他图" />}
-                      {!p.product_image && !p.standard_curve_image && !p.validation_image && !p.additional_image && (
-                        <span className="text-slate-600 text-xs">无</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {p.datasheet_pdf ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-green-400">
-                    <FileText className="w-3 h-3" /> 已上传
-                      </span>
-                    ) : (
-                      <span className="text-slate-600 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${statusBadgeClass(p.status)}`}>
-                      {displayStatus(p.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => { setSaveStatus('idle'); setUploadingImages({}); setPendingPdfFile(null); setEditing({ ...p, status: normalizePublishStatus(p.status), stock_status: normalizeStockStatus(p.stock_status) }); setIsCreating(false); }} className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-blue-400 transition-colors mr-1">
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(p)} className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* 搜索 */}
+      <Input
+        allowClear
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+        placeholder="搜索商品名称或靶标..."
+        prefix={<SearchOutlined />}
+        className="mb-4 max-w-md"
+      />
 
-        {/* 分页 */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-slate-500">共 {total} 条，第 {page + 1}/{totalPages} 页</span>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-40 text-sm">
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-40 text-sm">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {loadError && (
+        <Alert type="error" showIcon message={loadError} className="mb-4" />
+      )}
+
+      {/* 表格 */}
+      <Table<Product>
+        rowKey="id"
+        columns={columns}
+        dataSource={products}
+        loading={loading}
+        locale={{ emptyText: '暂无商品' }}
+        scroll={{ x: 1000 }}
+        pagination={{
+          current: page + 1,
+          pageSize: PAGE_SIZE,
+          total,
+          hideOnSinglePage: true,
+          onChange: (nextPage) => setPage(nextPage - 1),
+          showTotal: () => `共 ${total} 条，第 ${page + 1}/${totalPages} 页`,
+        }}
+      />
 
       {/* 编辑弹窗 */}
       {editing && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto py-8">
-          <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-4xl mx-4 shadow-2xl">
-            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">{isCreating ? '新增商品' : '编辑商品'}</h2>
-              <button onClick={() => { setEditing(null); setIsCreating(false); setPendingPdfFile(null); }} className="p-1.5 rounded hover:bg-slate-800 text-slate-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-              {/* 基础信息 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">商品名称</label>
-                  <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">靶标</label>
-                  <input value={editing.target} onChange={e => setEditing({ ...editing, target: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">货号</label>
-                  <input value={editing.catalog_number || ''} onChange={e => setEditing({ ...editing, catalog_number: e.target.value })} placeholder="如 AU-IL6-M01" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">种属</label>
-                  <input value={editing.species || ''} onChange={e => setEditing({ ...editing, species: e.target.value })} placeholder="如 小鼠、大鼠、人" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">检测范围</label>
-                  <input value={editing.detection_range || ''} onChange={e => setEditing({ ...editing, detection_range: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">灵敏度</label>
-                  <input value={editing.sensitivity || ''} onChange={e => setEditing({ ...editing, sensitivity: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">检测方法</label>
-                  <input value={editing.detection_method || ''} onChange={e => setEditing({ ...editing, detection_method: e.target.value })} placeholder="双抗夹心法 (Sandwich ELISA)" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">检测平台</label>
-                  <input value={editing.platform || ''} onChange={e => setEditing({ ...editing, platform: e.target.value })} placeholder="ELISA" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">操作时长</label>
-                  <input value={editing.assay_time || ''} onChange={e => setEditing({ ...editing, assay_time: e.target.value })} placeholder="4h" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">样本类型</label>
-                  <input value={editing.sample_types_text || ''} onChange={e => setEditing({ ...editing, sample_types_text: e.target.value })} placeholder="血清、血浆、细胞培养上清、组织匀浆" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">产品介绍</label>
-                  <textarea value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} rows={4} placeholder="用于前台商品详情页展示，可填写产品特点、适用场景、检测原理摘要等。" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 resize-y" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">价格（兼容旧版单价格）</label>
-                  <input type="number" value={editing.price} onChange={e => setEditing({ ...editing, price: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">价格 48T</label>
-                    <input type="number" value={editing.price_48t || ''} onChange={e => setEditing({ ...editing, price_48t: Number(e.target.value) || undefined })} placeholder="1800" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">价格 96T</label>
-                    <input type="number" value={editing.price_96t || ''} onChange={e => setEditing({ ...editing, price_96t: Number(e.target.value) || undefined })} placeholder="2400" className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">库存状态</label>
-                    <select value={editing.stock_status} onChange={e => setEditing({ ...editing, stock_status: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
-                      <option value="in_stock">有货</option>
-                      <option value="low_stock">库存紧张</option>
-                      <option value="out_of_stock">缺货</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">上架状态</label>
-                    <select value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value })} className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
-                      <option value="active">上架</option>
-                      <option value="draft">草稿</option>
-                      <option value="archived">归档</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 图片上传区域 */}
-              <div className="border-t border-slate-700 pt-4">
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-blue-400" /> 产品图片（4张）
-                </h3>
-                {isCreating && (
-                  <div className="mb-3 rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                    请先保存商品，再上传图片。保存后文件会进入该商品专属目录，避免批量维护时归错商品。
-                  </div>
-                )}
-                <div className="grid grid-cols-4 gap-3">
-                  {PRODUCT_IMAGE_SLOTS.map(({ field, uploadType, label, desc }) => (
-                    <div key={field} className="border border-slate-700 rounded-lg p-3 bg-slate-800/50">
-                      <p className="text-xs font-medium text-slate-300 mb-1">{label}</p>
-                      <p className="text-[10px] text-slate-500 mb-2">{desc}</p>
-                      {editing[field] ? (
-                        <div className="relative">
-                          <div className="relative w-full h-20 overflow-hidden rounded-lg">
-                            <Image src={editing[field] as string} alt={label} fill className="object-cover" unoptimized />
-                          </div>
-                          <button onClick={() => setEditing({ ...editing, [field]: undefined })} className="absolute top-1 right-1 p-0.5 rounded bg-red-600 text-white">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className={`flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-slate-600 rounded-lg transition-colors ${isCreating ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-blue-500'}`}>
-                          <Upload className="w-5 h-5 text-slate-500 mb-1" />
-                          <span className="text-[10px] text-slate-500">{isCreating ? '保存后上传' : '点击上传'}</span>
-                          <input type="file" accept="image/*" disabled={isCreating} className="hidden" onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], uploadType)} />
-                        </label>
-                      )}
-                      {uploadingImages[field] && <p className="text-[10px] text-blue-400 mt-1 text-center">上传中...</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 说明书PDF上传 */}
-              <div className="border-t border-slate-700 pt-4">
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-400" /> 说明书 PDF
-                </h3>
-                {editing.datasheet_pdf ? (
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-                    <FileText className="w-8 h-8 text-red-400" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">说明书已上传</p>
-                      <a href={editing.datasheet_pdf} target="_blank" className="text-xs text-blue-400 hover:underline">查看 PDF</a>
-                    </div>
-                    <button onClick={() => setEditing({ ...editing, datasheet_pdf: undefined })} className="p-1.5 rounded hover:bg-slate-700 text-slate-400">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : pendingPdfFile ? (
-                  <div className="flex items-center gap-3 p-3 bg-emerald-950/20 rounded-lg border border-emerald-700/50">
-                    <FileText className="w-8 h-8 text-emerald-400" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">已选择：{pendingPdfFile.name}</p>
-                      <p className="text-xs text-emerald-300">点击保存后会自动创建商品并上传说明书</p>
-                    </div>
-                    <button onClick={() => setPendingPdfFile(null)} className="p-1.5 rounded hover:bg-slate-700 text-slate-400">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-4 p-4 border-2 border-dashed border-emerald-700/60 bg-emerald-950/10 rounded-lg">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <FileUp className="w-6 h-6 text-emerald-400" />
-                      <div className="min-w-0">
-                        <p className="text-sm text-slate-100">{isCreating ? '可先选择说明书 PDF，保存时自动上传' : '上传或更换说明书 PDF'}</p>
-                        <p className="text-xs text-slate-500">支持 PDF 格式，最大 20MB；建议控制在 5MB 内</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => pdfInputRef.current?.click()}
-                      className="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
-                    >
-                      选择 PDF
-                    </button>
-                    <input
-                      ref={pdfInputRef}
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      className="sr-only"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void handlePdfUpload(file);
-                        e.target.value = '';
-                      }}
-                    />
-                  </div>
-                )}
-                {uploadingImages['datasheet_pdf'] && <p className="text-xs text-blue-400 mt-2">PDF 上传中...</p>}
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-between">
-              <button onClick={() => { setEditing(null); setIsCreating(false); setPendingPdfFile(null); }} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm">
-                取消
-              </button>
+        <Modal
+          open
+          title={isCreating ? '新增商品' : '编辑商品'}
+          width={896}
+          onCancel={closeEditor}
+          footer={
+            <div className="flex items-center justify-between">
+              <Button onClick={closeEditor}>取消</Button>
               <div className="flex items-center gap-3">
-                {saveStatus === 'saved' && <span className="text-sm text-green-400 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> 已保存</span>}
-                {saveStatus === 'error' && <span className="text-sm text-red-400 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> 保存失败</span>}
-                <button onClick={handleSave} disabled={saveStatus === 'saving'} className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2">
-                  <Save className="w-4 h-4" /> {saveStatus === 'saving' ? (pendingPdfFile ? '保存并上传中...' : '保存中...') : '保存'}
-                </button>
+                {saveStatus === 'saved' && (
+                  <span className="flex items-center gap-1 text-sm text-green-600"><CheckCircleOutlined /> 已保存</span>
+                )}
+                {saveStatus === 'error' && (
+                  <span className="flex items-center gap-1 text-sm text-red-500"><ExclamationCircleOutlined /> 保存失败</span>
+                )}
+                <Button type="primary" icon={<SaveOutlined />} loading={saveStatus === 'saving'} onClick={handleSave}>
+                  {saveStatus === 'saving' ? (pendingPdfFile ? '保存并上传中...' : '保存中...') : '保存'}
+                </Button>
               </div>
+            </div>
+          }
+        >
+          <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-1">
+            {/* 基础信息 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">商品名称</label>
+                <Input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">靶标</label>
+                <Input value={editing.target} onChange={e => setEditing({ ...editing, target: e.target.value })} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">货号</label>
+                <Input value={editing.catalog_number || ''} onChange={e => setEditing({ ...editing, catalog_number: e.target.value })} placeholder="如 AU-IL6-M01" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">种属</label>
+                <Input value={editing.species || ''} onChange={e => setEditing({ ...editing, species: e.target.value })} placeholder="如 小鼠、大鼠、人" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">检测范围</label>
+                <Input value={editing.detection_range || ''} onChange={e => setEditing({ ...editing, detection_range: e.target.value })} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">灵敏度</label>
+                <Input value={editing.sensitivity || ''} onChange={e => setEditing({ ...editing, sensitivity: e.target.value })} />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">检测方法</label>
+                <Input value={editing.detection_method || ''} onChange={e => setEditing({ ...editing, detection_method: e.target.value })} placeholder="双抗夹心法 (Sandwich ELISA)" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">检测平台</label>
+                <Input value={editing.platform || ''} onChange={e => setEditing({ ...editing, platform: e.target.value })} placeholder="ELISA" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">操作时长</label>
+                <Input value={editing.assay_time || ''} onChange={e => setEditing({ ...editing, assay_time: e.target.value })} placeholder="4h" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">样本类型</label>
+                <Input value={editing.sample_types_text || ''} onChange={e => setEditing({ ...editing, sample_types_text: e.target.value })} placeholder="血清、血浆、细胞培养上清、组织匀浆" />
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">产品介绍</label>
+                <Input.TextArea value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} rows={4} placeholder="用于前台商品详情页展示，可填写产品特点、适用场景、检测原理摘要等。" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">价格（兼容旧版单价格）</label>
+                <InputNumber className="w-full" value={editing.price} onChange={v => setEditing({ ...editing, price: Number(v) })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">价格 48T</label>
+                  <InputNumber className="w-full" value={editing.price_48t} onChange={v => setEditing({ ...editing, price_48t: Number(v) || undefined })} placeholder="1800" />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">价格 96T</label>
+                  <InputNumber className="w-full" value={editing.price_96t} onChange={v => setEditing({ ...editing, price_96t: Number(v) || undefined })} placeholder="2400" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">库存状态</label>
+                  <Select
+                    className="w-full"
+                    value={editing.stock_status}
+                    onChange={v => setEditing({ ...editing, stock_status: v })}
+                    options={[
+                      { value: 'in_stock', label: '有货' },
+                      { value: 'low_stock', label: '库存紧张' },
+                      { value: 'out_of_stock', label: '缺货' },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">上架状态</label>
+                  <Select
+                    className="w-full"
+                    value={editing.status}
+                    onChange={v => setEditing({ ...editing, status: v })}
+                    options={[
+                      { value: 'active', label: '上架' },
+                      { value: 'draft', label: '草稿' },
+                      { value: 'archived', label: '归档' },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 图片上传区域 */}
+            <div className="border-t border-slate-200 pt-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <PictureOutlined className="text-slate-500" /> 产品图片（4张）
+              </h3>
+              {isCreating && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  className="mb-3"
+                  message="请先保存商品，再上传图片。保存后文件会进入该商品专属目录，避免批量维护时归错商品。"
+                />
+              )}
+              <div className="grid grid-cols-4 gap-3">
+                {PRODUCT_IMAGE_SLOTS.map(({ field, uploadType, label, desc }) => (
+                  <div key={field} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="mb-1 text-xs font-medium text-slate-700">{label}</p>
+                    <p className="mb-2 text-[10px] text-slate-400">{desc}</p>
+                    {editing[field] ? (
+                      <div className="relative">
+                        <div className="relative h-20 w-full overflow-hidden rounded-lg">
+                          <Image src={editing[field] as string} alt={label} fill className="object-cover" unoptimized />
+                        </div>
+                        <Button
+                          type="primary"
+                          danger
+                          size="small"
+                          icon={<CloseOutlined />}
+                          onClick={() => setEditing({ ...editing, [field]: undefined })}
+                          className="absolute right-1 top-1"
+                        />
+                      </div>
+                    ) : (
+                      <label className={`flex h-20 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 transition-colors ${isCreating ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-slate-400'}`}>
+                        <UploadOutlined className="mb-1 text-slate-400" />
+                        <span className="text-[10px] text-slate-400">{isCreating ? '保存后上传' : '点击上传'}</span>
+                        <input type="file" accept="image/*" disabled={isCreating} className="hidden" onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0], uploadType)} />
+                      </label>
+                    )}
+                    {uploadingImages[field] && <p className="mt-1 text-center text-[10px] text-blue-500">上传中...</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 说明书PDF上传 */}
+            <div className="border-t border-slate-200 pt-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <FileTextOutlined className="text-emerald-600" /> 说明书 PDF
+              </h3>
+              {editing.datasheet_pdf ? (
+                <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <FileTextOutlined className="text-2xl text-red-500" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-slate-900">说明书已上传</p>
+                    <a href={editing.datasheet_pdf} target="_blank" className="text-xs text-blue-600 hover:underline">查看 PDF</a>
+                  </div>
+                  <Button type="text" icon={<CloseOutlined />} onClick={() => setEditing({ ...editing, datasheet_pdf: undefined })} />
+                </div>
+              ) : pendingPdfFile ? (
+                <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <FileTextOutlined className="text-2xl text-emerald-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-slate-900">已选择：{pendingPdfFile.name}</p>
+                    <p className="text-xs text-emerald-700">点击保存后会自动创建商品并上传说明书</p>
+                  </div>
+                  <Button type="text" icon={<CloseOutlined />} onClick={() => setPendingPdfFile(null)} />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-4 rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50/40 p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <FilePdfOutlined className="text-2xl text-emerald-600" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-900">{isCreating ? '可先选择说明书 PDF，保存时自动上传' : '上传或更换说明书 PDF'}</p>
+                      <p className="text-xs text-slate-500">支持 PDF 格式，最大 20MB；建议控制在 5MB 内</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => pdfInputRef.current?.click()}
+                  >
+                    选择 PDF
+                  </Button>
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handlePdfUpload(file);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+              )}
+              {uploadingImages['datasheet_pdf'] && <p className="mt-2 text-xs text-blue-500">PDF 上传中...</p>}
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* 批量导入弹窗 */}
@@ -792,71 +831,59 @@ function CatalogResetModal({ onClose, onSuccess }: { onClose: () => void; onSucc
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 sm:p-6">
-      <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-2xl shadow-2xl">
-        <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">归档旧产品目录</h2>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-slate-800 text-slate-400"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
-            这个操作会把当前所有上架产品归档，并释放旧货号和旧页面地址，方便你重新批量上传干净的产品目录。它不会删除客户、订单、积分、商城，也不会删除图片/PDF文件本身。
-          </div>
-
-          {loading ? (
-            <div className="py-8 text-center text-sm text-slate-400">预检中...</div>
-          ) : summary ? (
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                <div className="text-slate-500">当前上架产品</div>
-                <div className="mt-1 text-2xl font-semibold text-white">{summary.active_products}</div>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                <div className="text-slate-500">已归档产品</div>
-                <div className="mt-1 text-2xl font-semibold text-slate-300">{summary.archived_products}</div>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                <div className="text-slate-500">产品图片绑定</div>
-                <div className="mt-1 text-2xl font-semibold text-cyan-300">{summary.product_images}</div>
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-                <div className="text-slate-500">生效产品文档</div>
-                <div className="mt-1 text-2xl font-semibold text-emerald-300">{summary.active_documents}</div>
-              </div>
-            </div>
-          ) : null}
-
-          {error && <div className="rounded-lg border border-red-800/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</div>}
-          {message && <div className="rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-200">{message}</div>}
-
-          <label className="block space-y-2">
-            <span className="text-sm text-slate-300">确认文字</span>
-            <input
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="请输入：归档旧产品目录"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder-slate-600"
-            />
-          </label>
-        </div>
-        <div className="px-6 py-4 border-t border-slate-700 flex justify-between gap-3">
-          <button onClick={loadSummary} disabled={loading} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm disabled:opacity-50">
-            重新预检
-          </button>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm">取消</button>
-            <button
-              onClick={archiveCatalog}
+    <Modal
+      open
+      title="归档旧产品目录"
+      onCancel={onClose}
+      footer={
+        <div className="flex items-center justify-between">
+          <Button onClick={loadSummary} disabled={loading}>重新预检</Button>
+          <Space>
+            <Button onClick={onClose}>取消</Button>
+            <Button
+              type="primary"
+              danger
+              loading={submitting}
               disabled={submitting || confirmText !== '归档旧产品目录'}
-              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2"
+              onClick={archiveCatalog}
             >
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               归档并释放旧货号
-            </button>
+            </Button>
+          </Space>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <Alert
+          type="warning"
+          showIcon
+          message="这个操作会把当前所有上架产品归档，并释放旧货号和旧页面地址，方便你重新批量上传干净的产品目录。它不会删除客户、订单、积分、商城，也不会删除图片/PDF文件本身。"
+        />
+
+        {loading ? (
+          <div className="py-8 text-center"><Spin /></div>
+        ) : summary ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Card size="small"><Statistic title="当前上架产品" value={summary.active_products} /></Card>
+            <Card size="small"><Statistic title="已归档产品" value={summary.archived_products} /></Card>
+            <Card size="small"><Statistic title="产品图片绑定" value={summary.product_images} /></Card>
+            <Card size="small"><Statistic title="生效产品文档" value={summary.active_documents} /></Card>
           </div>
+        ) : null}
+
+        {error && <Alert type="error" showIcon message={error} />}
+        {message && <Alert type="success" showIcon message={message} />}
+
+        <div>
+          <label className="mb-1.5 block text-sm text-slate-700">确认文字</label>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="请输入：归档旧产品目录"
+          />
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -940,6 +967,7 @@ function normalizePublishStatus(value: string) {
 }
 
 function BulkImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { message } = App.useApp();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedRows, setParsedRows] = useState<ParsedImportRow[]>([]);
@@ -1033,8 +1061,8 @@ function BulkImportModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const invalidRows = parsedRows.filter((row) => row.errors.length > 0);
 
   const handleImport = async () => {
-    if (!selectedFile) { alert('请先选择 Excel 或 CSV 文件'); return; }
-    if (validRows.length === 0) { alert('没有可导入的数据，请先修正红色错误行'); return; }
+    if (!selectedFile) { message.error('请先选择 Excel 或 CSV 文件'); return; }
+    if (validRows.length === 0) { message.error('没有可导入的数据，请先修正红色错误行'); return; }
     setImporting(true);
     setResult(null);
 
@@ -1064,172 +1092,168 @@ function BulkImportModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 sm:p-6">
-      <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-4xl shadow-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">批量导入商品</h2>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-slate-800 text-slate-400"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-6 space-y-5 overflow-y-auto [-webkit-overflow-scrolling:touch]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="text-sm text-slate-300">支持 Excel / CSV。推荐先下载模板，填好后直接拖进来。</p>
-              <p className="text-xs text-slate-500 mt-1">模板只放产品文字信息；图片在“产品图片”上传，说明书在“产品文档”上传。</p>
-            </div>
-            <button onClick={downloadTemplate} className="px-3 py-2 rounded-lg border border-blue-500/40 bg-blue-500/10 text-sm text-blue-300 hover:bg-blue-500/20 flex items-center gap-2">
-              <Download className="w-4 h-4" /> 下载 Excel 模板
-            </button>
-          </div>
-
-          <div
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              const file = event.dataTransfer.files?.[0];
-              if (file) parseFile(file);
-            }}
-            className="rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/50 p-8 text-center hover:border-blue-500 transition-colors"
-          >
-            <FileSpreadsheet className="w-10 h-10 text-blue-400 mx-auto mb-3" />
-            <p className="text-sm font-medium text-white">把 Excel / CSV 文件拖到这里</p>
-            <p className="text-xs text-slate-500 mt-1">或点击下方按钮选择文件，不需要粘贴电脑里的文件路径</p>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-4 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium inline-flex items-center gap-2"
+    <Modal
+      open
+      title="批量导入商品"
+      width={896}
+      onCancel={onClose}
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-slate-500">导入前会先检查必填项，不会再出现“成功 0 条、失败 0 条”的空结果。</span>
+          <Space>
+            <Button onClick={onClose}>取消</Button>
+            <Button
+              type="primary"
+              loading={importing}
+              disabled={importing || parsing || validRows.length === 0}
+              onClick={handleImport}
             >
-              <Upload className="w-4 h-4" /> 选择文件
-            </button>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileInput} />
-          </div>
-
-          {selectedFile && (
-            <div className="rounded-lg border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-slate-300 flex items-center justify-between gap-3">
-              <span className="truncate">已选择：{selectedFile.name}</span>
-              {parsing && <span className="text-blue-300 inline-flex items-center gap-1"><Loader2 className="w-4 h-4 animate-spin" /> 解析中</span>}
-            </div>
-          )}
-
-          {parseError && (
-            <div className="p-3 rounded-lg bg-red-900/30 text-red-300 text-sm border border-red-800/60">
-              {parseError}
-            </div>
-          )}
-
-          {parsedRows.length > 0 && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div className="rounded-lg bg-slate-800 border border-slate-700 p-3">
-                  <p className="text-slate-500 text-xs">解析总数</p>
-                  <p className="text-white text-xl font-semibold mt-1">{parsedRows.length}</p>
-                </div>
-                <div className="rounded-lg bg-green-900/20 border border-green-800/60 p-3">
-                  <p className="text-green-400 text-xs">可导入</p>
-                  <p className="text-green-200 text-xl font-semibold mt-1">{validRows.length}</p>
-                </div>
-                <div className="rounded-lg bg-red-900/20 border border-red-800/60 p-3">
-                  <p className="text-red-400 text-xs">需修正</p>
-                  <p className="text-red-200 text-xl font-semibold mt-1">{invalidRows.length}</p>
-                </div>
-              </div>
-
-              {invalidRows.length > 0 && (
-                <div className="rounded-xl border border-red-800/70 bg-red-950/20 overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 border-b border-red-900/70 bg-red-950/50 px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium text-red-200">需修正明细</p>
-                      <p className="mt-0.5 text-xs text-red-300/80">请按行号回到 Excel 修改后重新上传。未修正的行不会导入。</p>
-                    </div>
-                    <span className="rounded bg-red-500/10 px-2 py-1 text-xs text-red-200">{invalidRows.length} 行</span>
-                  </div>
-                  <div className="max-h-56 overflow-auto">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-red-950 text-red-200">
-                        <tr>
-                          <th className="px-3 py-2 text-left">行号</th>
-                          <th className="px-3 py-2 text-left">货号</th>
-                          <th className="px-3 py-2 text-left">产品名称</th>
-                          <th className="px-3 py-2 text-left">指标</th>
-                          <th className="px-3 py-2 text-left">修正原因</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-red-900/60">
-                        {invalidRows.map((row) => (
-                          <tr key={`invalid-${row.rowNumber}`} className="bg-slate-950/40">
-                            <td className="px-3 py-2 font-mono text-red-200">{row.rowNumber}</td>
-                            <td className="px-3 py-2 font-mono text-blue-200">{row.catalog_number || '-'}</td>
-                            <td className="px-3 py-2 text-slate-200">{row.name || '-'}</td>
-                            <td className="px-3 py-2 text-slate-300">{row.target || '-'}</td>
-                            <td className="px-3 py-2 text-red-200">{row.errors.join('、')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-slate-700 overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-800 text-slate-400">
-                    <tr>
-                      <th className="px-3 py-2 text-left">行号</th>
-                      <th className="px-3 py-2 text-left">货号</th>
-                      <th className="px-3 py-2 text-left">产品名称</th>
-                      <th className="px-3 py-2 text-left">指标</th>
-                      <th className="px-3 py-2 text-left">种属</th>
-                      <th className="px-3 py-2 text-left">状态</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {parsedRows.slice(0, 8).map((row) => (
-                      <tr key={row.rowNumber} className={row.errors.length > 0 ? 'bg-red-950/20' : 'bg-slate-900'}>
-                        <td className="px-3 py-2 text-slate-500">{row.rowNumber}</td>
-                        <td className="px-3 py-2 text-blue-300 font-mono">{row.catalog_number || '-'}</td>
-                        <td className="px-3 py-2 text-white">{row.name || '-'}</td>
-                        <td className="px-3 py-2 text-slate-300">{row.target || '-'}</td>
-                        <td className="px-3 py-2 text-slate-300">{row.species || '-'}</td>
-                        <td className="px-3 py-2">
-                          {row.errors.length > 0 ? (
-                            <span className="text-red-300">{row.errors.join('、')}</span>
-                          ) : (
-                            <span className="text-green-300">可导入</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {parsedRows.length > 8 && (
-                  <p className="px-3 py-2 text-xs text-slate-500 bg-slate-900">
-                    仅预览前 8 行；如果存在需修正行，请以上方“需修正明细”为准。
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {result && (
-            <div className={`p-3 rounded-lg text-sm ${result.failed === 0 ? 'bg-green-900/30 text-green-300' : 'bg-yellow-900/30 text-yellow-300'}`}>
-              成功 {result.success} 条，失败 {result.failed} 条
-              {result.errors.length > 0 && (
-                <div className="mt-2 text-red-300 space-y-1">
-                  {result.errors.slice(0, 5).map((error, index) => <p key={index}>{error}</p>)}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="px-6 py-4 border-t border-slate-700 flex justify-between gap-3">
-          <span className="text-xs text-slate-500 self-center">导入前会先检查必填项，不会再出现“成功 0 条、失败 0 条”的空结果。</span>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-sm">取消</button>
-            <button onClick={handleImport} disabled={importing || parsing || validRows.length === 0} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium disabled:opacity-50 inline-flex items-center gap-2">
-              {importing && <Loader2 className="w-4 h-4 animate-spin" />}
               {importing ? '导入中...' : `开始导入${validRows.length ? ` ${validRows.length} 条` : ''}`}
-            </button>
-          </div>
+            </Button>
+          </Space>
         </div>
+      }
+    >
+      <div className="max-h-[65vh] space-y-5 overflow-y-auto pr-1 [-webkit-overflow-scrolling:touch]">
+        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm text-slate-700">支持 Excel / CSV。推荐先下载模板，填好后直接拖进来。</p>
+            <p className="mt-1 text-xs text-slate-500">模板只放产品文字信息；图片在“产品图片”上传，说明书在“产品文档”上传。</p>
+          </div>
+          <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>下载 Excel 模板</Button>
+        </div>
+
+        <div
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            const file = event.dataTransfer.files?.[0];
+            if (file) parseFile(file);
+          }}
+          className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center transition-colors hover:border-slate-400"
+        >
+          <FileExcelOutlined className="mx-auto mb-3 text-3xl text-blue-500" />
+          <p className="text-sm font-medium text-slate-900">把 Excel / CSV 文件拖到这里</p>
+          <p className="mt-1 text-xs text-slate-500">或点击下方按钮选择文件，不需要粘贴电脑里的文件路径</p>
+          <Button
+            type="primary"
+            icon={<UploadOutlined />}
+            className="mt-4"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            选择文件
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileInput} />
+        </div>
+
+        {selectedFile && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <span className="truncate">已选择：{selectedFile.name}</span>
+            {parsing && <span className="inline-flex items-center gap-1 text-blue-600"><Spin size="small" /> 解析中</span>}
+          </div>
+        )}
+
+        {parseError && (
+          <Alert type="error" showIcon message={parseError} />
+        )}
+
+        {parsedRows.length > 0 && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <Card size="small"><Statistic title="解析总数" value={parsedRows.length} /></Card>
+              <Card size="small"><Statistic title="可导入" value={validRows.length} valueStyle={{ color: 'green' }} /></Card>
+              <Card size="small"><Statistic title="需修正" value={invalidRows.length} valueStyle={{ color: 'red' }} /></Card>
+            </div>
+
+            {invalidRows.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-red-200">
+                <div className="flex items-center justify-between gap-3 border-b border-red-100 bg-red-50 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-red-700">需修正明细</p>
+                    <p className="mt-0.5 text-xs text-red-500/80">请按行号回到 Excel 修改后重新上传。未修正的行不会导入。</p>
+                  </div>
+                  <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">{invalidRows.length} 行</span>
+                </div>
+                <div className="max-h-56 overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-red-50 text-red-600">
+                      <tr>
+                        <th className="px-3 py-2 text-left">行号</th>
+                        <th className="px-3 py-2 text-left">货号</th>
+                        <th className="px-3 py-2 text-left">产品名称</th>
+                        <th className="px-3 py-2 text-left">指标</th>
+                        <th className="px-3 py-2 text-left">修正原因</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-red-100">
+                      {invalidRows.map((row) => (
+                        <tr key={`invalid-${row.rowNumber}`}>
+                          <td className="px-3 py-2 font-mono text-red-600">{row.rowNumber}</td>
+                          <td className="px-3 py-2 font-mono text-slate-500">{row.catalog_number || '-'}</td>
+                          <td className="px-3 py-2 text-slate-700">{row.name || '-'}</td>
+                          <td className="px-3 py-2 text-slate-600">{row.target || '-'}</td>
+                          <td className="px-3 py-2 text-red-600">{row.errors.join('、')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 text-left">行号</th>
+                    <th className="px-3 py-2 text-left">货号</th>
+                    <th className="px-3 py-2 text-left">产品名称</th>
+                    <th className="px-3 py-2 text-left">指标</th>
+                    <th className="px-3 py-2 text-left">种属</th>
+                    <th className="px-3 py-2 text-left">状态</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {parsedRows.slice(0, 8).map((row) => (
+                    <tr key={row.rowNumber} className={row.errors.length > 0 ? 'bg-red-50/50' : 'bg-white'}>
+                      <td className="px-3 py-2 text-slate-400">{row.rowNumber}</td>
+                      <td className="px-3 py-2 font-mono text-blue-600">{row.catalog_number || '-'}</td>
+                      <td className="px-3 py-2 text-slate-900">{row.name || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600">{row.target || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600">{row.species || '-'}</td>
+                      <td className="px-3 py-2">
+                        {row.errors.length > 0 ? (
+                          <span className="text-red-600">{row.errors.join('、')}</span>
+                        ) : (
+                          <span className="text-green-600">可导入</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {parsedRows.length > 8 && (
+                <p className="border-t border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  仅预览前 8 行；如果存在需修正行，请以上方“需修正明细”为准。
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <Alert
+            type={result.failed === 0 ? 'success' : 'warning'}
+            showIcon
+            message={`成功 ${result.success} 条，失败 ${result.failed} 条`}
+            description={result.errors.length > 0 ? (
+              <div className="space-y-1 text-red-600">
+                {result.errors.slice(0, 5).map((error, index) => <p key={index}>{error}</p>)}
+              </div>
+            ) : undefined}
+          />
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

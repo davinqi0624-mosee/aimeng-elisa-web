@@ -131,7 +131,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-5xl flex flex-col lg:flex-row lg:items-stretch items-center justify-center gap-8 lg:gap-12">
           <div className="w-full max-w-[320px] lg:max-w-[340px] flex items-center justify-center lg:items-stretch lg:self-stretch">
-            <div className="relative w-full h-[360px] lg:h-full rounded-[28px] overflow-hidden bg-white shadow-[0_24px_70px_rgba(15,23,42,0.12)] border border-white/70">
+            <div className="relative w-full h-[360px] lg:h-full rounded-lg overflow-hidden bg-white shadow-sm border border-slate-200">
               <Image
                 src="/brand/login-lab-specialist.jpg"
                 alt="AIMENG UNING 账户安全"
@@ -144,12 +144,15 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="w-full max-w-md flex items-center justify-center lg:items-stretch lg:self-stretch">
-            <div className="w-full h-full bg-white/95 border border-gray-200 rounded-[24px] p-6 sm:p-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] flex flex-col justify-center">
-              <div className="text-center mb-8">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <div className="w-full h-full bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm flex flex-col justify-center">
+              <div className="mb-8">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
                   <KeyRound className="h-5 w-5" />
                 </div>
-                <h1 className="text-[30px] sm:text-[34px] font-extrabold leading-tight text-[#2563EB] tracking-normal">
+                <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+                  account.access / reset
+                </p>
+                <h1 className="mt-3 text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
                   设置新密码
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -170,7 +173,7 @@ export default function ResetPasswordPage() {
                 </div>
               )}
               {message && (
-                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2 text-sm text-emerald-700">
+                <div className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg flex items-start gap-2 text-sm text-teal-800">
                   <CheckCircle2 className="mt-0.5 w-4 h-4 shrink-0" />
                   {message}
                 </div>
@@ -178,7 +181,7 @@ export default function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">新密码</label>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">新密码</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -186,7 +189,7 @@ export default function ResetPasswordPage() {
                       onChange={(event) => setPassword(event.target.value)}
                       required
                       minLength={6}
-                      className="w-full px-4 py-2.5 pr-12 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      className="w-full px-4 py-2.5 pr-12 rounded-lg bg-white border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500"
                       placeholder="至少 6 位字符"
                     />
                     <button
@@ -200,7 +203,7 @@ export default function ResetPasswordPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#475569] mb-1">确认新密码</label>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">确认新密码</label>
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
@@ -208,7 +211,7 @@ export default function ResetPasswordPage() {
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       required
                       minLength={6}
-                      className="w-full px-4 py-2.5 pr-12 rounded-xl bg-[#F6F8FB] border border-gray-200 text-sm outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+                      className="w-full px-4 py-2.5 pr-12 rounded-lg bg-white border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-500"
                       placeholder="再次输入新密码"
                     />
                     <button
@@ -224,16 +227,16 @@ export default function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading || checkingLink || !sessionReady}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0891B2] text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="w-full py-3 rounded-lg bg-slate-950 text-white font-bold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   {checkingLink ? '正在验证链接...' : '重置密码'}
                 </button>
               </form>
 
-              <div className="mt-6 text-center text-sm text-[#94A3B8]">
+              <div className="mt-6 text-center text-sm text-slate-500">
                 已完成重置？{' '}
-                <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                <Link href="/login" className="text-teal-700 hover:text-teal-800 font-semibold">
                   返回登录
                 </Link>
               </div>

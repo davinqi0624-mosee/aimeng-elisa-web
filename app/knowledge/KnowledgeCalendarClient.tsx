@@ -258,7 +258,7 @@ export default function KnowledgeCalendarClient({
     <main className="relative overflow-hidden">
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-80 bg-[size:32px_32px] opacity-[0.12] ${theme.patternClass}`} />
 
-      <section className="relative mx-auto max-w-[1720px] px-4 py-8 sm:px-6 lg:py-10 2xl:px-8">
+      <section className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
         <div className={`mx-auto mb-7 max-w-6xl overflow-hidden rounded-lg border bg-gradient-to-br shadow-sm shadow-slate-200/70 ${theme.heroClass}`}>
           <div className="grid gap-6 p-5 md:grid-cols-[1fr_auto] md:items-center md:p-7">
             <div>
@@ -278,7 +278,7 @@ export default function KnowledgeCalendarClient({
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl font-bold tracking-normal text-slate-950 sm:text-3xl">
+              <h1 className="text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
                 每日知识｜ELISA专业知识日历
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
@@ -303,7 +303,7 @@ export default function KnowledgeCalendarClient({
           </div>
         </div>
 
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(220px,1fr)_minmax(0,980px)_minmax(220px,1fr)] 2xl:grid-cols-[minmax(240px,1fr)_minmax(0,1040px)_minmax(240px,1fr)]">
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(200px,0.85fr)_minmax(0,2.3fr)_minmax(200px,0.85fr)]">
           <SeasonalVideoPanel
             src="/knowledge/spring-summer-transition.mp4"
             title="春夏交替"
@@ -314,27 +314,27 @@ export default function KnowledgeCalendarClient({
             <div className="mb-5 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white/95 px-4 py-4 shadow-sm shadow-slate-200/60 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Knowledge calendar</p>
-                <h2 className="mt-1 text-xl font-bold text-slate-900">{monthLabel}</h2>
+                <h2 className="mt-1 text-xl font-black tracking-normal text-slate-950">{monthLabel}</h2>
                 <p className="mt-1 text-sm text-slate-500">本月已发布 {publishedCount} 篇知识内容</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
                   href={monthHref(prevMonth, selectedCategory)}
                   aria-label="上个月"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </Link>
                 <Link
                   href={monthHref(currentMonth, selectedCategory)}
-                  className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                  className="inline-flex h-10 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 px-4 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
                 >
                   回到今天
                 </Link>
                 <Link
                   href={monthHref(nextMonth, selectedCategory)}
                   aria-label="下个月"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </Link>
@@ -500,7 +500,7 @@ export default function KnowledgeCalendarClient({
                     <Link
                       key={`card-${category}`}
                       href={categoryHref(selectedMonth, category)}
-                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800"
                     >
                       {category}
                     </Link>

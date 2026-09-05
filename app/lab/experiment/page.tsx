@@ -216,7 +216,7 @@ export default function ExperimentPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-5">
             <label className="mb-3 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              <Microscope className="h-4 w-4 text-blue-600" />
+              <Microscope className="h-4 w-4 text-[#177E97]" />
               想做什么实验 <span className="text-red-500">*</span>
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -300,7 +300,7 @@ export default function ExperimentPage() {
 
           <label className="mt-4 block">
             <span className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              <ClipboardList className="h-4 w-4 text-blue-600" />
+              <ClipboardList className="h-4 w-4 text-[#177E97]" />
               已知实验信息
             </span>
             <textarea
@@ -316,7 +316,7 @@ export default function ExperimentPage() {
             type="button"
             onClick={handleGenerate}
             disabled={loading}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-[#177E97] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#0F667C] disabled:opacity-50"
           >
             {loading ? (
               <>

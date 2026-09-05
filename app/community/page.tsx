@@ -24,13 +24,16 @@ const availableLinks = [
 
 export default function CommunityPage() {
   return (
-    <div className="min-h-full bg-slate-50 px-4 py-10">
+    <div className="min-h-full bg-[#F2F6FA] px-4 py-12">
       <div className="mx-auto max-w-4xl">
-        <div className="rounded-2xl border bg-white p-8 shadow-sm">
-          <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <div className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
             <Sparkles className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">科研社区即将开放</h1>
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+            aimeng.community / coming soon
+          </p>
+          <h1 className="mt-3 text-2xl font-black tracking-normal text-slate-950">科研社区即将开放</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
             科研社区会用于客户实验讨论、问题沉淀和经验分享。当前社区发帖、回复和专家审核功能还未正式开放，因此暂不展示模拟讨论内容，避免客户误解为真实数据。
           </p>
@@ -41,9 +44,9 @@ export default function CommunityPage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-xl border bg-slate-50 p-4 transition-colors hover:border-blue-200 hover:bg-blue-50"
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-teal-200 hover:bg-teal-50"
                 >
-                  <Icon className="h-5 w-5 text-blue-600" />
+                  <Icon className="h-5 w-5 text-teal-700" />
                   <h2 className="mt-3 text-sm font-semibold text-slate-900">{item.title}</h2>
                   <p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p>
                 </Link>

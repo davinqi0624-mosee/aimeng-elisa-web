@@ -46,10 +46,10 @@ export default function MyCitationsPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-[#F2F6FA] py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">我的文献投稿</h1>
+          <h1 className="text-2xl font-black tracking-normal text-slate-950">我的文献投稿</h1>
           <Link
             href="/user/citations/submit"
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"

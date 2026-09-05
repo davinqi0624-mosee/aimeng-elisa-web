@@ -1,7 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Sparkles, Calendar, Loader2, BookOpen, CheckCircle, AlertCircle } from 'lucide-react';
+import { Alert, Button, Card, Collapse, Input, Space, Tag, Typography } from 'antd';
+import {
+  BookOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  SaveOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
+import PageHeader from '@/components/admin/PageHeader';
+
+const { Text } = Typography;
 
 interface GenerateResult {
   success: boolean;
@@ -166,193 +177,162 @@ export default function AdminKnowledgePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="max-w-4xl mx-auto px-4 py-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-blue-400" />
-            每日知识生成
-          </h1>
-          <p className="text-slate-400">使用 AI 模型自动生成 ELISA 与血清专业知识文章</p>
+    <div className="mx-auto max-w-4xl">
+      <PageHeader
+        icon={<BookOutlined />}
+        title="每日知识生成"
+        description="使用 AI 模型自动生成 ELISA 与血清专业知识文章"
+      />
+
+      <Card className="mb-6">
+        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              <CalendarOutlined className="mr-1" />
+              发布日期
+            </label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              <ThunderboltOutlined className="mr-1" />
+              自定义主题（可选）
+            </label>
+            <Input
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="留空则 AI 自动选择主题"
+            />
+          </div>
         </div>
 
-        <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                发布日期
-              </label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                <Sparkles className="w-4 h-4 inline mr-1" />
-                自定义主题（可选）
-              </label>
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="留空则 AI 自动选择主题"
-                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-              />
+        <div className="mb-4 space-y-4">
+          <div>
+            <div className="mb-2 text-xs text-slate-500">ELISA 主题：</div>
+            <div className="flex flex-wrap gap-2">
+              {elisaTopics.map((t) => (
+                <Tag.CheckableTag key={t} checked={topic === t} onChange={() => setTopic(t)}>
+                  {t}
+                </Tag.CheckableTag>
+              ))}
             </div>
           </div>
-
-          <div className="mb-4 space-y-4">
-            <div>
-              <label className="block text-xs text-slate-500 mb-2">ELISA 主题：</label>
-              <div className="flex flex-wrap gap-2">
-                {elisaTopics.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTopic(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                      topic === t
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <div className="mb-2 text-xs text-slate-500">血清主题：</div>
+            <div className="flex flex-wrap gap-2">
+              {serumTopics.map((t) => (
+                <Tag.CheckableTag key={t} checked={topic === t} onChange={() => setTopic(t)}>
+                  {t}
+                </Tag.CheckableTag>
+              ))}
             </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-2">血清主题：</label>
-              <div className="flex flex-wrap gap-2">
-                {serumTopics.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTopic(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                      topic === t
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-slate-500">
-              血清主题会按血清产品、细胞培养、检测基质和 COA 质控闭环生成，不会默认套用 ELISA 文章结构。
-            </p>
           </div>
+          <p className="text-xs text-slate-500">
+            血清主题会按血清产品、细胞培养、检测基质和 COA 质控闭环生成，不会默认套用 ELISA 文章结构。
+          </p>
+        </div>
 
-          <button
+        <Space direction="vertical">
+          <Button
+            type="primary"
+            size="large"
+            icon={<ThunderboltOutlined />}
+            loading={loading}
             onClick={handleGenerate}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {longformProvider === 'kimi' ? 'Kimi K3' : 'DeepSeek'} 正在生成文章... {elapsedSeconds > 0 ? `${elapsedSeconds}s` : ''}
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                生成文章
-              </>
-            )}
-          </button>
+            {loading
+              ? `${longformProvider === 'kimi' ? 'Kimi K3' : 'DeepSeek'} 正在生成文章... ${elapsedSeconds > 0 ? `${elapsedSeconds}s` : ''}`
+              : '生成文章'}
+          </Button>
           {loading && (
-            <p className="mt-3 text-xs text-slate-400">
+            <Text type="secondary" className="text-xs">
               正在生成并校验文章结构，长内容通常需要几十秒；无需刷新页面。
-            </p>
+            </Text>
           )}
-        </div>
+        </Space>
+      </Card>
 
-        {result && (
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            {result.success ? (
-              <>
-                {result.ai && (
-                  <p className="mb-4 text-xs text-slate-400">
-                    本次使用：{result.ai.provider === 'kimi' ? 'Kimi K3' : 'DeepSeek'}{result.ai.model ? `（${result.ai.model}）` : ''}
-                    {result.ai.fallback_used ? '；主模型失败后切换了备用模型' : ''}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                  <span className="text-green-400 font-medium">生成成功</span>
-                  <span className="text-slate-500 text-sm">({result.topic})</span>
-                </div>
+      {result && (
+        <Card>
+          {result.success ? (
+            <>
+              {result.ai && (
+                <p className="mb-4 text-xs text-slate-500">
+                  本次使用：{result.ai.provider === 'kimi' ? 'Kimi K3' : 'DeepSeek'}{result.ai.model ? `（${result.ai.model}）` : ''}
+                  {result.ai.fallback_used ? '；主模型失败后切换了备用模型' : ''}
+                </p>
+              )}
+              <Alert
+                className="mb-4"
+                type="success"
+                showIcon
+                message={<>生成成功（{result.topic}）</>}
+              />
 
-                {result.article && (
-                  <div className="space-y-4">
-                    <div className="bg-slate-800 rounded-lg p-4">
-                      <h3 className="text-lg font-bold text-white mb-2">{result.article.title}</h3>
-                      <div className="flex items-center gap-2 text-sm text-slate-400 mb-3">
-                        <span className="px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 text-xs">
-                          {result.article.category}
-                        </span>
-                        <span>{result.article.publish_date}</span>
-                      </div>
-                      <p className="text-slate-300 text-sm mb-4">{result.article.summary}</p>
-                      
-                      <details className="group">
-                        <summary className="text-sm text-blue-400 cursor-pointer hover:text-blue-300 transition-colors">
-                          查看完整内容
-                        </summary>
-                        <div className="mt-3 p-3 bg-slate-950 rounded-lg overflow-auto max-h-96">
-                          <pre className="text-xs text-slate-300 whitespace-pre-wrap">{result.article.content}</pre>
-                        </div>
-                      </details>
+              {result.article && (
+                <div className="space-y-4">
+                  <div className="rounded-lg bg-slate-50 p-4">
+                    <h3 className="mb-2 text-lg font-bold text-slate-900">{result.article.title}</h3>
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                      <Tag color="blue">{result.article.category}</Tag>
+                      <span>{result.article.publish_date}</span>
                     </div>
+                    <p className="mb-4 text-sm text-slate-600">{result.article.summary}</p>
 
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={handleSaveToDatabase}
-                        disabled={saveStatus === 'saving' || saveStatus === 'saved'}
-                        className={`inline-flex items-center gap-2 px-5 py-2 rounded-lg font-medium transition-colors ${
-                          saveStatus === 'saved'
-                            ? 'bg-green-600 text-white'
-                            : saveStatus === 'error'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                        }`}
-                      >
-                        {saveStatus === 'saving' && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {saveStatus === 'saved' && <CheckCircle className="w-4 h-4" />}
-                        {saveStatus === 'error' && <AlertCircle className="w-4 h-4" />}
-                        {saveStatus === 'idle' && '保存到数据库'}
-                        {saveStatus === 'saving' && '保存中...'}
-                        {saveStatus === 'saved' && '已保存'}
-                        {saveStatus === 'error' && '保存失败'}
-                      </button>
-
-                      {saveStatus === 'saved' && (
-                        <span className="text-sm text-green-400">
-                          文章已发布到每日知识日历
-                        </span>
-                      )}
-                      {saveStatus === 'error' && saveError && (
-                        <span className="text-sm text-red-400">
-                          {saveError}
-                        </span>
-                      )}
-                    </div>
+                    <Collapse
+                      ghost
+                      items={[
+                        {
+                          key: 'content',
+                          label: <span className="text-sm">查看完整内容</span>,
+                          children: (
+                            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-slate-600">
+                              {result.article.content}
+                            </pre>
+                          ),
+                        },
+                      ]}
+                    />
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center gap-2 text-red-400">
-                <AlertCircle className="w-5 h-5" />
-                <span>生成失败：{result.error || '未知错误'}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+
+                  <Space wrap>
+                    <Button
+                      type="primary"
+                      danger={saveStatus === 'error'}
+                      loading={saveStatus === 'saving'}
+                      disabled={saveStatus === 'saved'}
+                      icon={
+                        saveStatus === 'saved' ? (
+                          <CheckCircleOutlined />
+                        ) : saveStatus === 'error' ? (
+                          <CloseCircleOutlined />
+                        ) : (
+                          <SaveOutlined />
+                        )
+                      }
+                      onClick={handleSaveToDatabase}
+                    >
+                      {saveStatus === 'idle' && '保存到数据库'}
+                      {saveStatus === 'saving' && '保存中...'}
+                      {saveStatus === 'saved' && '已保存'}
+                      {saveStatus === 'error' && '保存失败'}
+                    </Button>
+
+                    {saveStatus === 'saved' && (
+                      <Text type="success">文章已发布到每日知识日历</Text>
+                    )}
+                    {saveStatus === 'error' && saveError && (
+                      <Text type="danger">{saveError}</Text>
+                    )}
+                  </Space>
+                </div>
+              )}
+            </>
+          ) : (
+            <Alert type="error" showIcon message={<>生成失败：{result.error || '未知错误'}</>} />
+          )}
+        </Card>
+      )}
     </div>
   );
 }

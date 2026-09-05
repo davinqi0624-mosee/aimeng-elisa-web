@@ -2,23 +2,26 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { FlaskConical, Shield, Eye, EyeOff } from 'lucide-react'
+import { Button, Card, Form, Input, App } from 'antd'
+import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
 
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
 
-export default function AdminLoginPage() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [turnstileToken, setTurnstileToken] = useState('')
-  const [error, setError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+interface LoginForm {
+  username: string
+  password: string
+}
 
-  const handleLogin = async () => {
-    setError('')
+export default function AdminLoginPage() {
+  const { message } = App.useApp()
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [form] = Form.useForm<LoginForm>()
+
+  const handleLogin = async (values: LoginForm) => {
     if (turnstileSiteKey && !turnstileToken) {
-      setError('请先完成人机验证')
+      message.warning('请先完成人机验证')
       return
     }
     setLoading(true)
@@ -26,99 +29,77 @@ export default function AdminLoginPage() {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, turnstileToken })
+        body: JSON.stringify({ ...values, turnstileToken })
       })
       const data = await res.json()
       if (data.success) {
         window.location.href = '/admin'
       } else {
-        setError(data.error || '用户名或密码错误')
+        message.error(data.error || '用户名或密码错误')
       }
     } catch {
-      setError('登录失败，请稍后重试')
+      message.error('登录失败，请稍后重试')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: 'linear-gradient(135deg, #e8f5f8 0%, #f7fafc 55%, #eef7f2 100%)' }}>
       <div className="w-full max-w-md mx-4">
-        {/* Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 md:p-10">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-400 flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">AIMENG UNING</h1>
-            <p className="text-sm text-slate-500 mt-1">管理后台 · 管理员登录</p>
-          </div>
-
-          {error && (
-            <div className="mb-6 px-4 py-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600 text-center">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">用户名</label>
-              <input
-                type="text"
-                placeholder="请输入用户名"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">密码</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="请输入密码"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all pr-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <TurnstileWidget
-              siteKey={turnstileSiteKey}
-              action="admin_login"
-              onTokenChange={setTurnstileToken}
-              className="flex justify-center"
-            />
-
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500 text-white rounded-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        <Card variant="borderless" className="shadow-lg">
+          <div className="mb-8 text-center">
+            <div
+              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl"
+              style={{ background: '#177E97' }}
             >
-              {loading ? '登录中...' : '登录'}
-            </button>
+              <LockOutlined className="text-2xl text-white" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900">AIMENG UNING</h1>
+            <p className="mt-1 text-sm text-slate-500">管理后台 · 管理员登录</p>
           </div>
-        </div>
 
-        {/* Back to site */}
-        <div className="text-center mt-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          <Form<LoginForm>
+            form={form}
+            layout="vertical"
+            onFinish={handleLogin}
+            autoComplete="off"
           >
-            <FlaskConical className="w-3.5 h-3.5" />
+            <Form.Item
+              name="username"
+              label="用户名"
+              rules={[{ required: true, message: '请输入用户名' }]}
+            >
+              <Input size="large" placeholder="请输入用户名" prefix={<UserOutlined />} />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[{ required: true, message: '请输入密码' }]}
+            >
+              <Input.Password size="large" placeholder="请输入密码" prefix={<LockOutlined />} />
+            </Form.Item>
+
+            {turnstileSiteKey && (
+              <div className="mb-4 flex justify-center">
+                <TurnstileWidget
+                  siteKey={turnstileSiteKey}
+                  action="admin_login"
+                  onTokenChange={setTurnstileToken}
+                  className="flex justify-center"
+                />
+              </div>
+            )}
+
+            <Button type="primary" size="large" block htmlType="submit" loading={loading}>
+              登录
+            </Button>
+          </Form>
+        </Card>
+
+        <div className="mt-6 text-center">
+          <Link href="/" className="text-sm text-slate-500 transition-colors hover:text-slate-700">
             返回网站首页
           </Link>
         </div>

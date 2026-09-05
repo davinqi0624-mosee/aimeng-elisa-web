@@ -127,28 +127,31 @@ export default function CitationsPage() {
   const hasFilters = journalFilter || ifRange || year || productFilter
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F2F6FA]">
       <section className="relative h-[300px] overflow-hidden border-b border-white/70 md:h-[380px]">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/brand/citation-hall-wall.jpg')" }}
         />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-gray-50" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-[#F2F6FA]" />
       </section>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8">
         {/* Header */}
-        <div className="rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">文献引用大厅</h1>
-            <p className="text-sm text-gray-500">
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+              aimeng.citations / paper hall
+            </p>
+            <h1 className="mt-3 text-2xl font-black tracking-normal text-slate-950">文献引用大厅</h1>
+            <p className="text-sm text-slate-500">
               收录使用爱萌 ELISA 试剂盒发表的高质量 SCI 论文
             </p>
           </div>
           <Link
             href="/user/citations/submit"
-            className="shrink-0 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            className="shrink-0 px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors"
           >
             + 提交文献
           </Link>
@@ -159,14 +162,14 @@ export default function CitationsPage() {
         <CitationStats />
 
         {/* Filters */}
-        <div className="bg-white border rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+        <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm text-slate-700 mb-2">
             <Filter className="w-4 h-4" />
             <span className="font-medium">筛选条件</span>
             {hasFilters && (
               <button
                 onClick={clearFilters}
-                className="text-xs text-blue-600 hover:text-blue-700 ml-2"
+                className="text-xs text-teal-700 hover:text-teal-800 ml-2"
               >
                 清除全部
               </button>
@@ -177,18 +180,18 @@ export default function CitationsPage() {
             {/* Journal search */}
             <div className="flex items-center gap-2 flex-1 min-w-[240px]">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="搜索期刊名称..."
-                  className="w-full pl-9 pr-3 py-2 border rounded-lg outline-none focus:border-blue-500 text-sm"
+                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg outline-none focus:border-teal-500 text-sm"
                 />
               </div>
               <button
                 onClick={handleSearch}
-                className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900"
+                className="px-4 py-2 bg-slate-950 text-white rounded-lg text-sm font-bold hover:bg-teal-700"
               >
                 搜索
               </button>
@@ -199,14 +202,14 @@ export default function CitationsPage() {
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
               placeholder="产品货号"
-              className="w-32 px-3 py-2 border rounded-lg text-sm outline-none focus:border-blue-500"
+              className="w-32 px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-teal-500"
             />
 
             {/* IF Range */}
             <select
               value={ifRange}
               onChange={(e) => setIfRange(e.target.value)}
-              className="px-3 py-2 border rounded-lg text-sm outline-none focus:border-blue-500"
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-teal-500"
             >
               {IF_RANGES.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -219,7 +222,7 @@ export default function CitationsPage() {
             <select
               value={year}
               onChange={(e) => setYear(e.target.value)}
-              className="px-3 py-2 border rounded-lg text-sm outline-none focus:border-blue-500"
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-teal-500"
             >
               {YEAR_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -232,7 +235,7 @@ export default function CitationsPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="px-3 py-2 border rounded-lg text-sm outline-none focus:border-blue-500"
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-teal-500"
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -244,7 +247,7 @@ export default function CitationsPage() {
         </div>
 
         {/* Results count */}
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-slate-500">
           共 {total} 篇文献
         </div>
 
@@ -252,11 +255,11 @@ export default function CitationsPage() {
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-40 bg-white rounded-xl animate-pulse" />
+              <div key={i} className="h-40 bg-white rounded-lg animate-pulse" />
             ))}
           </div>
         ) : papers.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center text-gray-400">
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center text-slate-400">
             暂无符合条件的引用文献
           </div>
         ) : (
@@ -264,7 +267,7 @@ export default function CitationsPage() {
             {papers.map((p) => (
               <div
                 key={p.id}
-                className="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow"
+                className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start gap-4">
                   <div className="shrink-0">
@@ -275,7 +278,7 @@ export default function CitationsPage() {
                         className="h-20 w-16 rounded-lg border object-cover"
                       />
                     ) : (
-                      <div className="flex h-20 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-slate-100 text-center text-[11px] font-semibold text-blue-700">
+                      <div className="flex h-20 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-teal-50 to-slate-100 text-center text-[11px] font-semibold text-teal-800">
                         SCI
                         <br />
                         Paper
@@ -284,19 +287,19 @@ export default function CitationsPage() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 mb-1 leading-snug">
+                    <h3 className="font-semibold text-slate-900 mb-1 leading-snug">
                       {p.title}
                     </h3>
-                    <p className="text-sm text-gray-500 mb-2">{getPaperAffiliation(p)}</p>
+                    <p className="text-sm text-slate-500 mb-2">{getPaperAffiliation(p)}</p>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-                      <span className="font-medium text-gray-700">
+                      <span className="font-medium text-slate-700">
                         {p.journal}
                       </span>
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-medium">
                         IF {p.impact_factor || '-'}
                       </span>
-                      <span className="text-gray-400">
+                      <span className="text-slate-400">
                         {p.publication_date
                           ? new Date(p.publication_date).getFullYear()
                           : '-'}
@@ -306,7 +309,7 @@ export default function CitationsPage() {
                           href={`https://doi.org/${p.doi}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                          className="text-teal-700 hover:underline inline-flex items-center gap-1"
                         >
                           DOI
                           <ExternalLink className="w-3 h-3" />
@@ -316,7 +319,7 @@ export default function CitationsPage() {
                           href={p.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                          className="text-teal-700 hover:underline inline-flex items-center gap-1"
                         >
                           原文链接
                           <ExternalLink className="w-3 h-3" />
@@ -328,7 +331,7 @@ export default function CitationsPage() {
                       {getPaperCatNos(p).map((catNo) => (
                         <span
                           key={catNo}
-                          className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+                          className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800"
                         >
                           {catNo}
                         </span>
@@ -361,18 +364,18 @@ export default function CitationsPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-2 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 flex items-center gap-1"
+              className="px-3 py-2 border rounded-lg text-sm text-slate-600 disabled:opacity-50 hover:bg-slate-50 flex items-center gap-1"
             >
               <ChevronLeft className="w-4 h-4" />
               上一页
             </button>
-            <span className="text-sm text-gray-500 px-3">
+            <span className="text-sm text-slate-500 px-3">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-2 border rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50 flex items-center gap-1"
+              className="px-3 py-2 border rounded-lg text-sm text-slate-600 disabled:opacity-50 hover:bg-slate-50 flex items-center gap-1"
             >
               下一页
               <ChevronRight className="w-4 h-4" />

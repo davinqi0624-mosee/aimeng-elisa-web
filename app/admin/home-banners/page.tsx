@@ -1,7 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ImagePlus, Loader2, Plus, Save, Trash2, UploadCloud, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Button, Card, Checkbox, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  CloudUploadOutlined,
+  CloseOutlined,
+  DeleteOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  SaveOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 type Banner = {
   id?: string
@@ -44,21 +54,42 @@ const themes = [
 export default function AdminHomeBannersPage() {
   const [banners, setBanners] = useState<Banner[]>([])
   const [editing, setEditing] = useState<Banner>(emptyBanner)
+  const [formOpen, setFormOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [formError, setFormError] = useState('')
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
+  function openCreate() {
+    setEditing(emptyBanner)
+    setFormError('')
+    setFormOpen(true)
+  }
+
+  function openEdit(banner: Banner) {
+    setEditing(banner)
+    setFormError('')
+    setFormOpen(true)
+  }
+
+  function closeForm() {
+    setFormOpen(false)
+    setEditing(emptyBanner)
+    setFormError('')
+  }
 
   async function loadBanners() {
     setLoading(true)
-    setError('')
+    setLoadError('')
     try {
       const res = await fetch('/api/admin/home-banners')
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error || '读取失败')
       setBanners(data.banners || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : '读取失败')
+      setLoadError(err instanceof Error ? err.message : '读取失败')
     } finally {
       setLoading(false)
     }
@@ -71,7 +102,7 @@ export default function AdminHomeBannersPage() {
 
   async function saveBanner() {
     setSaving(true)
-    setError('')
+    setFormError('')
     try {
       const res = await fetch('/api/admin/home-banners', {
         method: editing.id ? 'PUT' : 'POST',
@@ -80,10 +111,11 @@ export default function AdminHomeBannersPage() {
       })
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error || '保存失败')
+      setFormOpen(false)
       setEditing(emptyBanner)
       await loadBanners()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败')
+      setFormError(err instanceof Error ? err.message : '保存失败')
     } finally {
       setSaving(false)
     }
@@ -91,21 +123,20 @@ export default function AdminHomeBannersPage() {
 
   async function deleteBanner(id?: string) {
     if (!id) return
-    if (!window.confirm('确定删除这个首页广告位吗？')) return
-    setError('')
+    setLoadError('')
     const res = await fetch(`/api/admin/home-banners?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok || data.error) {
-      setError(data.error || '删除失败')
+      setLoadError(data.error || '删除失败')
       return
     }
-    if (editing.id === id) setEditing(emptyBanner)
+    if (editing.id === id) closeForm()
     await loadBanners()
   }
 
   async function uploadBannerImage(file: File) {
     setUploading(true)
-    setError('')
+    setFormError('')
     try {
       if (!file.type.startsWith('image/')) {
         throw new Error('请上传图片文件，支持 PNG、JPG、WebP 等常见格式。')
@@ -126,217 +157,209 @@ export default function AdminHomeBannersPage() {
       if (!res.ok || data.error) throw new Error(data.error || '上传失败')
       setEditing((current) => ({ ...current, image_url: data.url }))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '上传失败')
+      setFormError(err instanceof Error ? err.message : '上传失败')
     } finally {
       setUploading(false)
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold text-white">
-          <ImagePlus className="h-5 w-5 text-cyan-400" />
-          首页广告位
-        </h1>
-        <p className="mt-1 text-sm text-slate-400">
-          管理首页首屏轮播广告，用于新品发布、活动推广、节日庆祝和公告展示。
-        </p>
-      </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
+  const columns: ColumnsType<Banner> = [
+    {
+      title: '海报',
+      key: 'poster',
+      width: 160,
+      render: (_, banner) =>
+        banner.image_url ? (
+          <img src={banner.image_url} alt={banner.title} className="aspect-video w-32 rounded-md object-cover" />
+        ) : (
+          <span className="text-xs text-slate-400">未上传</span>
+        ),
+    },
+    {
+      title: '标题 / 描述',
+      key: 'title',
+      render: (_, banner) => (
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-900">{banner.title} · {banner.subtitle}</div>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{banner.description}</p>
         </div>
-      )}
+      ),
+    },
+    {
+      title: '排序',
+      dataIndex: 'sort_order',
+      key: 'sort_order',
+      width: 70,
+      render: (v: number) => <span className="text-xs text-slate-500">#{v}</span>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 90,
+      render: (active: boolean) => (active ? <Tag color="green">上架中</Tag> : <Tag>已下架</Tag>),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 130,
+      render: (_, banner) => (
+        <Space>
+          <Button size="small" onClick={() => openEdit(banner)}>
+            编辑
+          </Button>
+          <Popconfirm title="确定删除这个首页广告位吗？" onConfirm={() => deleteBanner(banner.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} title="删除" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
-      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-        <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold text-white">{editing.id ? '编辑广告位' : '新增广告位'}</h2>
-            <button
-              type="button"
-              onClick={() => setEditing(emptyBanner)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              新建
-            </button>
-          </div>
+  return (
+    <div>
+      <PageHeader
+        icon={<PictureOutlined />}
+        title="首页广告位"
+        description="管理首页首屏轮播广告，用于新品发布、活动推广、节日庆祝和公告展示。"
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增广告位
+          </Button>
+        }
+      />
 
-          <div className="space-y-3">
+      {loadError && <Alert className="mb-4" type="error" showIcon message={loadError} />}
+
+      <Card size="small" title="广告位列表">
+        <Table<Banner>
+          rowKey="id"
+          columns={columns}
+          dataSource={banners}
+          loading={loading}
+          locale={{ emptyText: '暂无广告位。前台会使用默认轮播内容。' }}
+          pagination={false}
+        />
+      </Card>
+
+      <Modal
+        open={formOpen}
+        title={editing.id ? '编辑广告位' : '新增广告位'}
+        width={680}
+        onCancel={closeForm}
+        destroyOnHidden
+        footer={[
+          <Button key="cancel" onClick={closeForm}>取消</Button>,
+          <Button key="save" type="primary" icon={<SaveOutlined />} loading={saving} onClick={() => saveBanner()}>
+            保存广告位
+          </Button>,
+        ]}
+      >
+        {formError && <Alert className="mb-4" type="error" showIcon message={formError} />}
+        <div className="space-y-3">
             <Field label="主标题" value={editing.title} onChange={(value) => setEditing({ ...editing, title: value })} />
             <Field label="副标题" value={editing.subtitle} onChange={(value) => setEditing({ ...editing, subtitle: value })} />
             <Field label="标签" value={editing.eyebrow} onChange={(value) => setEditing({ ...editing, eyebrow: value })} />
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-400">广告描述</span>
-              <textarea
+            <div>
+              <div className="mb-1 text-xs font-medium text-slate-500">广告描述</div>
+              <Input.TextArea
                 value={editing.description}
                 onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 rows={4}
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
               />
-            </label>
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Field label="主按钮文字" value={editing.cta_label} onChange={(value) => setEditing({ ...editing, cta_label: value })} />
               <Field label="主按钮链接" value={editing.cta_href} onChange={(value) => setEditing({ ...editing, cta_href: value })} />
               <Field label="次按钮文字" value={editing.secondary_label} onChange={(value) => setEditing({ ...editing, secondary_label: value })} />
               <Field label="次按钮链接" value={editing.secondary_href} onChange={(value) => setEditing({ ...editing, secondary_href: value })} />
             </div>
-            <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
+            <div className="rounded-lg border border-slate-200 p-3">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div>
-                  <span className="block text-xs font-medium text-slate-300">广告海报图</span>
-                  <span className="text-[11px] text-slate-500">建议 16:9，1600 x 900；不上传时前台使用系统生成图。</span>
+                  <span className="block text-xs font-medium text-slate-600">广告海报图</span>
+                  <span className="text-[11px] text-slate-400">建议 16:9，1600 x 900；不上传时前台使用系统生成图。</span>
                 </div>
                 {editing.image_url && (
-                  <button
-                    type="button"
+                  <Button
+                    size="small"
+                    icon={<CloseOutlined />}
                     onClick={() => setEditing({ ...editing, image_url: '' })}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
                   >
-                    <X className="h-3.5 w-3.5" />
                     清除图片
-                  </button>
+                  </Button>
                 )}
               </div>
 
               <div className="grid gap-3 lg:grid-cols-[180px_1fr]">
-                <div className="aspect-video overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+                <div className="aspect-video overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                   {editing.image_url ? (
                     <img src={editing.image_url} alt="广告图预览" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="grid h-full place-items-center text-center text-xs text-slate-500">
+                    <div className="grid h-full place-items-center text-center text-xs text-slate-400">
                       未上传图片
                     </div>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700">
-                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                    {uploading ? '上传中...' : '上传海报图片'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploading}
-                      onChange={(e) => e.target.files?.[0] && uploadBannerImage(e.target.files[0])}
-                      className="hidden"
-                    />
-                  </label>
+                  <Button
+                    type="primary"
+                    icon={<CloudUploadOutlined />}
+                    loading={uploading}
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    上传海报图片
+                  </Button>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    disabled={uploading}
+                    onChange={(e) => e.target.files?.[0] && uploadBannerImage(e.target.files[0])}
+                    className="hidden"
+                  />
                   <Field label="图片 URL，也可直接粘贴外部图片地址" value={editing.image_url} onChange={(value) => setEditing({ ...editing, image_url: value })} />
                 </div>
               </div>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-400">主题</span>
-                <select
+              <div>
+                <div className="mb-1 text-xs font-medium text-slate-500">主题</div>
+                <Select<Banner['theme']>
+                  className="w-full"
                   value={editing.theme}
-                  onChange={(e) => setEditing({ ...editing, theme: e.target.value as Banner['theme'] })}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
-                >
-                  {themes.map((theme) => (
-                    <option key={theme.value} value={theme.value}>{theme.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-400">排序</span>
-                <input
-                  type="number"
-                  value={editing.sort_order}
-                  onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) || 1 })}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+                  onChange={(value) => setEditing({ ...editing, theme: value })}
+                  options={themes.map((theme) => ({ value: theme.value, label: theme.label }))}
                 />
-              </label>
-              <label className="flex items-end gap-2 pb-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-medium text-slate-500">排序</div>
+                <InputNumber
+                  className="w-full"
+                  value={editing.sort_order}
+                  onChange={(value) => setEditing({ ...editing, sort_order: typeof value === 'number' ? value : 1 })}
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <Checkbox
                   checked={editing.is_active}
                   onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-950"
-                />
-                上架显示
-              </label>
+                >
+                  上架显示
+                </Checkbox>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={saveBanner}
-              disabled={saving}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              保存广告位
-            </button>
           </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
-          <h2 className="mb-4 font-semibold text-white">广告位列表</h2>
-          {loading ? (
-            <div className="grid h-48 place-items-center text-slate-400">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : banners.length === 0 ? (
-            <div className="rounded-lg border border-slate-800 bg-slate-950 px-4 py-10 text-center text-sm text-slate-400">
-              暂无广告位。前台会使用默认轮播内容。
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {banners.map((banner) => (
-                <div key={banner.id} className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">#{banner.sort_order}</span>
-                        <span className={`rounded px-2 py-0.5 text-xs ${banner.is_active ? 'bg-emerald-500/10 text-emerald-300' : 'bg-slate-700 text-slate-400'}`}>
-                          {banner.is_active ? '上架中' : '已下架'}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-base font-semibold text-white">{banner.title} · {banner.subtitle}</h3>
-                      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">{banner.description}</p>
-                      {banner.image_url && (
-                        <div className="mt-3 aspect-video w-56 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-                          <img src={banner.image_url} alt={banner.title} className="h-full w-full object-cover" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditing(banner)}
-                        className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteBanner(banner.id)}
-                        className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+      </Modal>
     </div>
   )
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
-      />
-    </label>
+    <div>
+      <div className="mb-1 text-xs font-medium text-slate-500">{label}</div>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
   )
 }

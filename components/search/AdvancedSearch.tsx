@@ -167,7 +167,7 @@ export default function AdvancedSearch({
   ]
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
+    <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
       {/* Species Selection */}
       <div>
         <label className="block text-sm font-semibold text-slate-900 mb-3">
@@ -184,13 +184,13 @@ export default function AdvancedSearch({
                   onClick={() => toggleSpecies(species)}
                   className={`relative flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                     isSelected
-                      ? 'border-blue-400 bg-blue-50/60 text-blue-700'
+                      ? 'border-teal-400 bg-teal-50/60 text-teal-800'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {isSelected && (
                     <span className="absolute top-0.5 right-0.5">
-                      <Check className="w-3 h-3 text-blue-500" />
+                      <Check className="w-3 h-3 text-teal-600" />
                     </span>
                   )}
                   <SpeciesIcon species={species} className="w-4 h-4" />
@@ -209,13 +209,13 @@ export default function AdvancedSearch({
                   onClick={() => toggleSpecies(species)}
                   className={`relative flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                     isSelected
-                      ? 'border-blue-400 bg-blue-50/60 text-blue-700'
+                      ? 'border-teal-400 bg-teal-50/60 text-teal-800'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {isSelected && (
                     <span className="absolute top-0.5 right-0.5">
-                      <Check className="w-3 h-3 text-blue-500" />
+                      <Check className="w-3 h-3 text-teal-600" />
                     </span>
                   )}
                   <SpeciesIcon species={species} className="w-4 h-4" />
@@ -244,7 +244,7 @@ export default function AdvancedSearch({
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             placeholder="输入指标名称，如 IL-6、TNF-α、IFN-γ..."
-            className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all"
           />
         </div>
 
@@ -271,7 +271,7 @@ export default function AdvancedSearch({
                         e.preventDefault()
                         insertGreekChar(g.char)
                       }}
-                      className="w-6 h-6 flex items-center justify-center rounded border border-slate-100 bg-slate-50 hover:bg-blue-600 hover:text-white hover:border-transparent transition-all text-xs"
+                      className="w-6 h-6 flex items-center justify-center rounded border border-slate-100 bg-slate-50 hover:bg-slate-950 hover:text-white hover:border-transparent transition-all text-xs"
                     >
                       {g.char}
                     </button>
@@ -291,7 +291,7 @@ export default function AdvancedSearch({
                         e.preventDefault()
                         insertGreekChar(r.char)
                       }}
-                      className="w-6 h-6 flex items-center justify-center rounded border border-slate-100 bg-slate-50 hover:bg-blue-600 hover:text-white hover:border-transparent transition-all text-xs"
+                      className="w-6 h-6 flex items-center justify-center rounded border border-slate-100 bg-slate-50 hover:bg-slate-950 hover:text-white hover:border-transparent transition-all text-xs"
                     >
                       {r.char}
                     </button>
@@ -314,18 +314,18 @@ export default function AdvancedSearch({
           {selectedSpecies.map((s) => (
             <span
               key={s}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-50 text-teal-800 text-xs rounded-full border border-teal-100"
             >
               {SPECIES_LABELS[s] || s}
-              <button onClick={() => removeTag('species', s)} className="hover:text-blue-900">
+              <button onClick={() => removeTag('species', s)} className="hover:text-teal-900">
                 <X className="w-3 h-3" />
               </button>
             </span>
           ))}
           {query.trim() && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-violet-50 text-violet-700 text-xs rounded-full border border-violet-100">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs rounded-full border border-slate-200">
               {query.trim()}
-              <button onClick={() => removeTag('query', query)} className="hover:text-violet-900">
+              <button onClick={() => removeTag('query', query)} className="hover:text-slate-900">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -345,7 +345,7 @@ export default function AdvancedSearch({
       {/* Search Button */}
       <button
         onClick={handleSearch}
-        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 via-emerald-500 to-purple-500 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
+        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-slate-950 text-white rounded-lg font-bold hover:bg-teal-700 transition-colors"
       >
         <Search className="w-4 h-4" />
         搜索试剂盒

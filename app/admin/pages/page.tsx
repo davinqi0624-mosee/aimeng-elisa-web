@@ -4,10 +4,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Rnd } from 'react-rnd';
 import {
-  Plus, Edit3, Trash2, ChevronLeft, ChevronRight, ExternalLink,
-  Layout, Search, FileText, Save, Eye, RotateCcw, ArrowLeft,
-  Type, Image, Square, Link2, Heading1, Trash, GripVertical
-} from 'lucide-react';
+  App, Button, Form, Input, InputNumber, Modal, Popconfirm, Slider, Space, Table, Tag,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  PlusOutlined, EditOutlined, ArrowLeftOutlined, EyeOutlined, UndoOutlined, SaveOutlined,
+  DeleteOutlined, LayoutOutlined, SearchOutlined, FileOutlined, ExportOutlined,
+  FontSizeOutlined, AlignLeftOutlined, PictureOutlined, BorderOutlined, LinkOutlined,
+  HolderOutlined,
+} from '@ant-design/icons';
+import PageHeader from '@/components/admin/PageHeader';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,6 +54,17 @@ const DEFAULT_STYLES: Record<string, Partial<CanvasElement>> = {
 const PAGE_SIZE = 10;
 const CANVAS_W = 900;
 const CANVAS_H = 700;
+
+const PALETTE: { t: CanvasElement['type']; l: string; i: typeof FontSizeOutlined; d: string }[] = [
+  { t: 'heading', l: '标题', i: FontSizeOutlined, d: '大标题文字' },
+  { t: 'text', l: '正文', i: AlignLeftOutlined, d: '段落文字' },
+  { t: 'image', l: '图片', i: PictureOutlined, d: '产品图片' },
+  { t: 'button', l: '按钮', i: BorderOutlined, d: '可点击按钮' },
+  { t: 'link', l: '链接', i: LinkOutlined, d: '文字链接' },
+];
+
+const TEXT_COLORS = ['#1e293b', '#475569', '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#ffffff', '#000000'];
+const BG_COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#1e293b'];
 
 interface OldBlock {
   id?: string;
@@ -303,12 +320,14 @@ function convertBlocksToCanvas(rawBlocks: any): CanvasElement[] {
   return elements;
 }
 export default function AdminPagesPage() {
+  const { message, modal } = App.useApp();
   const [pages, setPages] = useState<Page[]>([]);
   const [loading, setLoading] = useState(true);
   const [listPage, setListPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list');
+  const [mode, setMode] = useState<'list' | 'edit'>('list');
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<Page | null>(null);
   const [createForm, setCreateForm] = useState({ slug: '', title: '', description: '' });
   const [elements, setElements] = useState<CanvasElement[]>([]);
@@ -361,21 +380,21 @@ export default function AdminPagesPage() {
   };
 
   const handleCreate = async () => {
-    if (!createForm.slug || !createForm.title) { alert('请填写页面标识和标题'); return; }
+    if (!createForm.slug || !createForm.title) { message.error('请填写页面标识和标题'); return; }
     const { error } = await supabase.from('pages').insert({
       slug: createForm.slug, title: createForm.title,
       description: createForm.description, canvas_elements: [],
     });
-    if (error) { alert('创建失败: ' + error.message); return; }
+    if (error) { message.error('创建失败: ' + error.message); return; }
     setCreateForm({ slug: '', title: '', description: '' });
-    setMode('list');
+    setCreateOpen(false);
     fetchPages();
   };
 
   const openEditor = (page: Page) => {
     setEditingPage(page);
-        alert('blocks数据:' + JSON.stringify(page.blocks).slice(0,300));
-        alert('canvas_elements:' + JSON.stringify(page.canvas_elements).slice(0,300));
+    message.info('blocks数据:' + JSON.stringify(page.blocks).slice(0, 300));
+    message.info('canvas_elements:' + JSON.stringify(page.canvas_elements).slice(0, 300));
     let canvasData: CanvasElement[] = [];
     if (page.canvas_elements && Array.isArray(page.canvas_elements) && page.canvas_elements.length > 0) {
       canvasData = page.canvas_elements;
@@ -389,34 +408,43 @@ export default function AdminPagesPage() {
   };
 
   const closeEditor = () => {
-    if (hasChanges && !confirm('有未保存的更改，确定离开？')) return;
-    setMode('list');
-    setEditingPage(null);
-    setElements([]);
-    setSelectedId(null);
-    setHasChanges(false);
-    fetchPages();
+    const doClose = () => {
+      setMode('list');
+      setEditingPage(null);
+      setElements([]);
+      setSelectedId(null);
+      setHasChanges(false);
+      fetchPages();
+    };
+    if (hasChanges) {
+      modal.confirm({
+        title: '有未保存的更改，确定离开？',
+        okText: '离开',
+        cancelText: '取消',
+        onOk: doClose,
+      });
+      return;
+    }
+    doClose();
   };
 
   const handleSave = async () => {
     if (!editingPage) return;
     setSaveStatus('saving');
     const { error } = await supabase.from('pages').update({ canvas_elements: elements }).eq('id', editingPage.id);
-    if (error) { alert('保存失败: ' + error.message); setSaveStatus('idle'); return; }
+    if (error) { message.error('保存失败: ' + error.message); setSaveStatus('idle'); return; }
     setSaveStatus('saved');
     setHasChanges(false);
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
   const handleReset = () => {
-    if (!confirm('确定恢复默认？所有更改将丢失！')) return;
     setElements([]);
     setSelectedId(null);
     setHasChanges(true);
   };
 
   const handleDeletePage = async (id: string) => {
-    if (!confirm('确定删除此页面？')) return;
     await supabase.from('pages').delete().eq('id', id);
     fetchPages();
   };
@@ -446,26 +474,28 @@ export default function AdminPagesPage() {
         {/* Top Toolbar */}
         <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={closeEditor} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600">
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+            <Button type="text" icon={<ArrowLeftOutlined />} onClick={closeEditor} aria-label="返回列表" />
             <div>
               <h1 className="text-sm font-semibold text-slate-800">{editingPage.title}</h1>
               <p className="text-xs text-slate-400">/{editingPage.slug}</p>
             </div>
-            {hasChanges && <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs">未保存</span>}
+            {hasChanges && <Tag color="gold">未保存</Tag>}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowPreview(!showPreview)} className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 ${showPreview ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              {showPreview ? <><RotateCcw className="w-3.5 h-3.5" /> 编辑</> : <><Eye className="w-3.5 h-3.5" /> 预览</>}
-            </button>
-            <button onClick={handleReset} className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 text-sm font-medium flex items-center gap-1.5">
-              <RotateCcw className="w-3.5 h-3.5" /> 恢复默认
-            </button>
-            <button onClick={handleSave} disabled={saveStatus==='saving'} className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium flex items-center gap-1.5 disabled:opacity-50">
-              <Save className="w-3.5 h-3.5" /> {saveStatus==='saving'?'保存中...':saveStatus==='saved'?'已保存!':'保存'}
-            </button>
-          </div>
+          <Space>
+            <Button
+              type={showPreview ? 'primary' : 'default'}
+              icon={showPreview ? <UndoOutlined /> : <EyeOutlined />}
+              onClick={() => setShowPreview(!showPreview)}
+            >
+              {showPreview ? '编辑' : '预览'}
+            </Button>
+            <Popconfirm title="确定恢复默认？所有更改将丢失！" okText="恢复" cancelText="取消" okButtonProps={{ danger: true }} onConfirm={handleReset}>
+              <Button icon={<UndoOutlined />}>恢复默认</Button>
+            </Popconfirm>
+            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} disabled={saveStatus === 'saving'}>
+              {saveStatus === 'saving' ? '保存中...' : saveStatus === 'saved' ? '已保存!' : '保存'}
+            </Button>
+          </Space>
         </div>
 
         {/* Main Area */}
@@ -477,16 +507,21 @@ export default function AdminPagesPage() {
                 <h2 className="text-sm font-semibold text-slate-700">添加组件</h2>
               </div>
               <div className="flex-1 overflow-auto p-3 space-y-2">
-                {[{t:'heading',l:'标题',i:Heading1,d:'大标题文字'},{t:'text',l:'正文',i:Type,d:'段落文字'},{t:'image',l:'图片',i:Image,d:'产品图片'},{t:'button',l:'按钮',i:Square,d:'可点击按钮'},{t:'link',l:'链接',i:Link2,d:'文字链接'}].map(({t,l,i:Icon,d})=> (
-                  <button key={t} onClick={()=>addElement(t as any)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all group text-left">
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center shrink-0">
-                      <Icon className="w-4 h-4 text-slate-500 group-hover:text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-700 group-hover:text-blue-700">{l}</p>
-                      <p className="text-xs text-slate-400">{d}</p>
-                    </div>
-                  </button>
+                {PALETTE.map(({ t, l, i: Icon, d }) => (
+                  <Button
+                    key={t}
+                    block
+                    onClick={() => addElement(t)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, height: 'auto', padding: '10px 12px', textAlign: 'left' }}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                      <Icon className="text-slate-500" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-medium text-slate-700">{l}</span>
+                      <span className="block text-xs text-slate-400">{d}</span>
+                    </span>
+                  </Button>
                 ))}
               </div>
               <div className="px-4 py-3 border-t border-slate-200 text-xs text-slate-400 space-y-1">
@@ -511,7 +546,7 @@ export default function AdminPagesPage() {
               {elements.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center text-slate-400">
-                    <GripVertical className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <HolderOutlined className="mx-auto mb-2 text-4xl opacity-30" />
                     <p className="text-sm">{showPreview ? '页面为空' : '点击左侧组件添加到画布'}</p>
                   </div>
                 </div>
@@ -533,12 +568,15 @@ export default function AdminPagesPage() {
                   <div className="w-full h-full overflow-hidden relative">
                     {renderEl(el)}
                     {!showPreview && selectedId===el.id && (
-                      <button
+                      <Button
+                        type="primary"
+                        danger
+                        shape="circle"
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        className="absolute -top-3 -right-3 z-20"
                         onClick={(e)=>{e.stopPropagation();deleteElement(el.id);}}
-                        className="absolute -top-2.5 -right-2.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 z-20"
-                      >
-                        <Trash className="w-3 h-3" />
-                      </button>
+                      />
                     )}
                   </div>
                 </Rnd>
@@ -564,10 +602,9 @@ export default function AdminPagesPage() {
                       <label className="block text-xs font-medium text-slate-500 mb-1">
                         {selectedEl.type==='button'?'按钮文字':'文字内容'}
                       </label>
-                      <textarea
+                      <Input.TextArea
                         value={selectedEl.content}
                         onChange={e=>updateElement(selectedEl.id,{content:e.target.value})}
-                        className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-blue-500 resize-none"
                         rows={selectedEl.type==='text'?3:2}
                       />
                     </div>
@@ -576,12 +613,10 @@ export default function AdminPagesPage() {
                   {selectedEl.type==='image' && (
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">图片链接</label>
-                      <input
-                        type="text"
+                      <Input
                         value={selectedEl.src||''}
                         onChange={e=>updateElement(selectedEl.id,{src:e.target.value})}
                         placeholder="https://..."
-                        className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   )}
@@ -589,12 +624,10 @@ export default function AdminPagesPage() {
                   {(selectedEl.type==='button'||selectedEl.type==='link') && (
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1">跳转链接</label>
-                      <input
-                        type="text"
+                      <Input
                         value={selectedEl.link||''}
                         onChange={e=>updateElement(selectedEl.id,{link:e.target.value})}
                         placeholder="https://..."
-                        className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   )}
@@ -607,11 +640,10 @@ export default function AdminPagesPage() {
                           <label className="block text-xs text-slate-400 mb-0.5">
                             {k==='x'?'X':k==='y'?'Y':k==='width'?'宽':'高'}
                           </label>
-                          <input
-                            type="number"
+                          <InputNumber
                             value={Math.round((selectedEl as any)[k])}
-                            onChange={e=>updateElement(selectedEl.id,{[k]:Number(e.target.value)})}
-                            className="w-full px-2 py-1.5 rounded bg-slate-50 border border-slate-200 text-sm"
+                            onChange={v=>updateElement(selectedEl.id,{[k]:v??0})}
+                            className="w-full"
                           />
                         </div>
                       ))}
@@ -624,7 +656,7 @@ export default function AdminPagesPage() {
                       <div className="mb-3">
                         <label className="block text-xs text-slate-400 mb-1">文字颜色</label>
                         <div className="flex gap-1.5 flex-wrap">
-                          {['#1e293b','#475569','#3b82f6','#ef4444','#10b981','#f59e0b','#ffffff','#000000'].map(c=> (
+                          {TEXT_COLORS.map(c=> (
                             <button
                               key={c}
                               onClick={()=>updateElement(selectedEl.id,{style:{...selectedEl.style,color:c}})}
@@ -639,7 +671,7 @@ export default function AdminPagesPage() {
                       <div className="mb-3">
                         <label className="block text-xs text-slate-400 mb-1">背景色</label>
                         <div className="flex gap-1.5 flex-wrap">
-                          {['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#1e293b'].map(c=> (
+                          {BG_COLORS.map(c=> (
                             <button
                               key={c}
                               onClick={()=>updateElement(selectedEl.id,{style:{...selectedEl.style,backgroundColor:c}})}
@@ -653,13 +685,11 @@ export default function AdminPagesPage() {
                     {(selectedEl.type==='button'||selectedEl.type==='image') && (
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">圆角</label>
-                        <input
-                          type="range"
+                        <Slider
                           min={0}
                           max={50}
                           value={selectedEl.style?.borderRadius||0}
-                          onChange={e=>updateElement(selectedEl.id,{style:{...selectedEl.style,borderRadius:Number(e.target.value)}})}
-                          className="w-full"
+                          onChange={v=>updateElement(selectedEl.id,{style:{...selectedEl.style,borderRadius:v}})}
                         />
                       </div>
                     )}
@@ -672,179 +702,132 @@ export default function AdminPagesPage() {
       </div>
     );
   }
-    if (mode === 'create') {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-200 p-8">
-        <div className="max-w-lg mx-auto">
-          <button onClick={()=>setMode('list')} className="mb-6 flex items-center gap-2 text-slate-400 hover:text-white text-sm">
-            <ChevronLeft className="w-4 h-4" /> 返回列表
-          </button>
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
-            <h1 className="text-xl font-bold text-white mb-6">新建页面</h1>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                  页面标识 <span className="text-slate-500">（URL路径，如 about-us）</span>
-                </label>
-                <input
-                  value={createForm.slug}
-                  onChange={e=>setCreateForm({...createForm,slug:e.target.value})}
-                  placeholder="about-us"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">页面标题</label>
-                <input
-                  value={createForm.title}
-                  onChange={e=>setCreateForm({...createForm,title:e.target.value})}
-                  placeholder="关于我们"
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">描述</label>
-                <textarea
-                  value={createForm.description}
-                  onChange={e=>setCreateForm({...createForm,description:e.target.value})}
-                  placeholder="页面描述（可选）"
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500 resize-none"
-                />
-              </div>
-              <div className="pt-2">
-                <button
-                  onClick={handleCreate}
-                  className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
-                >
-                  创建并进入编辑器
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const columns: ColumnsType<Page> = [
+    {
+      title: '页面标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (_, p) => (
+        <span className="font-medium">
+          <FileOutlined className="mr-2 text-slate-400" />
+          {p.title}
+        </span>
+      ),
+    },
+    {
+      title: '标识',
+      dataIndex: 'slug',
+      key: 'slug',
+      render: (slug: string) => <code className="text-xs">{slug}</code>,
+    },
+    {
+      title: '元素数',
+      key: 'element_count',
+      width: 110,
+      render: (_, p) => <Tag>{(p.canvas_elements || []).length} 个元素</Tag>,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (v?: string) => (
+        <span className="text-xs text-slate-500">{v ? new Date(v).toLocaleDateString('zh-CN') : '-'}</span>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 150,
+      render: (_, p) => (
+        <Space>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditor(p)} title="编辑画布" />
+          <Button type="text" size="small" icon={<ExportOutlined />} href={`/${p.slug}`} target="_blank" title="预览" />
+          <Popconfirm title="确定删除此页面？" okText="删除" cancelText="取消" okButtonProps={{ danger: true }} onConfirm={() => handleDeletePage(p.id)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Layout className="w-6 h-6 text-blue-400" /> 内页管理
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">使用画布编辑器自由排版页面内容</p>
-          </div>
-          <button
-            onClick={()=>setMode('create')}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> 新建页面
-          </button>
-        </div>
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={e=>{setSearch(e.target.value);setListPage(0)}}
-            placeholder="搜索页面..."
-            className="w-full max-w-md pl-10 pr-4 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-          />
-        </div>
-        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-800/50 text-slate-400">
-              <tr>
-                <th className="px-4 py-3 text-left">页面标题</th>
-                <th className="px-4 py-3 text-left">标识</th>
-                <th className="px-4 py-3 text-left">元素数</th>
-                <th className="px-4 py-3 text-left">创建时间</th>
-                <th className="px-4 py-3 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">加载中...</td>
-                </tr>
-              ) : pages.length===0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">暂无页面，点击"新建页面"创建</td>
-                </tr>
-              ) : (
-                pages.map(p=> (
-                  <tr key={p.id} className="hover:bg-slate-800/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-500" />
-                        <span className="text-white font-medium">{p.title}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 font-mono text-xs">{p.slug}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs">
-                        {(p.canvas_elements||[]).length} 个元素
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {p.created_at?new Date(p.created_at).toLocaleDateString('zh-CN'):'-'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={()=>openEditor(p)}
-                        className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-blue-400 mr-1"
-                        title="编辑画布"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <a
-                        href={`/${p.slug}`}
-                        target="_blank"
-                        className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-green-400 mr-1 inline-block"
-                        title="预览"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                      <button
-                        onClick={()=>handleDeletePage(p.id)}
-                        className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400"
-                        title="删除"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {totalPages>1 && (
-          <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-slate-500">共 {total} 条，第 {listPage+1}/{totalPages} 页</span>
-            <div className="flex gap-2">
-              <button
-                onClick={()=>setListPage(p=>Math.max(0,p-1))}
-                disabled={listPage===0}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-40 text-sm"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={()=>setListPage(p=>Math.min(totalPages-1,p+1))}
-                disabled={listPage>=totalPages-1}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-40 text-sm"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+    <div>
+      <PageHeader
+        icon={<LayoutOutlined />}
+        title="内页管理"
+        description="使用画布编辑器自由排版页面内容"
+        extra={(
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            新建页面
+          </Button>
         )}
-      </div>
+      />
+      <Input
+        value={search}
+        onChange={e=>{setSearch(e.target.value);setListPage(0)}}
+        placeholder="搜索页面..."
+        prefix={<SearchOutlined />}
+        allowClear
+        className="mb-4 max-w-md"
+      />
+      <Table<Page>
+        rowKey="id"
+        columns={columns}
+        dataSource={pages}
+        loading={loading}
+        locale={{ emptyText: '暂无页面，点击"新建页面"创建' }}
+        pagination={{
+          current: listPage + 1,
+          pageSize: PAGE_SIZE,
+          total,
+          hideOnSinglePage: true,
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p) => setListPage(p - 1),
+        }}
+      />
+
+      <Modal
+        open={createOpen}
+        title="新建页面"
+        onCancel={() => setCreateOpen(false)}
+        destroyOnHidden
+        footer={[
+          <Button key="cancel" onClick={() => setCreateOpen(false)}>取消</Button>,
+          <Button key="create" type="primary" onClick={handleCreate}>创建页面</Button>,
+        ]}
+      >
+        <Form layout="vertical" className="mt-2">
+          <Form.Item
+            label={
+              <span>
+                页面标识 <span className="font-normal text-slate-400">（URL路径，如 about-us）</span>
+              </span>
+            }
+          >
+            <Input
+              value={createForm.slug}
+              onChange={e=>setCreateForm({...createForm,slug:e.target.value})}
+              placeholder="about-us"
+            />
+          </Form.Item>
+          <Form.Item label="页面标题">
+            <Input
+              value={createForm.title}
+              onChange={e=>setCreateForm({...createForm,title:e.target.value})}
+              placeholder="关于我们"
+            />
+          </Form.Item>
+          <Form.Item label="描述">
+            <Input.TextArea
+              value={createForm.description}
+              onChange={e=>setCreateForm({...createForm,description:e.target.value})}
+              placeholder="页面描述（可选）"
+              rows={3}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

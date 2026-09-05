@@ -2,7 +2,22 @@
 
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FileText, Loader2, Upload, Wand2, CheckCircle2, CircleAlert, FileUp, RefreshCw, Undo2, Archive, Copy } from 'lucide-react'
+import { Alert, Button, Card, Input, Popconfirm, Select, Space, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  CheckCircleOutlined,
+  InboxOutlined,
+  CopyOutlined,
+  ExclamationCircleOutlined,
+  FileExclamationOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  ReloadOutlined,
+  RollbackOutlined,
+  ThunderboltOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 type DocumentType = 'datasheet' | 'coa'
 type StatusFilter = 'all' | 'pending' | 'unmatched' | 'retry' | 'active' | 'archived'
@@ -217,12 +232,12 @@ async function uploadViaServerFallback(
   }
 }
 
-function getModuleStyle(tone: 'ok' | 'wait' | 'warn' | 'error' | 'muted') {
-  if (tone === 'ok') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-  if (tone === 'warn') return 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-  if (tone === 'error') return 'border-red-500/30 bg-red-500/10 text-red-100'
-  if (tone === 'wait') return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-100'
-  return 'border-slate-700 bg-slate-800/50 text-slate-200'
+function getModuleToneIcon(tone: 'ok' | 'wait' | 'warn' | 'error' | 'muted') {
+  if (tone === 'ok') return <CheckCircleOutlined className="text-sm text-emerald-500" />
+  if (tone === 'error') return <ExclamationCircleOutlined className="text-sm text-red-500" />
+  if (tone === 'warn') return <ExclamationCircleOutlined className="text-sm text-amber-500" />
+  if (tone === 'wait') return <ExclamationCircleOutlined className="text-sm text-cyan-600" />
+  return <ExclamationCircleOutlined className="text-sm text-slate-400" />
 }
 
 function WorkflowModuleCard({
@@ -239,15 +254,15 @@ function WorkflowModuleCard({
   action?: ReactNode
 }) {
   return (
-    <div className={`rounded-lg border p-4 ${getModuleStyle(tone)}`}>
+    <Card size="small" className="h-full">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-medium text-current/80">{title}</div>
-        {tone === 'ok' ? <CheckCircle2 className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+        <span className="text-xs font-medium text-slate-500">{title}</span>
+        {getModuleToneIcon(tone)}
       </div>
-      <div className="mt-3 text-2xl font-semibold text-white">{value}</div>
-      <div className="mt-1 min-h-[32px] text-xs text-current/75">{detail}</div>
+      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
+      <div className="mt-1 min-h-[32px] text-xs text-slate-500">{detail}</div>
       {action && <div className="mt-3">{action}</div>}
-    </div>
+    </Card>
   )
 }
 
@@ -683,10 +698,6 @@ export default function AdminProductDocumentsPage() {
       setError('请先选择一个批次')
       return
     }
-    const confirmed = window.confirm(
-      `确定撤回本批次“${selectedBatch.title}”吗？该批次文件会从前台下架，后台保留记录；如果上传错了，可以重新上传。`
-    )
-    if (!confirmed) return
 
     setActionDocId(`batch:${selectedBatchId}`)
     setError('')
@@ -741,11 +752,11 @@ export default function AdminProductDocumentsPage() {
     return doc.product_id ? '待上架' : '需重传'
   }
 
-  const getStatusStyle = (doc: ProductDocument) => {
-    if (isFileRemoved(doc) && !doc.review_note?.includes('前台已有可用')) return 'bg-red-500/10 text-red-300'
-    if (doc.status === 'active') return 'bg-emerald-500/10 text-emerald-300'
-    if (doc.status === 'archived') return 'bg-slate-500/10 text-slate-300'
-    return doc.product_id ? 'bg-cyan-500/10 text-cyan-300' : 'bg-amber-500/10 text-amber-300'
+  const getStatusColor = (doc: ProductDocument) => {
+    if (isFileRemoved(doc) && !doc.review_note?.includes('前台已有可用')) return 'volcano'
+    if (doc.status === 'active') return 'green'
+    if (doc.status === 'archived') return 'default'
+    return doc.product_id ? 'processing' : 'gold'
   }
 
   const isFileRemoved = (doc: ProductDocument) => {
@@ -753,7 +764,7 @@ export default function AdminProductDocumentsPage() {
     return Boolean(
       doc.storage_status === 'deleted' ||
         doc.storage_status === 'missing' ||
-      note.includes('文件已从存储删除') ||
+        note.includes('文件已从存储删除') ||
         note.includes('重复文件已从存储删除') ||
         note.includes('存储删除') ||
         note.includes('删除存储文件') ||
@@ -762,7 +773,6 @@ export default function AdminProductDocumentsPage() {
     )
   }
 
-  const visibleCount = documents.length
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) || null
   const requestedCount = selectedBatch?.requested_total || selectedBatch?.total || 0
   const uploadedCount = selectedBatch?.upload_success ?? selectedBatch?.total ?? 0
@@ -786,142 +796,275 @@ export default function AdminProductDocumentsPage() {
       !confirmingExact
   )
 
+  const columns: ColumnsType<ProductDocument> = [
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 125,
+      render: (value: string) => <span className="text-xs text-slate-500">{formatTime(value)}</span>,
+    },
+    {
+      title: '文件名',
+      key: 'file_name',
+      render: (_, doc) => (
+        <div className="min-w-0">
+          <div className="truncate text-sm text-slate-900" title={doc.file_name || doc.file_url}>
+            {doc.file_name || doc.file_url.split('/').pop() || '-'}
+          </div>
+          <div className="mt-1 truncate text-xs text-slate-500">
+            货号 {doc.catalog_number || '-'}
+            {doc.document_type === 'coa' ? ` / 批次 ${doc.batch_number || '-'}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '商品',
+      key: 'product',
+      render: (_, doc) =>
+        doc.product ? (
+          <div className="min-w-0">
+            <div className="truncate text-sm text-cyan-700" title={doc.product.name}>
+              {doc.product.name}
+            </div>
+            <div className="mt-1 truncate text-xs text-slate-500">
+              {doc.product.catalog_number || doc.product.cat_no || doc.product.target || '-'}
+            </div>
+          </div>
+        ) : (
+          <span className="text-slate-400">-</span>
+        ),
+    },
+    {
+      title: '匹配结果',
+      key: 'match',
+      render: (_, doc) => (
+        <div className="min-w-0 text-xs text-slate-500">
+          <div className="truncate" title={doc.failure_reason || doc.review_note || doc.match_reason || '等待匹配'}>
+            {doc.failure_reason || doc.match_reason || doc.review_note || '等待匹配'}
+          </div>
+          {doc.review_note && (
+            <div className="mt-1 truncate text-amber-600" title={doc.review_note}>
+              {doc.review_note}
+            </div>
+          )}
+          {doc.match_score != null && <div className="mt-1">分值 {doc.match_score}</div>}
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 95,
+      render: (_, doc) => (
+        <Tag
+          color={getStatusColor(doc)}
+          icon={doc.status === 'active' ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
+        >
+          {getStatusLabel(doc)}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 260,
+      render: (_, doc) => (
+        <div className="flex flex-wrap justify-end gap-1">
+          {isFileRemoved(doc) ? (
+            <Button size="small" disabled icon={<FileExclamationOutlined />}>
+              文件已删除
+            </Button>
+          ) : (
+            <Button size="small" icon={<FilePdfOutlined />} href={doc.file_url} target="_blank" rel="noreferrer">
+              查看文件
+            </Button>
+          )}
+          {doc.status === 'pending' && doc.product_id && (
+            <Button
+              size="small"
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              loading={actionDocId === doc.id}
+              onClick={() => handleDocumentAction(doc.id, 'confirm')}
+            >
+              上架
+            </Button>
+          )}
+          {doc.status === 'pending' && doc.product_id && (
+            <Button
+              size="small"
+              icon={<RollbackOutlined />}
+              disabled={actionDocId === doc.id}
+              onClick={() => handleDocumentAction(doc.id, 'reset')}
+            >
+              取消匹配
+            </Button>
+          )}
+          {doc.status === 'archived' && !isFileRemoved(doc) && (
+            <Button
+              size="small"
+              icon={<RollbackOutlined />}
+              loading={actionDocId === doc.id}
+              onClick={() => handleDocumentAction(doc.id, 'reopen')}
+            >
+              恢复
+            </Button>
+          )}
+          {doc.status !== 'archived' && (
+            <Button
+              size="small"
+              icon={<InboxOutlined />}
+              disabled={actionDocId === doc.id}
+              onClick={() => handleDocumentAction(doc.id, 'archive')}
+            >
+              撤回
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-cyan-400" />
-            产品文档管理
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            说明书命名：货号-Product name.pdf；COA 命名：货号_批次号_COA.pdf。上传后按货号自动匹配，确认上架后前台可见。
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select value={documentType} onChange={(e) => setDocumentType(e.target.value as DocumentType)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">
-            <option value="datasheet">说明书</option>
-            <option value="coa">COA</option>
-          </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">
-            <option value="all">全部状态</option>
-            <option value="pending">未上架</option>
-            <option value="unmatched">需检查货号</option>
-            <option value="retry">需重传</option>
-            <option value="active">已上架</option>
-            <option value="archived">已隐藏/撤回</option>
-          </select>
-          <button onClick={() => loadDocuments()} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
-            <RefreshCw className="w-4 h-4" />
-            刷新
-          </button>
-          <button onClick={handleBind} disabled={matching || loading} className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-50">
-            {matching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-            自动匹配
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
-          >
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            上传 PDF
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf"
-            multiple
-            className="sr-only"
-            tabIndex={-1}
-            onChange={(e) => handleUploadFiles(e.currentTarget.files)}
-          />
-        </div>
-      </div>
+    <div className="space-y-4">
+      <PageHeader
+        icon={<FileTextOutlined />}
+        title="产品文档管理"
+        description="说明书命名：货号-Product name.pdf；COA 命名：货号_批次号_COA.pdf。上传后按货号自动匹配，确认上架后前台可见。"
+        extra={
+          <Space wrap>
+            <Select<DocumentType>
+              value={documentType}
+              onChange={(value) => setDocumentType(value)}
+              style={{ width: 105 }}
+              options={[
+                { value: 'datasheet', label: '说明书' },
+                { value: 'coa', label: 'COA' },
+              ]}
+            />
+            <Select<StatusFilter>
+              value={status}
+              onChange={(value) => setStatus(value)}
+              style={{ width: 140 }}
+              options={[
+                { value: 'all', label: '全部状态' },
+                { value: 'pending', label: '未上架' },
+                { value: 'unmatched', label: '需检查货号' },
+                { value: 'retry', label: '需重传' },
+                { value: 'active', label: '已上架' },
+                { value: 'archived', label: '已隐藏/撤回' },
+              ]}
+            />
+            <Button icon={<ReloadOutlined />} onClick={() => loadDocuments()}>
+              刷新
+            </Button>
+            <Button
+              icon={<ThunderboltOutlined />}
+              loading={matching}
+              disabled={loading}
+              onClick={handleBind}
+            >
+              自动匹配
+            </Button>
+            <Button
+              type="primary"
+              icon={<UploadOutlined />}
+              loading={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              上传 PDF
+            </Button>
+          </Space>
+        }
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf"
+        multiple
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(e) => handleUploadFiles(e.currentTarget.files)}
+      />
 
-      <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-        {documentType === 'coa'
-          ? 'COA 必须包含货号和批次号，例如 LV10001_20240601_COA.pdf。同一货号可以持续上传不同批次。'
-          : '说明书按文件名前缀货号对应商品，例如 LV10001-zebrafish aqp1 Elisa Kit.pdf。同一商品只保留一份当前生效说明书。'}
-        <span className="ml-2 text-cyan-200">
-          上传后系统会自动匹配货号；确认上架后客户前台才会看到。
-        </span>
-      </div>
+      <Alert
+        type="info"
+        showIcon
+        message={
+          <>
+            {documentType === 'coa'
+              ? 'COA 必须包含货号和批次号，例如 LV10001_20240601_COA.pdf。同一货号可以持续上传不同批次。'
+              : '说明书按文件名前缀货号对应商品，例如 LV10001-zebrafish aqp1 Elisa Kit.pdf。同一商品只保留一份当前生效说明书。'}
+            <span className="ml-2 text-slate-500">上传后系统会自动匹配货号；确认上架后客户前台才会看到。</span>
+          </>
+        }
+      />
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-white">批次中心</h2>
-            <p className="mt-1 text-xs text-slate-400">
-              当前批次按 6 个模块显示：上传、识别、匹配、上架、错误处理和批次审计。
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
+      <Card
+        size="small"
+        title="批次中心"
+        extra={
+          <Space wrap>
+            <Select
               value={selectedBatchId}
-              onChange={(e) => setSelectedBatchId(e.target.value)}
-              className="min-w-[260px] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-            >
-              <option value="">全部批次 / 不按批次筛选</option>
-              {batches.map((batch) => (
-                <option key={batch.id} value={batch.id}>
-                  {batch.title}（{batch.total} 个）
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={handleRefreshBatch}
-              disabled={loadingBatches}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-            >
-              {loadingBatches ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              onChange={(value) => setSelectedBatchId(value)}
+              style={{ minWidth: 260 }}
+              options={[
+                { value: '', label: '全部批次 / 不按批次筛选' },
+                ...batches.map((batch) => ({ value: batch.id, label: `${batch.title}（${batch.total} 个）` })),
+              ]}
+            />
+            <Button icon={<ReloadOutlined />} loading={loadingBatches} onClick={handleRefreshBatch}>
               刷新状态
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmExact}
+            </Button>
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              loading={confirmingExact}
               disabled={!canConfirmBatch}
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              onClick={handleConfirmExact}
             >
-              {confirmingExact ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {pendingPublishCount > 0 ? `一键上架 ${pendingPublishCount} 个` : '确认上架前台'}
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyIssueList}
-              disabled={documents.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-            >
-              <Copy className="w-4 h-4" />
+            </Button>
+            <Button icon={<CopyOutlined />} disabled={documents.length === 0} onClick={handleCopyIssueList}>
               复制异常清单
-            </button>
-            <button
-              type="button"
-              onClick={handleArchiveBatch}
-              disabled={!selectedBatchId || selectedBatch?.status === 'archived' || actionDocId === `batch:${selectedBatchId}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 px-3 py-2 text-sm text-red-200 hover:bg-red-500/10 disabled:opacity-50"
+            </Button>
+            <Popconfirm
+              title="确定撤回本批次吗？"
+              description={`确定撤回本批次“${selectedBatch?.title || ''}”吗？该批次文件会从前台下架，后台保留记录；如果上传错了，可以重新上传。`}
+              okText="撤回"
+              okButtonProps={{ danger: true }}
+              cancelText="取消"
+              onConfirm={handleArchiveBatch}
             >
-              {actionDocId === `batch:${selectedBatchId}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
-              撤回本批次
-            </button>
-            {selectedBatch?.status === 'archived' && (
-              <button
-                type="button"
-                onClick={handleReopenBatch}
-                disabled={!selectedBatchId || actionDocId === `reopen-batch:${selectedBatchId}`}
-                className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/40 px-3 py-2 text-sm text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50"
+              <Button
+                danger
+                icon={<InboxOutlined />}
+                loading={actionDocId === `batch:${selectedBatchId}`}
+                disabled={!selectedBatchId || selectedBatch?.status === 'archived'}
               >
-                {actionDocId === `reopen-batch:${selectedBatchId}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                撤回本批次
+              </Button>
+            </Popconfirm>
+            {selectedBatch?.status === 'archived' && (
+              <Button
+                icon={<RollbackOutlined />}
+                loading={actionDocId === `reopen-batch:${selectedBatchId}`}
+                disabled={!selectedBatchId}
+                onClick={handleReopenBatch}
+              >
                 恢复本批次
-              </button>
+              </Button>
             )}
-          </div>
-        </div>
+          </Space>
+        }
+      >
+        <p className="text-xs text-slate-500">当前批次按 6 个模块显示：上传、识别、匹配、上架、错误处理和批次审计。</p>
 
         {selectedBatch ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             <WorkflowModuleCard
               title="模块1 PDF 上传"
               value={`${uploadedCount}/${requestedCount}`}
@@ -935,9 +1078,9 @@ export default function AdminProductDocumentsPage() {
               tone={filenameFailedCount > 0 ? 'warn' : uploadedCount > 0 ? 'ok' : 'muted'}
               action={
                 filenameFailedCount > 0 ? (
-                  <button type="button" onClick={handleShowUnmatched} className="text-xs font-medium underline-offset-2 hover:underline">
+                  <Button type="link" size="small" onClick={handleShowUnmatched}>
                     查看文件名问题
-                  </button>
+                  </Button>
                 ) : null
               }
             />
@@ -948,9 +1091,9 @@ export default function AdminProductDocumentsPage() {
               tone={matchFailedCount > 0 ? 'warn' : uploadedCount > 0 ? 'ok' : 'muted'}
               action={
                 matchFailedCount > 0 ? (
-                  <button type="button" onClick={handleShowUnmatched} className="text-xs font-medium underline-offset-2 hover:underline">
+                  <Button type="link" size="small" onClick={handleShowUnmatched}>
                     查看未匹配
-                  </button>
+                  </Button>
                 ) : null
               }
             />
@@ -961,9 +1104,9 @@ export default function AdminProductDocumentsPage() {
               tone={pendingPublishCount > 0 ? 'wait' : publishedCount > 0 ? 'ok' : 'muted'}
               action={
                 pendingPublishCount > 0 ? (
-                  <button type="button" onClick={handleConfirmExact} disabled={!canConfirmBatch} className="text-xs font-semibold underline-offset-2 hover:underline disabled:opacity-50">
+                  <Button type="link" size="small" disabled={!canConfirmBatch} onClick={handleConfirmExact}>
                     一键上架 {pendingPublishCount} 个
-                  </button>
+                  </Button>
                 ) : null
               }
             />
@@ -980,9 +1123,9 @@ export default function AdminProductDocumentsPage() {
               tone={deletedNeedsRetryCount > 0 ? 'error' : duplicateEffectiveCount > 0 ? 'muted' : 'ok'}
               action={
                 deletedNeedsRetryCount > 0 ? (
-                  <button type="button" onClick={handleShowRetry} className="text-xs font-medium underline-offset-2 hover:underline">
+                  <Button type="link" size="small" onClick={handleShowRetry}>
                     查看需重传
-                  </button>
+                  </Button>
                 ) : null
               }
             />
@@ -1002,198 +1145,99 @@ export default function AdminProductDocumentsPage() {
             />
           </div>
         ) : (
-          <p className="mt-4 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-slate-500">
             系统会默认选择最新批次。选择批次后，可以查看该批次统计并批量确认“货号精确匹配”的文件。
           </p>
         )}
 
         {selectedBatch && pendingPublishCount > 0 && selectedBatch.status !== 'archived' && (
-          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            当前批次已有 {pendingPublishCount} 个文件完成货号精确匹配，但还未上架。请点击右上角“一键上架 {pendingPublishCount} 个”，完成后前台产品页才会显示说明书。
-          </div>
+          <Alert
+            className="mt-3"
+            type="warning"
+            showIcon
+            message={`当前批次已有 ${pendingPublishCount} 个文件完成货号精确匹配，但还未上架。请点击右上角“一键上架 ${pendingPublishCount} 个”，完成后前台产品页才会显示说明书。`}
+          />
         )}
         {selectedBatch?.alert_level === 'high_failure' && (
-          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-            当前批次失败比例超过 20%。建议撤回本批次，修正文件后重新上传。
-          </div>
+          <Alert className="mt-3" type="error" showIcon message="当前批次失败比例超过 20%。建议撤回本批次，修正文件后重新上传。" />
         )}
         {selectedBatch && duplicateEffectiveCount > 0 && (
-          <div className="mt-4 rounded-lg border border-slate-600/40 bg-slate-800/60 px-4 py-3 text-sm text-slate-200">
-            当前批次有 {duplicateEffectiveCount} 个文件和前台已生效说明书重复，系统已自动隐藏这次上传的副本；这些文件不会影响前台。
-          </div>
+          <Alert
+            className="mt-3"
+            type="info"
+            showIcon
+            message={`当前批次有 ${duplicateEffectiveCount} 个文件和前台已生效说明书重复，系统已自动隐藏这次上传的副本；这些文件不会影响前台。`}
+          />
         )}
         {selectedBatch && deletedNeedsRetryCount > 0 && (
-          <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-            当前批次有 {deletedNeedsRetryCount} 个文件已从存储删除，不能上架或恢复；请重新上传这些文件。已删除文件会在下方列表中显示“需重传”。
-          </div>
+          <Alert
+            className="mt-3"
+            type="error"
+            showIcon
+            message={`当前批次有 ${deletedNeedsRetryCount} 个文件已从存储删除，不能上架或恢复；请重新上传这些文件。已删除文件会在下方列表中显示“需重传”。`}
+          />
         )}
         {selectedBatch && selectedBatch.pending_unmatched > 0 && (
-          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            当前批次有 {selectedBatch.pending_unmatched} 个文件没有找到对应货号。
-            <button type="button" onClick={handleShowUnmatched} className="ml-2 font-semibold underline underline-offset-2">
-              查看文件
-            </button>
-          </div>
+          <Alert
+            className="mt-3"
+            type="warning"
+            showIcon
+            message={`当前批次有 ${selectedBatch.pending_unmatched} 个文件没有找到对应货号。`}
+            action={
+              <Button size="small" onClick={handleShowUnmatched}>
+                查看文件
+              </Button>
+            }
+          />
         )}
         {selectedBatch?.note && (
-          <div className="mt-4 whitespace-pre-line rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-            {selectedBatch.note}
-          </div>
+          <Alert className="mt-3" type="error" showIcon message={<span className="whitespace-pre-line">{selectedBatch.note}</span>} />
         )}
-      </div>
+      </Card>
 
-      {error && (
-        <div className="whitespace-pre-line rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
+      {error && <Alert type="error" showIcon message={<span className="whitespace-pre-line">{error}</span>} />}
+
       {uploadSummary && (
-        <div className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-200">
-          <div>{uploadSummary}</div>
-          {uploadProgressDetail && (
-            <div className="mt-2 text-xs leading-5 text-slate-400">
-              {uploadProgressDetail}
-            </div>
-          )}
-        </div>
+        <Alert
+          type="info"
+          showIcon
+          message={<span className="whitespace-pre-line">{uploadSummary}</span>}
+          description={uploadProgressDetail || undefined}
+        />
       )}
+
       {issueReport && (
-        <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-white">异常清单</h2>
-            <button
-              type="button"
-              onClick={() => setIssueReport('')}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
-            >
+        <Card
+          size="small"
+          title="异常清单"
+          extra={
+            <Button size="small" onClick={() => setIssueReport('')}>
               关闭
-            </button>
-          </div>
-          <textarea
+            </Button>
+          }
+        >
+          <Input.TextArea
             readOnly
             value={issueReport}
-            className="h-80 w-full resize-y rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs leading-5 text-slate-200 outline-none"
+            rows={12}
+            className="font-mono text-xs"
             onFocus={(e) => e.currentTarget.select()}
           />
           <p className="mt-2 text-xs text-slate-500">
             点击文本框会自动选中全部内容；浏览器不允许自动复制时，可以在这里手动复制。
           </p>
-        </div>
+        </Card>
       )}
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
-        <div className="grid grid-cols-12 gap-2 border-b border-slate-800 bg-slate-950 px-4 py-3 text-xs font-medium text-slate-400">
-          <div className="col-span-2">时间</div>
-          <div className="col-span-3">文件名</div>
-          <div className="col-span-2">商品</div>
-          <div className="col-span-2">匹配结果</div>
-          <div className="col-span-1">状态</div>
-          <div className="col-span-2 text-right">操作</div>
-        </div>
-
-        {loading ? (
-          <div className="px-4 py-10 text-center text-sm text-slate-400">加载中...</div>
-        ) : visibleCount === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-slate-400">暂无文档</div>
-        ) : (
-          <div className="divide-y divide-slate-800">
-            {documents.map((doc) => (
-              <div key={doc.id} className="grid grid-cols-12 gap-2 px-4 py-3 text-sm text-slate-200">
-                <div className="col-span-2 text-xs text-slate-400">{formatTime(doc.created_at)}</div>
-                <div className="col-span-3 min-w-0">
-                  <div className="truncate" title={doc.file_name || doc.file_url}>{doc.file_name || doc.file_url.split('/').pop() || '-'}</div>
-                  <div className="mt-1 truncate text-[11px] text-slate-500">
-                    货号 {doc.catalog_number || '-'}
-                    {doc.document_type === 'coa' ? ` / 批次 ${doc.batch_number || '-'}` : ''}
-                  </div>
-                </div>
-                <div className="col-span-2 min-w-0">
-                  {doc.product ? (
-                    <>
-                      <div className="truncate text-cyan-300" title={doc.product.name}>{doc.product.name}</div>
-                      <div className="mt-1 truncate text-[11px] text-slate-500">
-                        {doc.product.catalog_number || doc.product.cat_no || doc.product.target || '-'}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-slate-500">-</span>
-                  )}
-                </div>
-                <div className="col-span-2 text-xs text-slate-400">
-                  <div className="truncate" title={doc.failure_reason || doc.review_note || doc.match_reason || '等待匹配'}>
-                    {doc.failure_reason || doc.match_reason || doc.review_note || '等待匹配'}
-                  </div>
-                  {doc.review_note && <div className="mt-1 truncate text-[11px] text-amber-300" title={doc.review_note}>{doc.review_note}</div>}
-                  {doc.match_score != null && <div className="mt-1 text-[11px] text-slate-500">分值 {doc.match_score}</div>}
-                </div>
-                <div className="col-span-1">
-                  <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium ${getStatusStyle(doc)}`}>
-                    {doc.status === 'active' ? <CheckCircle2 className="w-3 h-3" /> : <CircleAlert className="w-3 h-3" />}
-                    {getStatusLabel(doc)}
-                  </span>
-                </div>
-                <div className="col-span-2 flex flex-wrap justify-end gap-1">
-                  {isFileRemoved(doc) ? (
-                    <span className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-500">
-                      <FileUp className="w-3.5 h-3.5" />
-                      文件已删除
-                    </span>
-                  ) : (
-                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-800">
-                      <FileUp className="w-3.5 h-3.5" />
-                      查看文件
-                    </a>
-                  )}
-                  {doc.status === 'pending' && doc.product_id && (
-                    <button
-                      type="button"
-                      disabled={actionDocId === doc.id}
-                      onClick={() => handleDocumentAction(doc.id, 'confirm')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 px-2 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
-                    >
-                      {actionDocId === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                      上架
-                    </button>
-                  )}
-                  {doc.status === 'pending' && doc.product_id && (
-                    <button
-                      type="button"
-                      disabled={actionDocId === doc.id}
-                      onClick={() => handleDocumentAction(doc.id, 'reset')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 px-2 py-1.5 text-xs text-amber-300 hover:bg-amber-500/10 disabled:opacity-50"
-                    >
-                      <Undo2 className="w-3.5 h-3.5" />
-                      取消匹配
-                    </button>
-                  )}
-                  {doc.status === 'archived' && !isFileRemoved(doc) && (
-                    <button
-                      type="button"
-                      disabled={actionDocId === doc.id}
-                      onClick={() => handleDocumentAction(doc.id, 'reopen')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-cyan-500/40 px-2 py-1.5 text-xs text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
-                    >
-                      {actionDocId === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />}
-                      恢复
-                    </button>
-                  )}
-                  {doc.status !== 'archived' && (
-                    <button
-                      type="button"
-                      disabled={actionDocId === doc.id}
-                      onClick={() => handleDocumentAction(doc.id, 'archive')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                      撤回
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <Table<ProductDocument>
+        rowKey="id"
+        columns={columns}
+        dataSource={documents}
+        loading={loading}
+        locale={{ emptyText: '暂无文档' }}
+        pagination={{ pageSize: 50, showTotal: (total) => `共 ${total} 条` }}
+        scroll={{ x: 1100 }}
+      />
     </div>
   )
 }

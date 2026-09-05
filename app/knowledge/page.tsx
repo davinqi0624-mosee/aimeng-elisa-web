@@ -207,7 +207,7 @@ export default async function KnowledgeCalendarPage({
         'version' in pageData.blocks))
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
+    <div className="min-h-screen bg-[#F2F6FA]">
       {hasDynamicContent && <DynamicBlocks blocks={pageData?.blocks} />}
       <KnowledgeCalendarClient
         cells={cells}

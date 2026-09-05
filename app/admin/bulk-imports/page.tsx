@@ -1,7 +1,17 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
-import { History, RotateCcw, Package, MapPin, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { Alert, App, Button, Popconfirm, Segmented, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  EnvironmentOutlined,
+  HistoryOutlined,
+  RollbackOutlined,
+} from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 interface Batch {
   id: string
@@ -28,6 +38,7 @@ type BatchesResponse = {
 }
 
 export default function BulkImportsPage() {
+  const { message } = App.useApp()
   const [batches, setBatches] = useState<Batch[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'products' | 'agents'>('products')
@@ -60,25 +71,22 @@ export default function BulkImportsPage() {
   }, [fetchBatches])
 
   const handleRollback = async (batch: Batch) => {
-    if (!confirm(`确定回滚该批次？\n类型：${batch.type === 'products' ? '商品' : '代理商'}\n数量：${batch.product_count}\n\n回滚将删除该批次导入的所有记录。`)) {
-      return
-    }
     setRollingBackId(batch.id)
     setError('')
     try {
       const res = await fetch(`/api/admin/bulk-import-batches?id=${batch.id}`, { method: 'DELETE' })
       const data = await res.json().catch(() => ({})) as { deleted?: number; failed?: number; error?: string }
       if (res.ok) {
-        alert(`回滚完成：删除 ${data.deleted ?? 0} 条，失败 ${data.failed ?? 0} 条`)
+        message.success(`回滚完成：删除 ${data.deleted ?? 0} 条，失败 ${data.failed ?? 0} 条`)
       } else {
-        const message = data.error || '回滚失败'
-        setError(message)
-        alert(message)
+        const msg = data.error || '回滚失败'
+        setError(msg)
+        message.error(msg)
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '回滚请求失败'
-      setError(message)
-      alert(message)
+      const msg = err instanceof Error ? err.message : '回滚请求失败'
+      setError(msg)
+      message.error(msg)
     }
     setRollingBackId(null)
     fetchBatches()
@@ -89,117 +97,126 @@ export default function BulkImportsPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <History className="w-5 h-5 text-cyan-400" /> 批量导入记录
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">查看和管理商品、代理商的批量导入批次，支持回滚操作</p>
-      </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'products'
-              ? 'bg-cyan-600 text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          <Package className="w-4 h-4" /> 商品导入
-        </button>
-        <button
-          onClick={() => setActiveTab('agents')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'agents'
-              ? 'bg-cyan-600 text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-        >
-          <MapPin className="w-4 h-4" /> 代理商导入
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-500 border-b border-gray-200">
-          <div className="col-span-2">时间</div>
-          <div className="col-span-2">批次 ID</div>
-          <div className="col-span-1">数量</div>
-          <div className="col-span-1">图片</div>
-          <div className="col-span-2">导入结果</div>
-          <div className="col-span-1">状态</div>
-          <div className="col-span-3 text-right">操作</div>
-        </div>
-
-        {loading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">加载中...</div>
-        ) : batches.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">暂无导入记录</div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {batches.map((batch) => (
-              <div key={batch.id} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors">
-                <div className="col-span-2 text-xs text-gray-600">{formatDate(batch.created_at)}</div>
-                <div className="col-span-2 text-xs text-gray-500 font-mono truncate" title={batch.id}>
-                  {batch.id.slice(0, 8)}...
-                </div>
-                <div className="col-span-1 text-sm text-gray-700">{batch.product_count}</div>
-                <div className="col-span-1 text-sm text-gray-700">{batch.image_count}</div>
-                <div className="col-span-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-600">{batch.details?.success ?? 0} 成功</span>
-                    <span className="text-red-500">{batch.details?.failed ?? 0} 失败</span>
-                  </div>
-                  {batch.details?.skippedImages ? (
-                    <div className="text-amber-600 mt-0.5">{batch.details.skippedImages} 图片跳过</div>
-                  ) : null}
-                </div>
-                <div className="col-span-1">
-                  {batch.status === 'completed' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700">
-                      <CheckCircle className="w-3 h-3" /> 已完成
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
-                      <XCircle className="w-3 h-3" /> 已回滚
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-3 flex items-center justify-end gap-2">
-                  {batch.status === 'completed' && (
-                    <button
-                      onClick={() => handleRollback(batch)}
-                      disabled={rollingBackId === batch.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
-                    >
-                      {rollingBackId === batch.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <RotateCcw className="w-3 h-3" />
-                      )}
-                      回滚
-                    </button>
-                  )}
-                  {batch.status === 'rolled_back' && batch.details?.rollback_result && (
-                    <span className="text-[10px] text-gray-400">
-                      已删 {batch.details.rollback_result.deleted} / 失败 {batch.details.rollback_result.failed}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+  const columns: ColumnsType<Batch> = [
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 150,
+      render: (v: string) => <span className="text-xs text-gray-600">{formatDate(v)}</span>,
+    },
+    {
+      title: '批次 ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 120,
+      render: (v: string) => (
+        <span className="font-mono text-xs text-gray-500" title={v}>
+          {v.slice(0, 8)}...
+        </span>
+      ),
+    },
+    {
+      title: '数量',
+      dataIndex: 'product_count',
+      key: 'product_count',
+      width: 70,
+    },
+    {
+      title: '图片',
+      dataIndex: 'image_count',
+      key: 'image_count',
+      width: 70,
+    },
+    {
+      title: '导入结果',
+      key: 'result',
+      width: 150,
+      render: (_, batch) => (
+        <div className="text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-600">{batch.details?.success ?? 0} 成功</span>
+            <span className="text-red-500">{batch.details?.failed ?? 0} 失败</span>
           </div>
-        )}
-      </div>
+          {batch.details?.skippedImages ? (
+            <div className="mt-0.5 text-amber-600">{batch.details.skippedImages} 图片跳过</div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (v: Batch['status']) =>
+        v === 'completed' ? (
+          <Tag color="green" icon={<CheckCircleOutlined />}>已完成</Tag>
+        ) : (
+          <Tag icon={<CloseCircleOutlined />}>已回滚</Tag>
+        ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 170,
+      render: (_, batch) =>
+        batch.status === 'completed' ? (
+          <Popconfirm
+            title="确定回滚该批次？"
+            description={
+              <div className="whitespace-pre-line" style={{ fontSize: 12 }}>
+                {`类型：${batch.type === 'products' ? '商品' : '代理商'}\n数量：${batch.product_count}\n\n回滚将删除该批次导入的所有记录。`}
+              </div>
+            }
+            okText="回滚"
+            okButtonProps={{ danger: true }}
+            cancelText="取消"
+            onConfirm={() => {
+              handleRollback(batch)
+            }}
+          >
+            <Button danger size="small" icon={<RollbackOutlined />} loading={rollingBackId === batch.id}>
+              回滚
+            </Button>
+          </Popconfirm>
+        ) : batch.details?.rollback_result ? (
+          <span className="text-xs text-gray-400">
+            已删 {batch.details.rollback_result.deleted} / 失败 {batch.details.rollback_result.failed}
+          </span>
+        ) : null,
+    },
+  ]
+
+  return (
+    <div>
+      <PageHeader
+        icon={<HistoryOutlined />}
+        title="批量导入记录"
+        description="查看和管理商品、代理商的批量导入批次，支持回滚操作"
+        extra={
+          <Segmented
+            value={activeTab}
+            onChange={(v) => setActiveTab(v as 'products' | 'agents')}
+            options={[
+              { label: '商品导入', value: 'products', icon: <AppstoreOutlined /> },
+              { label: '代理商导入', value: 'agents', icon: <EnvironmentOutlined /> },
+            ]}
+          />
+        }
+      />
+
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+
+      <Table<Batch>
+        rowKey="id"
+        columns={columns}
+        dataSource={batches}
+        loading={loading}
+        locale={{ emptyText: '暂无导入记录' }}
+        pagination={false}
+        scroll={{ x: 900 }}
+      />
     </div>
   )
 }

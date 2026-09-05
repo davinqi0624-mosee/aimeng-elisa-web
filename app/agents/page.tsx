@@ -60,11 +60,13 @@ export default function AgentsPage() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full bg-[#F2F6FA]">
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16">
         <div className="mb-10">
-          <p className="text-sm font-semibold text-blue-600">全国服务网络</p>
-          <h1 className="mt-2 text-3xl font-black text-slate-900 md:text-4xl">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+            aimeng.network / nationwide agents
+          </p>
+          <h1 className="mt-3 text-3xl font-black tracking-normal text-slate-950 md:text-4xl">
             全国代理商
           </h1>
           <p className="mt-2 text-slate-500">
@@ -74,15 +76,15 @@ export default function AgentsPage() {
 
         <div className="grid gap-8 lg:grid-cols-[0.42fr_0.58fr]">
           <section className="space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-black text-slate-900">代理商列表</h2>
+                  <h2 className="text-xl font-black tracking-normal text-slate-950">代理商列表</h2>
                   <p className="mt-1 text-sm text-slate-500">
                     按省份选择当地服务商
                   </p>
                 </div>
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+                <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700">
                   {agents.length} 家
                 </span>
               </div>
@@ -108,10 +110,10 @@ export default function AgentsPage() {
                       type="button"
                       key={agent.id || `${agent.province}-${agent.company_name}`}
                       onClick={() => handleProvinceClick(agent.province, [agent])}
-                      className="w-full rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:border-blue-100 hover:bg-blue-50/60"
+                      className="w-full rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:border-teal-100 hover:bg-teal-50/60"
                     >
                       <div className="flex items-start gap-3">
-                        <MapPinned className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                        <MapPinned className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-800">
                             {agent.province}
@@ -129,7 +131,7 @@ export default function AgentsPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="h-[520px] md:h-[640px]">
               <ChinaAgentMap
                 agents={agents}
@@ -164,7 +166,7 @@ export default function AgentsPage() {
                   className="space-y-3 rounded-xl border border-slate-200 p-5"
                 >
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-blue-600" />
+                    <Building2 className="h-4 w-4 text-teal-700" />
                     <span className="font-semibold text-slate-900">
                       {agent.company_name}
                     </span>

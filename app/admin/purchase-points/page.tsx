@@ -2,17 +2,32 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import {
-  AlertCircle,
-  BadgeCheck,
-  CheckCircle2,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Ticket,
-  Trash2,
-  XCircle,
-} from 'lucide-react'
+  Alert,
+  App,
+  Button,
+  Card,
+  Descriptions,
+  Input,
+  InputNumber,
+  List,
+  Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Table,
+  Tag,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined,
+  GiftOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons'
 import { getPurchasePointProductLabel, PURCHASE_POINT_PRODUCT_OPTIONS } from '@/lib/purchase-points'
+import PageHeader from '@/components/admin/PageHeader'
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: '待审核' },
@@ -114,12 +129,12 @@ function productLabel(type: string) {
   return getPurchasePointProductLabel(type)
 }
 
-function statusClass(status: string) {
-  if (status === 'approved') return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-  if (status === 'rejected') return 'bg-red-500/10 text-red-300 border-red-500/30'
-  if (status === 'needs_more_info') return 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-  if (status === 'archived') return 'bg-slate-700 text-slate-300 border-slate-600'
-  return 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+function statusTag(status: string) {
+  if (status === 'approved') return <Tag color="green">{status}</Tag>
+  if (status === 'rejected') return <Tag color="volcano">{status}</Tag>
+  if (status === 'needs_more_info') return <Tag color="gold">{status}</Tag>
+  if (status === 'archived') return <Tag>{status}</Tag>
+  return <Tag color="processing">{status}</Tag>
 }
 
 function formatDate(value: string | null) {
@@ -144,13 +159,13 @@ function productDefaultPoints(type: string) {
 }
 
 export default function AdminPurchasePointsPage() {
+  const { message } = App.useApp()
   const [status, setStatus] = useState('pending')
   const [claims, setClaims] = useState<PurchasePointClaim[]>([])
   const [rules, setRules] = useState<PointRule[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [reviewForms, setReviewForms] = useState<Record<string, { photoBonus: string; note: string; rejectReason: string }>>({})
   const [ruleForm, setRuleForm] = useState({ product_type: 'elisa', product_spec: '96T', points: '50', sort_order: '10' })
@@ -208,7 +223,7 @@ export default function AdminPurchasePointsPage() {
   }, [loadClaims, loadMeta])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载需要同步触发后台数据请求。
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 初始加载需要同步触发一次后台数据请求。
     loadAll()
   }, [loadAll])
 
@@ -218,9 +233,7 @@ export default function AdminPurchasePointsPage() {
 
   async function claimAction(claim: PurchasePointClaim, action: string) {
     const form = reviewForms[claim.id] || { photoBonus: '0', note: '', rejectReason: '' }
-    if (action === 'approve' && !confirm(`确认通过并发放 ${Number(claim.base_points) + Number(claim.campaign_bonus_points) + (Number(form.photoBonus) || 0)} 积分？`)) return
     setSaving(true)
-    setMessage('')
     setError('')
     try {
       const res = await fetch('/api/admin/purchase-points/claims', {
@@ -236,10 +249,10 @@ export default function AdminPurchasePointsPage() {
       })
       const data = await res.json().catch(() => ({})) as ActionResponse
       if (!res.ok || data.error) throw new Error(data.error || '操作失败')
-      setMessage(data.pointsAwarded ? `${data.message}，已发放 ${data.pointsAwarded} 积分。` : (data.message || '操作成功'))
+      message.success(data.pointsAwarded ? `${data.message}，已发放 ${data.pointsAwarded} 积分。` : (data.message || '操作成功'))
       await loadAll()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '操作失败')
+      message.error(err instanceof Error ? err.message : '操作失败')
     } finally {
       setSaving(false)
     }
@@ -249,7 +262,6 @@ export default function AdminPurchasePointsPage() {
     event.preventDefault()
     setSaving(true)
     setError('')
-    setMessage('')
     try {
       const res = await fetch('/api/admin/purchase-points/rules', {
         method: 'POST',
@@ -262,10 +274,10 @@ export default function AdminPurchasePointsPage() {
       })
       const data = await res.json().catch(() => ({})) as ActionResponse
       if (!res.ok || data.error) throw new Error(data.error || '规则保存失败')
-      setMessage('基础规则已保存')
+      message.success('基础规则已保存')
       await loadMeta()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '规则保存失败')
+      message.error(err instanceof Error ? err.message : '规则保存失败')
     } finally {
       setSaving(false)
     }
@@ -275,7 +287,6 @@ export default function AdminPurchasePointsPage() {
     event.preventDefault()
     setSaving(true)
     setError('')
-    setMessage('')
     try {
       const res = await fetch('/api/admin/purchase-points/campaigns', {
         method: 'POST',
@@ -291,247 +302,324 @@ export default function AdminPurchasePointsPage() {
       const data = await res.json().catch(() => ({})) as ActionResponse
       if (!res.ok || data.error) throw new Error(data.error || '活动保存失败')
       setCampaignForm({ name: '', product_types: '', product_specs: '', multiplier: '1', bonus_points: '0', starts_at: '', ends_at: '' })
-      setMessage('活动规则已保存')
+      message.success('活动规则已保存')
       await loadMeta()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '活动保存失败')
+      message.error(err instanceof Error ? err.message : '活动保存失败')
     } finally {
       setSaving(false)
     }
   }
 
   async function deleteItem(kind: 'rules' | 'campaigns', id: string) {
-    if (!confirm('确认删除？')) return
     setSaving(true)
     setError('')
-    setMessage('')
     try {
       const res = await fetch(`/api/admin/purchase-points/${kind}?id=${id}`, { method: 'DELETE' })
       const data = await res.json().catch(() => ({})) as ActionResponse
       if (!res.ok || data.error) throw new Error(data.error || '删除失败')
-      setMessage('已删除')
+      message.success('已删除')
       await loadMeta()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '删除失败')
+      message.error(err instanceof Error ? err.message : '删除失败')
     } finally {
       setSaving(false)
     }
   }
 
-  return (
-    <div className="space-y-6 text-slate-100">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-cyan-300">
-            <Ticket className="w-5 h-5" />
-            <span className="text-sm font-medium">会员积分</span>
+  const columns: ColumnsType<PurchasePointClaim> = [
+    {
+      title: '产品 / 凭证',
+      key: 'product',
+      render: (_, claim) => (
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-900">{productLabel(claim.product_type)} · {claim.product_spec}</div>
+          <div className="mt-0.5 text-xs text-slate-500">
+            {isGeneratedProductCredential(claim.point_code) ? '货号批号凭证' : `历史积分码 ${claim.point_code}`}
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-white">购买积分审核</h1>
-          <p className="mt-1 text-sm text-slate-400">审核货号、批号、商品照片和重复风险，通过后自动写入积分流水。</p>
         </div>
-        <button
-          onClick={loadAll}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-900 disabled:opacity-60"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          刷新
-        </button>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (s: string) => statusTag(s),
+    },
+    {
+      title: '客户',
+      key: 'customer',
+      width: 110,
+      render: (_, claim) => (
+        <span className="text-xs text-slate-500">{profileName(claim.profiles, claim.user_id)}</span>
+      ),
+    },
+    {
+      title: '提交时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 150,
+      render: (v: string) => <span className="text-xs text-slate-500">{formatDate(v)}</span>,
+    },
+    {
+      title: '积分合计',
+      key: 'total',
+      width: 90,
+      render: (_, claim) => {
+        const form = reviewForms[claim.id] || { photoBonus: '0', note: '', rejectReason: '' }
+        return (
+          <span className="font-medium text-slate-900">
+            {Number(claim.base_points) + Number(claim.campaign_bonus_points) + (Number(form.photoBonus) || 0)}
+          </span>
+        )
+      },
+    },
+  ]
+
+  return (
+    <div>
+      <PageHeader
+        icon={<GiftOutlined />}
+        title="购买积分审核"
+        description="审核货号、批号、商品照片和重复风险，通过后自动写入积分流水。"
+        extra={<Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>刷新</Button>}
+      />
+
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Segmented value={status} onChange={(v) => setStatus(v as string)} options={STATUS_OPTIONS} />
+        <span className="text-sm text-slate-500">{claims.length} 条申请</span>
       </div>
 
-      {(error || message) && (
-        <div className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
-          error ? 'border-red-500/30 bg-red-500/10 text-red-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-        }`}>
-          {error ? <AlertCircle className="mt-0.5 w-4 h-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 w-4 h-4 shrink-0" />}
-          {error || message}
-        </div>
-      )}
+      <Table<PurchasePointClaim>
+        rowKey="id"
+        columns={columns}
+        dataSource={claims}
+        loading={loading}
+        scroll={{ x: 800 }}
+        locale={{ emptyText: '当前没有需要处理的购买积分申请' }}
+        pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条` }}
+        expandable={{
+          expandedRowRender: (claim) => {
+            const form = reviewForms[claim.id] || { photoBonus: '0', note: '', rejectReason: '' }
+            const duplicateWarnings = Array.isArray(claim.duplicate_warnings) ? claim.duplicate_warnings : []
+            const totalPreview = Number(claim.base_points) + Number(claim.campaign_bonus_points) + (Number(form.photoBonus) || 0)
+            return (
+              <div className="space-y-4">
+                <Descriptions size="small" column={{ xs: 1, sm: 2, lg: 4 }}>
+                  <Descriptions.Item label="货号">{claim.catalog_number || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="批号">{claim.batch_number || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="渠道">{claim.purchase_channel || '-'}</Descriptions.Item>
+                  <Descriptions.Item label="照片授权">{claim.photo_consent ? '已同意' : '未授权展示'}</Descriptions.Item>
+                </Descriptions>
 
-      <section className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="font-semibold text-white">申请审核</h2>
-          <div className="flex flex-wrap gap-2">
-            {STATUS_OPTIONS.map((item) => (
-              <button
-                key={item.value}
-                onClick={() => setStatus(item.value)}
-                className={`rounded-full border px-3 py-1 text-xs ${
-                  status === item.value ? 'border-cyan-400 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
-          </div>
-        ) : claims.length === 0 ? (
-          <div className="px-4 py-12 text-center text-sm text-slate-500">当前没有需要处理的购买积分申请</div>
-        ) : (
-          <div className="divide-y divide-slate-800">
-            {claims.map((claim) => {
-              const form = reviewForms[claim.id] || { photoBonus: '0', note: '', rejectReason: '' }
-              const duplicateWarnings = Array.isArray(claim.duplicate_warnings) ? claim.duplicate_warnings : []
-              const totalPreview = Number(claim.base_points) + Number(claim.campaign_bonus_points) + (Number(form.photoBonus) || 0)
-              return (
-                <article key={claim.id} className="p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-white">{productLabel(claim.product_type)} · {claim.product_spec}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-xs ${statusClass(claim.status)}`}>{claim.status}</span>
-                        <span className="rounded-full border border-slate-700 px-2 py-0.5 text-xs text-slate-400">
-                          {isGeneratedProductCredential(claim.point_code) ? '货号批号凭证' : `历史积分码 ${claim.point_code}`}
-                        </span>
+                {claim.notes && (
+                  <div className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">{claim.notes}</div>
+                )}
+
+                {duplicateWarnings.length > 0 && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message={
+                      <div className="space-y-0.5">
+                        {duplicateWarnings.map((warning, index) => (
+                          <div key={`${warning.file_hash || warning.claim_id || index}`}>{warning.message || '发现重复风险，请人工核对。'}</div>
+                        ))}
                       </div>
-                      <div className="mt-2 text-xs text-slate-400">
-                        客户 {profileName(claim.profiles, claim.user_id)} · {formatDate(claim.created_at)}
-                      </div>
-                      <div className="mt-2 grid gap-2 text-xs text-slate-400 sm:grid-cols-2 lg:grid-cols-4">
-                        <span>货号: {claim.catalog_number || '-'}</span>
-                        <span>批号: {claim.batch_number || '-'}</span>
-                        <span>渠道: {claim.purchase_channel || '-'}</span>
-                        <span>照片授权: {claim.photo_consent ? '已同意' : '未授权展示'}</span>
-                      </div>
-                      {claim.notes && <p className="mt-2 rounded-md bg-slate-950 px-3 py-2 text-xs text-slate-300">{claim.notes}</p>}
-                      {duplicateWarnings.length > 0 && (
-                        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                          {duplicateWarnings.map((warning, index) => (
-                            <div key={`${warning.file_hash || warning.claim_id || index}`}>{warning.message || '发现重复风险，请人工核对。'}</div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-300 lg:w-48">
-                      <div className="flex justify-between"><span>基础</span><span>{claim.base_points}</span></div>
-                      <div className="flex justify-between"><span>活动</span><span>{claim.campaign_bonus_points}</span></div>
-                      <div className="flex justify-between"><span>照片</span><span>{Number(form.photoBonus) || 0}</span></div>
-                      <div className="mt-2 flex justify-between border-t border-slate-800 pt-2 font-semibold text-cyan-200"><span>合计</span><span>{totalPreview}</span></div>
-                    </div>
+                    }
+                  />
+                )}
+
+                <Descriptions size="small" bordered column={{ xs: 2, sm: 2, lg: 4 }}>
+                  <Descriptions.Item label="基础">{claim.base_points}</Descriptions.Item>
+                  <Descriptions.Item label="活动">{claim.campaign_bonus_points}</Descriptions.Item>
+                  <Descriptions.Item label="照片">{Number(form.photoBonus) || 0}</Descriptions.Item>
+                  <Descriptions.Item label="合计"><span className="font-semibold">{totalPreview}</span></Descriptions.Item>
+                </Descriptions>
+
+                {(claim.purchase_point_claim_photos || []).length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {(claim.purchase_point_claim_photos || []).map((photo) => (
+                      <a
+                        key={photo.id}
+                        href={photo.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block overflow-hidden rounded-lg border border-slate-200 bg-white"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- 后台审核缩略图使用 Supabase 动态公链，保持轻量。 */}
+                        <img src={photo.file_url} alt={photo.file_name || '购买积分照片'} className="h-32 w-full object-cover" />
+                        <div className="px-2 py-1.5 text-xs text-slate-500">{photo.photo_type} · {photo.storage_status}</div>
+                      </a>
+                    ))}
                   </div>
+                )}
 
-                  {(claim.purchase_point_claim_photos || []).length > 0 && (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      {(claim.purchase_point_claim_photos || []).map((photo) => (
-                        <a key={photo.id} href={photo.file_url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- 后台审核缩略图使用 Supabase 动态公链，保持轻量。 */}
-                          <img src={photo.file_url} alt={photo.file_name || '购买积分照片'} className="h-32 w-full object-cover" />
-                          <div className="px-2 py-1.5 text-xs text-slate-400">{photo.photo_type} · {photo.storage_status}</div>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-
-                  {['pending', 'needs_more_info'].includes(claim.status) && (
-                    <div className="mt-4 grid gap-3 lg:grid-cols-[120px_1fr_1fr_auto]">
-                      <input
-                        value={form.photoBonus}
-                        onChange={(event) => updateReviewForm(claim.id, { photoBonus: event.target.value })}
-                        type="number"
-                        min="0"
-                        placeholder="照片奖励"
-                        className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
-                      />
-                      <input
-                        value={form.note}
-                        onChange={(event) => updateReviewForm(claim.id, { note: event.target.value })}
-                        placeholder="审核备注 / 需要补充资料"
-                        className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
-                      />
-                      <input
-                        value={form.rejectReason}
-                        onChange={(event) => updateReviewForm(claim.id, { rejectReason: event.target.value })}
-                        placeholder="拒绝原因"
-                        className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <button onClick={() => claimAction(claim, 'approve')} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60">
-                          <BadgeCheck className="w-4 h-4" />
+                {['pending', 'needs_more_info'].includes(claim.status) && (
+                  <div className="grid gap-3 lg:grid-cols-[140px_1fr_1fr_auto]">
+                    <InputNumber
+                      min={0}
+                      style={{ width: '100%' }}
+                      value={form.photoBonus === '' ? null : Number(form.photoBonus)}
+                      onChange={(v) => updateReviewForm(claim.id, { photoBonus: v === null || v === undefined ? '' : String(v) })}
+                      placeholder="照片奖励"
+                    />
+                    <Input
+                      value={form.note}
+                      onChange={(event) => updateReviewForm(claim.id, { note: event.target.value })}
+                      placeholder="审核备注 / 需要补充资料"
+                    />
+                    <Input
+                      value={form.rejectReason}
+                      onChange={(event) => updateReviewForm(claim.id, { rejectReason: event.target.value })}
+                      placeholder="拒绝原因"
+                    />
+                    <Space wrap>
+                      <Popconfirm
+                        title={`确认通过并发放 ${totalPreview} 积分？`}
+                        okText="确定"
+                        cancelText="取消"
+                        onConfirm={() => claimAction(claim, 'approve')}
+                      >
+                        <Button type="primary" icon={<CheckCircleOutlined />} disabled={saving}>
                           通过
-                        </button>
-                        <button onClick={() => claimAction(claim, 'needs_more_info')} disabled={saving} className="rounded-lg border border-amber-500/40 px-3 py-2 text-sm text-amber-200 hover:bg-amber-500/10 disabled:opacity-60">
-                          补充
-                        </button>
-                        <button onClick={() => claimAction(claim, 'reject')} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 px-3 py-2 text-sm text-red-200 hover:bg-red-500/10 disabled:opacity-60">
-                          <XCircle className="w-4 h-4" />
-                          拒绝
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </article>
-              )
-            })}
-          </div>
-        )}
-      </section>
+                        </Button>
+                      </Popconfirm>
+                      <Button disabled={saving} onClick={() => claimAction(claim, 'needs_more_info')}>
+                        补充
+                      </Button>
+                      <Button danger icon={<CloseCircleOutlined />} disabled={saving} onClick={() => claimAction(claim, 'reject')}>
+                        拒绝
+                      </Button>
+                    </Space>
+                  </div>
+                )}
+              </div>
+            )
+          },
+        }}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <h2 className="font-semibold text-white">基础规则</h2>
-          <form onSubmit={saveRule} className="mt-4 space-y-3">
-            <select value={ruleForm.product_type} onChange={(event) => {
-              const nextType = event.target.value
-              setRuleForm((prev) => ({
-                ...prev,
-                product_type: nextType,
-                product_spec: productDefaultSpec(nextType),
-                points: String(productDefaultPoints(nextType)),
-              }))
-            }} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white">
-              {PURCHASE_POINT_PRODUCT_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
-            <input value={ruleForm.product_spec} onChange={(event) => setRuleForm((prev) => ({ ...prev, product_spec: event.target.value }))} placeholder="规格，如 96T / 500ml" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card size="small" title="基础规则">
+          <form onSubmit={saveRule} className="space-y-3">
+            <Select
+              value={ruleForm.product_type}
+              onChange={(nextType) => {
+                setRuleForm((prev) => ({
+                  ...prev,
+                  product_type: nextType,
+                  product_spec: productDefaultSpec(nextType),
+                  points: String(productDefaultPoints(nextType)),
+                }))
+              }}
+              options={PURCHASE_POINT_PRODUCT_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+            />
+            <Input
+              value={ruleForm.product_spec}
+              onChange={(event) => setRuleForm((prev) => ({ ...prev, product_spec: event.target.value }))}
+              placeholder="规格，如 96T / 500ml"
+            />
             <div className="grid grid-cols-2 gap-2">
-              <input value={ruleForm.points} onChange={(event) => setRuleForm((prev) => ({ ...prev, points: event.target.value }))} type="number" min="0" placeholder="积分" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
-              <input value={ruleForm.sort_order} onChange={(event) => setRuleForm((prev) => ({ ...prev, sort_order: event.target.value }))} type="number" placeholder="排序" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+              <InputNumber
+                min={0}
+                style={{ width: '100%' }}
+                placeholder="积分"
+                value={ruleForm.points === '' ? null : Number(ruleForm.points)}
+                onChange={(v) => setRuleForm((prev) => ({ ...prev, points: v === null || v === undefined ? '' : String(v) }))}
+              />
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder="排序"
+                value={ruleForm.sort_order === '' ? null : Number(ruleForm.sort_order)}
+                onChange={(v) => setRuleForm((prev) => ({ ...prev, sort_order: v === null || v === undefined ? '' : String(v) }))}
+              />
             </div>
-            <button disabled={saving} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-60">
-              <Plus className="w-4 h-4" />
+            <Button type="primary" block htmlType="submit" icon={<PlusOutlined />} disabled={saving}>
               保存基础规则
-            </button>
+            </Button>
           </form>
-          <div className="mt-4 space-y-2">
-            {rules.map((rule) => (
-              <div key={rule.id} className="flex items-center justify-between rounded-lg bg-slate-950 px-3 py-2 text-xs text-slate-300">
-                <span>{productLabel(rule.product_type)} · {rule.product_spec} · {rule.points} 分</span>
-                <button onClick={() => deleteItem('rules', rule.id)} className="text-slate-500 hover:text-red-300"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            ))}
-          </div>
-        </section>
+          <List
+            size="small"
+            className="mt-4"
+            dataSource={rules}
+            locale={{ emptyText: '暂无基础规则' }}
+            renderItem={(rule) => (
+              <List.Item
+                actions={[
+                  <Popconfirm key="delete" title="确认删除？" okText="删除" cancelText="取消" onConfirm={() => deleteItem('rules', rule.id)}>
+                    <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                  </Popconfirm>,
+                ]}
+              >
+                <span className="text-xs text-slate-600">{productLabel(rule.product_type)} · {rule.product_spec} · {rule.points} 分</span>
+              </List.Item>
+            )}
+          />
+        </Card>
 
-        <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <h2 className="font-semibold text-white">活动规则</h2>
-          <form onSubmit={saveCampaign} className="mt-4 space-y-3">
-            <input value={campaignForm.name} onChange={(event) => setCampaignForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="活动名称" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
-            <input value={campaignForm.product_types} onChange={(event) => setCampaignForm((prev) => ({ ...prev, product_types: event.target.value }))} placeholder="产品类型，逗号分隔；空为全部" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
-            <input value={campaignForm.product_specs} onChange={(event) => setCampaignForm((prev) => ({ ...prev, product_specs: event.target.value }))} placeholder="规格，逗号分隔；空为全部" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+        <Card size="small" title="活动规则">
+          <form onSubmit={saveCampaign} className="space-y-3">
+            <Input
+              value={campaignForm.name}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="活动名称"
+            />
+            <Input
+              value={campaignForm.product_types}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, product_types: event.target.value }))}
+              placeholder="产品类型，逗号分隔；空为全部"
+            />
+            <Input
+              value={campaignForm.product_specs}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, product_specs: event.target.value }))}
+              placeholder="规格，逗号分隔；空为全部"
+            />
             <div className="grid grid-cols-2 gap-2">
-              <input value={campaignForm.multiplier} onChange={(event) => setCampaignForm((prev) => ({ ...prev, multiplier: event.target.value }))} type="number" min="1" step="0.1" placeholder="倍率" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
-              <input value={campaignForm.bonus_points} onChange={(event) => setCampaignForm((prev) => ({ ...prev, bonus_points: event.target.value }))} type="number" min="0" placeholder="额外积分" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white" />
+              <InputNumber
+                min={1}
+                step={0.1}
+                style={{ width: '100%' }}
+                placeholder="倍率"
+                value={campaignForm.multiplier === '' ? null : Number(campaignForm.multiplier)}
+                onChange={(v) => setCampaignForm((prev) => ({ ...prev, multiplier: v === null || v === undefined ? '' : String(v) }))}
+              />
+              <InputNumber
+                min={0}
+                style={{ width: '100%' }}
+                placeholder="额外积分"
+                value={campaignForm.bonus_points === '' ? null : Number(campaignForm.bonus_points)}
+                onChange={(v) => setCampaignForm((prev) => ({ ...prev, bonus_points: v === null || v === undefined ? '' : String(v) }))}
+              />
             </div>
-            <button disabled={saving} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-60">
-              <Plus className="w-4 h-4" />
+            <Button type="primary" block htmlType="submit" icon={<PlusOutlined />} disabled={saving}>
               保存活动
-            </button>
+            </Button>
           </form>
-          <div className="mt-4 space-y-2">
-            {campaigns.map((campaign) => (
-              <div key={campaign.id} className="rounded-lg bg-slate-950 px-3 py-2 text-xs text-slate-300">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-white">{campaign.name}</span>
-                  <button onClick={() => deleteItem('campaigns', campaign.id)} className="text-slate-500 hover:text-red-300"><Trash2 className="w-3.5 h-3.5" /></button>
-                </div>
-                <div className="mt-1 text-slate-500">倍率 {campaign.multiplier} · 额外 {campaign.bonus_points} 分 · {campaign.is_active ? '启用' : '停用'}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+          <List
+            size="small"
+            className="mt-4"
+            dataSource={campaigns}
+            locale={{ emptyText: '暂无活动规则' }}
+            renderItem={(campaign) => (
+              <List.Item
+                actions={[
+                  <Popconfirm key="delete" title="确认删除？" okText="删除" cancelText="取消" onConfirm={() => deleteItem('campaigns', campaign.id)}>
+                    <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                  </Popconfirm>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={<span className="text-sm">{campaign.name}</span>}
+                  description={`倍率 ${campaign.multiplier} · 额外 ${campaign.bonus_points} 分 · ${campaign.is_active ? '启用' : '停用'}`}
+                />
+              </List.Item>
+            )}
+          />
+        </Card>
       </div>
     </div>
   )

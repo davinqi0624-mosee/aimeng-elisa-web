@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ClipboardList, Loader2 } from 'lucide-react'
+import { Alert, Button, Table, Tag } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { OrderedListOutlined } from '@ant-design/icons'
+import PageHeader from '@/components/admin/PageHeader'
 
 interface Order {
   id: string
@@ -30,11 +33,15 @@ const STATUS_MAP: Record<string, string> = {
   cancelled: '已取消',
 }
 
-const STATUS_CLASS_MAP: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  approved: 'bg-blue-50 text-blue-700',
-  fulfilled: 'bg-emerald-50 text-emerald-700',
-  cancelled: 'bg-gray-50 text-gray-600',
+const STATUS_COLOR_MAP: Record<string, string> = {
+  pending: 'gold',
+  approved: 'processing',
+  fulfilled: 'green',
+  cancelled: 'default',
+}
+
+function getStatusTag(status: string) {
+  return <Tag color={STATUS_COLOR_MAP[status] || 'default'}>{STATUS_MAP[status] || status}</Tag>
 }
 
 export default function AdminOrdersPage() {
@@ -89,101 +96,116 @@ export default function AdminOrdersPage() {
     }
   }
 
+  const columns: ColumnsType<Order> = [
+    {
+      title: '奖品',
+      key: 'item',
+      width: 200,
+      render: (_, o) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900">{o.shop_items?.name || '未知奖品'}</div>
+          <div className="mt-1 text-xs text-gray-400">{new Date(o.created_at).toLocaleString('zh-CN')}</div>
+          <div className="mt-2">{getStatusTag(o.status)}</div>
+        </div>
+      ),
+    },
+    {
+      title: '用户',
+      key: 'user',
+      width: 180,
+      render: (_, o) => (
+        <div className="text-xs text-gray-600">
+          <div className="truncate">{o.profiles?.full_name || o.user_id.slice(0, 8)}</div>
+          <div className="mt-1 truncate text-gray-500">{o.user_email || '未获取邮箱'}</div>
+          <div className="mt-1 truncate text-gray-400">{o.user_id}</div>
+        </div>
+      ),
+    },
+    {
+      title: '收货信息',
+      key: 'shipping',
+      render: (_, o) => (
+        <div className="text-xs leading-5 text-gray-600">
+          <div className="font-medium text-gray-900">{o.contact_name || '未填写'} · {o.contact_phone || '未填写电话'}</div>
+          <div>{o.contact_email || '未填写邮箱'}</div>
+          <div className="mt-1 whitespace-pre-wrap text-gray-700">{o.shipping_address || '未填写收货地址'}</div>
+          {o.shipping_note && <div className="mt-1 text-amber-700">备注：{o.shipping_note}</div>}
+          {o.remark && <div className="mt-1 text-slate-500">后台备注：{o.remark}</div>}
+        </div>
+      ),
+    },
+    {
+      title: '积分',
+      dataIndex: 'points_spent',
+      key: 'points_spent',
+      width: 80,
+      render: (v: number) => <span className="text-sm font-semibold text-amber-600">{v}</span>,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 200,
+      fixed: 'right',
+      render: (_, o) => (
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          {o.status === 'pending' && (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                loading={updatingId === o.id}
+                onClick={() => updateStatus(o.id, 'approved')}
+              >
+                审核通过
+              </Button>
+              <Button
+                size="small"
+                loading={updatingId === o.id}
+                onClick={() => updateStatus(o.id, 'cancelled')}
+              >
+                取消退回
+              </Button>
+            </>
+          )}
+          {o.status === 'approved' && (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                loading={updatingId === o.id}
+                onClick={() => updateStatus(o.id, 'fulfilled')}
+              >
+                标记已发货
+              </Button>
+              <Button
+                size="small"
+                loading={updatingId === o.id}
+                onClick={() => updateStatus(o.id, 'cancelled')}
+              >
+                取消退回
+              </Button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <ClipboardList className="w-5 h-5 text-amber-300" />
-          兑换订单管理
-        </h1>
-        <p className="text-sm text-slate-300">查看并处理用户的积分兑换订单</p>
-      </div>
+    <div>
+      <PageHeader icon={<OrderedListOutlined />} title="兑换订单管理" description="查看并处理用户的积分兑换订单" />
 
-      {error && (
-        <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
-      ) : orders.length === 0 ? (
-        <div className="text-center py-12 text-slate-300 text-sm">暂无兑换订单</div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-medium text-gray-500 border-b border-gray-200">
-            <div className="col-span-3">奖品</div>
-            <div className="col-span-2">用户</div>
-            <div className="col-span-4">收货信息</div>
-            <div className="col-span-1">积分</div>
-            <div className="col-span-2 text-right">操作</div>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {orders.map((o) => (
-              <div key={o.id} className="grid grid-cols-12 gap-2 px-4 py-4 items-start hover:bg-gray-50 transition-colors">
-                <div className="col-span-3">
-                  <div className="text-sm font-medium text-gray-900">{o.shop_items?.name || '未知奖品'}</div>
-                  <div className="mt-1 text-xs text-gray-400">{new Date(o.created_at).toLocaleString('zh-CN')}</div>
-                  <span className={`mt-2 inline-flex px-2 py-0.5 rounded text-xs font-medium ${STATUS_CLASS_MAP[o.status] || 'bg-gray-50 text-gray-600'}`}>
-                    {STATUS_MAP[o.status] || o.status}
-                  </span>
-                </div>
-                <div className="col-span-2 text-xs text-gray-600">
-                  <div className="truncate">{o.profiles?.full_name || o.user_id.slice(0, 8)}</div>
-                  <div className="mt-1 truncate text-gray-500">{o.user_email || '未获取邮箱'}</div>
-                  <div className="mt-1 text-gray-400 truncate">{o.user_id}</div>
-                </div>
-                <div className="col-span-4 text-xs leading-5 text-gray-600">
-                  <div className="font-medium text-gray-900">{o.contact_name || '未填写'} · {o.contact_phone || '未填写电话'}</div>
-                  <div>{o.contact_email || '未填写邮箱'}</div>
-                  <div className="mt-1 whitespace-pre-wrap text-gray-700">{o.shipping_address || '未填写收货地址'}</div>
-                  {o.shipping_note && <div className="mt-1 text-amber-700">备注：{o.shipping_note}</div>}
-                  {o.remark && <div className="mt-1 text-slate-500">后台备注：{o.remark}</div>}
-                </div>
-                <div className="col-span-1 text-sm text-amber-600 font-semibold">{o.points_spent}</div>
-                <div className="col-span-2 text-right flex flex-wrap items-center justify-end gap-1">
-                  {o.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => updateStatus(o.id, 'approved')}
-                        disabled={updatingId === o.id}
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        审核通过
-                      </button>
-                      <button
-                        onClick={() => updateStatus(o.id, 'cancelled')}
-                        disabled={updatingId === o.id}
-                        className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50"
-                      >
-                        取消退回
-                      </button>
-                    </>
-                  )}
-                  {o.status === 'approved' && (
-                    <>
-                      <button
-                        onClick={() => updateStatus(o.id, 'fulfilled')}
-                        disabled={updatingId === o.id}
-                        className="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
-                      >
-                        标记已发货
-                      </button>
-                      <button
-                        onClick={() => updateStatus(o.id, 'cancelled')}
-                        disabled={updatingId === o.id}
-                        className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50"
-                      >
-                        取消退回
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <Table<Order>
+        rowKey="id"
+        columns={columns}
+        dataSource={orders}
+        loading={loading}
+        locale={{ emptyText: '暂无兑换订单' }}
+        pagination={false}
+        scroll={{ x: 1000 }}
+      />
     </div>
   )
 }
