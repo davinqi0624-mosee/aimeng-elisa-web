@@ -1,0 +1,62 @@
+public.agents :: agents_admin_all [ALL] to public
+public.agents :: agents_full_access [ALL] to public
+public.agents :: agents_select_public [SELECT] to public
+public.ai_conversations :: Users can insert own conversations [INSERT] to public
+public.ai_conversations :: Users can view own conversations [SELECT] to public
+public.ai_messages :: Users can insert own messages [INSERT] to public
+public.ai_messages :: Users can view own messages [SELECT] to public
+public.analysis_reports :: Users can insert own reports [INSERT] to public
+public.analysis_reports :: Users can view own reports [SELECT] to public
+public.antibody_catalog :: antibody_insert_admin [INSERT] to public
+public.antibody_catalog :: antibody_select_all [SELECT] to public
+public.antibody_catalog :: antibody_update_admin [UPDATE] to public
+public.auto_datasheets :: datasheet_delete_own [DELETE] to public
+public.auto_datasheets :: datasheet_insert_own [INSERT] to public
+public.auto_datasheets :: datasheet_select_own [SELECT] to public
+public.auto_datasheets :: datasheet_update_own [UPDATE] to public
+public.biochemical_product_documents :: biochemical_product_documents_select_active [SELECT] to anon,authenticated
+public.biochemical_products :: biochemical_products_select_active [SELECT] to anon,authenticated
+public.categories :: Categories are publicly readable [SELECT] to public
+public.customer_service_settings :: customer_service_settings_select_public [SELECT] to public
+public.daily_knowledge :: Published daily knowledge is public [SELECT] to public
+public.daily_knowledge :: daily_knowledge public read [SELECT] to public
+public.datasheet_templates :: template_insert_admin [INSERT] to public
+public.datasheet_templates :: template_select_all [SELECT] to public
+public.experiments :: Public experiments are viewable [SELECT] to public
+public.experiments :: Users can manage own experiments [ALL] to public
+public.home_banners :: home_banners_select_active [SELECT] to anon,authenticated
+public.home_media_items :: home_media_items_select_active [SELECT] to anon,authenticated
+public.journal_if_scores :: journal_if_scores_select_all [SELECT] to anon,authenticated
+public.knowledge_base :: Published knowledge is public [SELECT] to public
+public.knowledge_candidates :: knowledge_candidates admin all [ALL] to public
+public.knowledge_chunks :: Knowledge chunks are public [SELECT] to public
+public.knowledge_cleanup_logs :: knowledge_cleanup_logs public read [SELECT] to public
+public.knowledge_versions :: knowledge_versions public read [SELECT] to public
+public.pages :: pages_full_access [ALL] to public
+public.papers :: papers_full_access [ALL] to public
+public.papers :: papers_insert_own [INSERT] to authenticated
+public.papers :: papers_select_own [SELECT] to authenticated
+public.papers :: papers_select_public [SELECT] to anon,authenticated
+public.point_reward_claims :: point_reward_claims_select_own [SELECT] to authenticated
+public.point_transactions :: pt_insert_open [INSERT] to public
+public.point_transactions :: pt_select_own [SELECT] to authenticated
+public.product_aliases :: Product aliases are publicly readable [SELECT] to public
+public.product_documents :: product_documents_select_public [SELECT] to public
+public.product_species :: Product species are publicly readable [SELECT] to public
+public.products :: Products are publicly readable [SELECT] to public
+public.products :: products_full_access [ALL] to public
+public.profiles :: Profiles are viewable by everyone [SELECT] to public
+public.profiles :: Users can update own profile [UPDATE] to public
+public.purchase_point_claim_photos :: purchase_point_claim_photos_select_own [SELECT] to authenticated
+public.purchase_point_claims :: purchase_point_claims_select_own [SELECT] to authenticated
+public.redeem_orders :: redeem_insert_own [INSERT] to public
+public.redeem_orders :: redeem_select_own [SELECT] to public
+public.serum_coa_documents :: serum_coa_documents_select_active [SELECT] to anon,authenticated
+public.serum_products :: serum_products_select_active [SELECT] to anon,authenticated
+public.shop_items :: shop_full_access [ALL] to public
+public.shop_items :: shop_items_insert_admin [INSERT] to public
+public.shop_items :: shop_items_select_all [SELECT] to public
+public.site_settings :: site_settings_select_public [SELECT] to anon,authenticated
+public.users :: Users can insert own profile [INSERT] to public
+public.users :: Users can update own profile [UPDATE] to public
+public.users :: Users can view own profile [SELECT] to public
