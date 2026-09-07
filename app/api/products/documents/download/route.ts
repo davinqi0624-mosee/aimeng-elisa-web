@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const ALLOWED_HOSTS = new Set([
+const STATIC_ALLOWED_HOSTS = [
   'xzttqwcahwkfddzijqiu.supabase.co',
   'animaluni.com',
   'www.animaluni.com',
   'localhost',
   '127.0.0.1',
-])
+  // OSS 迁移后公开资产基址（默认生产直连的 OSS 桶域名；可用 ASSET_PUBLIC_BASE_URL 显式覆盖/追加）
+  'animaluni.oss-cn-shanghai.aliyuncs.com',
+]
+
+/** 来源白名单：静态清单 + 可选环境变量注入的公开资产基址（惰性求值，避免构建期读取运行时变量） */
+function getAllowedHosts() {
+  const hosts = new Set(STATIC_ALLOWED_HOSTS)
+  const base = process.env.ASSET_PUBLIC_BASE_URL
+  if (base) {
+    try {
+      hosts.add(new URL(base).hostname)
+    } catch {
+      // 配置错误时忽略，仅使用静态清单
+    }
+  }
+  return hosts
+}
 
 function clean(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
@@ -52,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '文档协议不支持' }, { status: 400 })
   }
 
-  if (!ALLOWED_HOSTS.has(documentUrl.hostname)) {
+  if (!getAllowedHosts().has(documentUrl.hostname)) {
     return NextResponse.json({ error: '文档来源不允许下载' }, { status: 403 })
   }
 
