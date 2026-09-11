@@ -151,7 +151,18 @@ const themeColor: Record<HomeBanner['theme'], string> = {
   rose: '#be426d',
 }
 
-function BannerPoster({ banner, imageFit = 'cover' }: { banner: HomeBanner; imageFit?: 'cover' | 'contain' }) {
+// The site-guide poster contains dense text that needs higher image quality.
+const HIGH_DETAIL_BANNER_IDS = new Set(['69c14452-7ce6-41ea-b42b-557167267faa'])
+
+function BannerPoster({
+  banner,
+  imageFit = 'cover',
+  sizes = '(max-width: 768px) 100vw, 46vw',
+}: {
+  banner: HomeBanner
+  imageFit?: 'cover' | 'contain'
+  sizes?: string
+}) {
   const color = themeColor[banner.theme] || themeColor.blue
 
   if (banner.image_url) {
@@ -161,7 +172,8 @@ function BannerPoster({ banner, imageFit = 'cover' }: { banner: HomeBanner; imag
           src={banner.image_url}
           alt={banner.title}
           fill
-          sizes="(max-width: 768px) 100vw, 46vw"
+          sizes={sizes}
+          quality={HIGH_DETAIL_BANNER_IDS.has(banner.id) ? 95 : 75}
           className={imageFit === 'cover' ? 'object-cover' : 'object-contain'}
         />
       </div>
@@ -233,7 +245,11 @@ export default function HomeHeroCarousel({
     return (
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.12)]">
         <Link href={current.cta_href || '#'} className="block aspect-[16/9] w-full overflow-hidden bg-slate-100">
-          <BannerPoster banner={current} imageFit="cover" />
+          <BannerPoster
+            banner={current}
+            imageFit="cover"
+            sizes="(max-width: 1312px) calc(100vw - 32px), 1280px"
+          />
         </Link>
 
         <div className="border-t border-slate-100 bg-white px-5 py-4">

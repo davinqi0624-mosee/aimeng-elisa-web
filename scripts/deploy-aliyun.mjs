@@ -71,6 +71,10 @@ if (existsSync('public')) {
   rsync('public/', `${remoteRoot}/app.next/public/`)
 }
 
+// Validate native image processing on the destination before stopping production.
+rsync('scripts/ensure-sharp-runtime.mjs', `${remoteRoot}/app.next/ensure-sharp-runtime.mjs`)
+ssh(`node ${remoteRoot}/app.next/ensure-sharp-runtime.mjs ${remoteRoot}/app.next`)
+
 ssh([
   'set -e',
   'ts=$(date +%Y%m%d%H%M%S)',

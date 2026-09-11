@@ -9,7 +9,14 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
+    qualities: [75, 95],
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'animaluni.oss-cn-shanghai.aliyuncs.com',
+        port: '',
+        pathname: '/**',
+      },
       {
         protocol: 'https',
         hostname: 'xzttqwcahwkfddzijqiu.supabase.co',
