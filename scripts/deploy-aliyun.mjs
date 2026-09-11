@@ -87,7 +87,7 @@ ssh([
   `systemctl status ${service} --no-pager -l | sed -n "1,80p"`,
   'ss -ltnp | grep -E ":3000|:80" || true',
   // Keep a short rollback window without allowing app.prev.* to grow forever.
-  `cutoff=$(date -d "3 days ago" +%Y%m%d%H%M%S); for path in ${remoteRoot}/app.prev.*; do [ -d "$path" ] || continue; stamp=$(basename "$path" | sed "s/^app\\.prev\\.//"); if [ "$stamp" \< "$cutoff" ]; then rm -rf -- "$path"; fi; done`,
+  `find ${remoteRoot} -maxdepth 1 -type d -name 'app.prev.*' -mtime +3 -exec rm -rf -- {} +`,
 ].join('; '))
 
 const healthEnv = {
