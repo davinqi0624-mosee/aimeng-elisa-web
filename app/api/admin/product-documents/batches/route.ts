@@ -115,6 +115,12 @@ function getBatchAlertLevel(summary: {
   return 'normal'
 }
 
+function isMatchedDocument(doc: DocumentRow) {
+  return doc.document_type === 'coa'
+    ? Boolean(clean(doc.catalog_number) && clean(doc.batch_number) && doc.match_status === 'matched')
+    : Boolean(doc.product_id)
+}
+
 function summarizeBatch(batch: BatchRow, documents: DocumentRow[]) {
   const batchDocuments = documents.filter((doc) => doc.batch_id === batch.id)
   const duplicateEffective = batchDocuments.filter(
@@ -134,18 +140,18 @@ function summarizeBatch(batch: BatchRow, documents: DocumentRow[]) {
   const uploadFailed = getUploadFailureCount(batch.note)
   const pendingUnmatched = batchDocuments.filter((doc) =>
     doc.publish_status
-      ? doc.publish_status === 'draft' && !doc.product_id
-      : doc.status === 'pending' && !doc.product_id
+      ? doc.publish_status === 'draft' && !isMatchedDocument(doc)
+      : doc.status === 'pending' && !isMatchedDocument(doc)
   ).length
   const pendingReview = batchDocuments.filter((doc) =>
     doc.publish_status
-      ? doc.publish_status === 'ready' && Boolean(doc.product_id)
-      : doc.status === 'pending' && doc.product_id
+      ? doc.publish_status === 'ready' && isMatchedDocument(doc)
+      : doc.status === 'pending' && isMatchedDocument(doc)
   ).length
   const exactPending = batchDocuments.filter(
     (doc) =>
       (doc.publish_status ? doc.publish_status === 'ready' : doc.status === 'pending') &&
-      doc.product_id &&
+      isMatchedDocument(doc) &&
       doc.match_method === 'exact_catalog'
   ).length
   const active = batchDocuments.filter((doc) =>
@@ -159,14 +165,14 @@ function summarizeBatch(batch: BatchRow, documents: DocumentRow[]) {
   ).length
   const matchedExact = batchDocuments.filter((doc) =>
     Boolean(
-      doc.product_id &&
+      isMatchedDocument(doc) &&
         doc.match_method === 'exact_catalog' &&
         (doc.publish_status ? doc.publish_status !== 'archived' : doc.status !== 'archived')
     )
   ).length
   const matchedManual = batchDocuments.filter((doc) =>
     Boolean(
-      doc.product_id &&
+      isMatchedDocument(doc) &&
         doc.match_method === 'manual' &&
         (doc.publish_status ? doc.publish_status !== 'archived' : doc.status !== 'archived')
     )
@@ -298,7 +304,7 @@ async function markDocumentNeedsRetry(
     {
       status: 'archived',
       review_note: reason,
-      match_status: document.product_id ? 'matched' : 'failed',
+      match_status: isMatchedDocument(document) ? 'matched' : 'failed',
       publish_status: 'archived',
       storage_status: 'missing',
       failure_reason: reason,
@@ -308,8 +314,8 @@ async function markDocumentNeedsRetry(
 }
 
 async function confirmDocument(supabase: ReturnType<typeof createAdminClient>, document: DocumentRow) {
-  if (!document.product_id) {
-    return { confirmed: false, reason: '文件没有匹配到产品，不能上架。' }
+  if (!isMatchedDocument(document)) {
+    return { confirmed: false, reason: '文件没有匹配到有效产品，不能上架。' }
   }
 
   const fileExists = await productAssetFileExists(supabase, document.file_url)
@@ -334,13 +340,13 @@ async function confirmDocument(supabase: ReturnType<typeof createAdminClient>, d
     if (error) throw error
   }
 
-  if (document.document_type === 'coa' && document.batch_number) {
+  if (document.document_type === 'coa' && document.catalog_number && document.batch_number) {
     const error = await updateDocumentsWithWorkflow(
       supabase,
       (query: any) => query
-        .eq('product_id', document.product_id)
+        .ilike('catalog_number', document.catalog_number)
         .eq('document_type', 'coa')
-        .eq('batch_number', document.batch_number)
+        .ilike('batch_number', document.batch_number)
         .eq('status', 'active')
         .neq('id', document.id),
       { status: 'archived', publish_status: 'archived' },
@@ -586,11 +592,10 @@ export async function PATCH(request: NextRequest) {
 
   const { data: exactDocuments, error: loadError } = await supabase
     .from('product_documents')
-    .select('id, batch_id, product_id, document_type, catalog_number, batch_number, file_url, status, match_method, match_reason, review_note')
+    .select('id, batch_id, product_id, document_type, catalog_number, batch_number, file_url, status, match_method, match_status, publish_status, match_reason, review_note')
     .eq('batch_id', batchId)
     .eq('status', 'pending')
     .eq('match_method', 'exact_catalog')
-    .not('product_id', 'is', null)
 
   if (loadError) {
     return NextResponse.json({ error: loadError.message }, { status: 500 })
