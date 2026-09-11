@@ -141,8 +141,26 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient()
+  const { data: serumProducts, error: serumProductError } = await supabase
+    .from('serum_products')
+    .select('name, catalog_number, category')
+    .ilike('catalog_number', catalogNumber)
+    .in('category', ['fbs', 'animal-serum'])
+    .eq('status', 'active')
+    .limit(2)
 
-  const productDocumentResult = await findProductDocumentCoa(supabase, catalogNumber, batchNumber)
+  if (serumProductError) {
+    return NextResponse.json({ error: serumProductError.message }, { status: 500 })
+  }
+  if (!serumProducts || serumProducts.length !== 1) {
+    return NextResponse.json(
+      { error: serumProducts?.length ? '该货号对应多个血清产品，请联系技术支持。' : '请选择有效的胎牛血清或动物血清制品。' },
+      { status: 400 }
+    )
+  }
+
+  const canonicalCatalogNumber = serumProducts[0].catalog_number
+  const productDocumentResult = await findProductDocumentCoa(supabase, canonicalCatalogNumber, batchNumber)
   if (productDocumentResult.error) {
     return NextResponse.json({ error: productDocumentResult.error }, { status: 500 })
   }
@@ -150,7 +168,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ document: productDocumentResult.document })
   }
 
-  const legacyResult = await findLegacySerumCoa(supabase, catalogNumber, batchNumber)
+  const legacyResult = await findLegacySerumCoa(supabase, canonicalCatalogNumber, batchNumber)
   if (legacyResult.error) {
     return NextResponse.json({ error: legacyResult.error }, { status: 500 })
   }

@@ -1,7 +1,22 @@
 import { FileSearch, FileText, ShieldCheck } from 'lucide-react'
+import { getPublishedSerumProductsByCategory } from '@/lib/products/serum-products-db'
 import CoaLookupForm from './CoaLookupForm'
 
-export default function CoaQueryPage() {
+export default async function CoaQueryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ catalog?: string }>
+}) {
+  const [{ catalog = '' }, fbsProducts, animalSerumProducts] = await Promise.all([
+    searchParams,
+    getPublishedSerumProductsByCategory('fbs'),
+    getPublishedSerumProductsByCategory('animal-serum'),
+  ])
+  const products = [...fbsProducts, ...animalSerumProducts].map((product) => ({
+    name: product.name,
+    catalogNumber: product.catalogNumber,
+    category: product.category,
+  }))
   return (
     <div className="min-h-full bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -17,7 +32,7 @@ export default function CoaQueryPage() {
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
-          <CoaLookupForm />
+          <CoaLookupForm products={products} initialCatalogNumber={catalog} />
 
           <div className="rounded-lg border border-slate-200 bg-white p-5">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-900">

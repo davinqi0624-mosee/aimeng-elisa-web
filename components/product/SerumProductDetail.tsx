@@ -54,7 +54,7 @@ export default function SerumProductDetail({ product, backHref, backLabel }: Ser
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/products/coa"
+                href={`/products/coa?catalog=${encodeURIComponent(product.catalogNumber)}`}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
               >
                 <FileSearch className="h-4 w-4" />

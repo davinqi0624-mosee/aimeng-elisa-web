@@ -445,7 +445,7 @@ export async function PATCH(request: NextRequest) {
 
   const { data: document, error: loadError } = await supabase
     .from('product_documents')
-    .select('id, product_id, document_type, batch_number, file_url, match_reason, review_note')
+    .select('id, product_id, document_type, catalog_number, batch_number, file_url, match_reason, review_note')
     .eq('id', id)
     .maybeSingle()
 
@@ -487,7 +487,10 @@ export async function PATCH(request: NextRequest) {
       id,
       {
         status: 'pending',
-        publish_status: document.product_id ? 'ready' : 'draft',
+        publish_status:
+          document.document_type === 'coa'
+            ? document.catalog_number && document.batch_number ? 'ready' : 'draft'
+            : document.product_id ? 'ready' : 'draft',
         storage_status: 'active',
         failure_reason: null,
       },
@@ -524,8 +527,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ message: '已撤回匹配' })
   }
 
-  if (!document.product_id) {
-    return NextResponse.json({ error: '该文件还没有匹配到商品，不能确认生效' }, { status: 400 })
+  if (document.document_type === 'datasheet' && !document.product_id) {
+    return NextResponse.json({ error: '该说明书还没有匹配到 ELISA 商品，不能确认生效' }, { status: 400 })
+  }
+  if (document.document_type === 'coa') {
+    if (!document.catalog_number || !document.batch_number) {
+      return NextResponse.json({ error: '该 COA 缺少血清货号或批号，不能确认生效' }, { status: 400 })
+    }
+    const { data: serumProducts, error: serumError } = await supabase
+      .from('serum_products')
+      .select('id')
+      .ilike('catalog_number', document.catalog_number)
+      .in('category', ['fbs', 'animal-serum'])
+      .eq('status', 'active')
+      .limit(2)
+    if (serumError) return NextResponse.json({ error: serumError.message }, { status: 500 })
+    if (serumProducts?.length !== 1) {
+      return NextResponse.json({ error: 'COA 必须且只能匹配一个有效的胎牛血清或动物血清制品' }, { status: 400 })
+    }
   }
 
   const fileExists = await productAssetFileExists(supabase, document.file_url)
@@ -561,13 +580,13 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  if (document.document_type === 'coa' && document.batch_number) {
+  if (document.document_type === 'coa' && document.catalog_number && document.batch_number) {
     const archiveOldError = await archiveActiveDocuments(
       supabase,
       (query: any) => query
-        .eq('product_id', document.product_id)
+        .ilike('catalog_number', document.catalog_number)
         .eq('document_type', 'coa')
-        .eq('batch_number', document.batch_number)
+        .ilike('batch_number', document.batch_number)
         .eq('status', 'active')
         .neq('id', id)
     )

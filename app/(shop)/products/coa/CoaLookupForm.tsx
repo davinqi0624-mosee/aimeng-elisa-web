@@ -13,8 +13,23 @@ type CoaDocument = {
   created_at?: string | null
 }
 
-export default function CoaLookupForm() {
-  const [catalogNumber, setCatalogNumber] = useState('')
+type SerumProductOption = {
+  name: string
+  catalogNumber: string
+  category: 'fbs' | 'animal-serum'
+}
+
+export default function CoaLookupForm({
+  products,
+  initialCatalogNumber = '',
+}: {
+  products: SerumProductOption[]
+  initialCatalogNumber?: string
+}) {
+  const initialProduct = products.find(
+    (product) => product.catalogNumber.toLowerCase() === initialCatalogNumber.trim().toLowerCase()
+  )
+  const [catalogNumber, setCatalogNumber] = useState(initialProduct?.catalogNumber || '')
   const [batchNumber, setBatchNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,7 +43,7 @@ export default function CoaLookupForm() {
     setSearched(false)
 
     if (!catalogNumber.trim() || !batchNumber.trim()) {
-      setError('请同时输入血清货号和批号。')
+      setError('请先选择血清产品，再输入标签上的 Lot No. 批号。')
       return
     }
 
@@ -62,17 +77,26 @@ export default function CoaLookupForm() {
 
       <form onSubmit={handleSearch} className="mt-4 grid gap-3">
         <label className="grid gap-1 text-sm">
-          <span className="font-medium text-slate-700">血清货号</span>
-          <input
-            type="text"
+          <span className="font-medium text-slate-700">选择血清产品（产品名 / 货号）</span>
+          <select
             value={catalogNumber}
-            onChange={(event) => setCatalogNumber(event.target.value)}
-            className="h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-            placeholder="例如 AM-FBS-STD-500"
-          />
+            onChange={(event) => {
+              setCatalogNumber(event.target.value)
+              setDocument(null)
+              setSearched(false)
+            }}
+            className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+          >
+            <option value="">请选择胎牛血清或动物血清制品</option>
+            {products.map((product) => (
+              <option key={`${product.category}-${product.catalogNumber}`} value={product.catalogNumber}>
+                {product.name}（{product.catalogNumber}）
+              </option>
+            ))}
+          </select>
         </label>
         <label className="grid gap-1 text-sm">
-          <span className="font-medium text-slate-700">批号</span>
+          <span className="font-medium text-slate-700">Lot No. 批号</span>
           <input
             type="text"
             value={batchNumber}

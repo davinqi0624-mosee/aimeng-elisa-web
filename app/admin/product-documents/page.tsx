@@ -795,7 +795,7 @@ export default function AdminProductDocumentsPage() {
             产品文档管理
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            说明书命名：货号-Product name.pdf；COA 命名：货号_批次号_COA.pdf。上传后按货号自动匹配，确认上架后前台可见。
+            说明书按 ELISA 货号匹配；COA 仅匹配胎牛血清和动物血清制品，并按血清货号 + 批号归档。确认上架后前台可见。
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -842,7 +842,7 @@ export default function AdminProductDocumentsPage() {
 
       <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
         {documentType === 'coa'
-          ? 'COA 必须包含货号和批次号，例如 LV10001_20240601_COA.pdf。同一货号可以持续上传不同批次。'
+          ? 'COA 文件名支持 COA-血清货号-批号.pdf 或 血清货号_批号_COA.pdf，例如 COA-AM-FBS-BZ-0500-20251225.pdf。同一血清货号可以上传不同批次。'
           : '说明书按文件名前缀货号对应商品，例如 LV10001-zebrafish aqp1 Elisa Kit.pdf。同一商品只保留一份当前生效说明书。'}
         <span className="ml-2 text-cyan-200">
           上传后系统会自动匹配货号；确认上架后客户前台才会看到。

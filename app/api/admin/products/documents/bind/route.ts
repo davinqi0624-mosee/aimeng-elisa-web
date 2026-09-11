@@ -365,6 +365,75 @@ export async function POST(request: NextRequest) {
     }
   })
 
+  if (documentType === 'coa') {
+    const catalogNumbers = [...new Set(parsedDocuments.map((item) => clean(item.catalogNumber)).filter(Boolean))]
+    const { data: serumProducts, error: serumError } = await supabase
+      .from('serum_products')
+      .select('id, name, catalog_number, category')
+      .in('category', ['fbs', 'animal-serum'])
+      .eq('status', 'active')
+
+    if (serumError) return NextResponse.json({ error: serumError.message }, { status: 500 })
+
+    const serumByCatalog = new Map<string, Array<{ id: string; name: string; catalog_number: string }>>()
+    for (const product of serumProducts || []) {
+      const key = clean(product.catalog_number).toUpperCase()
+      if (!catalogNumbers.some((catalog) => catalog.toUpperCase() === key)) continue
+      serumByCatalog.set(key, [...(serumByCatalog.get(key) || []), product])
+    }
+
+    const matches: Array<{ document: string; productId: string; score: number; reason: string }> = []
+    const failures: Array<{ document: string; reason: string }> = []
+    for (const { document, catalogNumber, batchNumber, documentKey } of parsedDocuments) {
+      const candidates = serumByCatalog.get(clean(catalogNumber).toUpperCase()) || []
+      if (candidates.length !== 1 || !batchNumber) {
+        failures.push({
+          document: document.file_url,
+          reason: !batchNumber
+            ? 'COA 缺少批号。'
+            : candidates.length > 1
+              ? `货号 ${catalogNumber} 对应多个血清产品，请先修正产品数据。`
+              : `未找到货号 ${catalogNumber} 对应的胎牛血清或动物血清制品。`,
+        })
+        continue
+      }
+
+      const product = candidates[0]
+      const reason = `按血清货号 ${product.catalog_number} + 批次 ${batchNumber} 精确匹配到 ${product.name}`
+      const { error: updateError } = await supabase
+        .from('product_documents')
+        .update({
+          product_id: null,
+          catalog_number: product.catalog_number,
+          batch_number: batchNumber,
+          document_key: documentKey,
+          normalized_file_key: documentKey,
+          match_reason: `${reason}，待管理员确认后生效`,
+          match_score: 120,
+          match_method: 'exact_catalog',
+          parse_status: 'parsed',
+          match_status: 'matched',
+          publish_status: 'ready',
+          storage_status: 'active',
+          failure_reason: null,
+          workflow_updated_at: new Date().toISOString(),
+          status: 'pending',
+        })
+        .eq('id', document.id)
+
+      if (updateError) failures.push({ document: document.file_url, reason: updateError.message })
+      else matches.push({ document: document.file_url, productId: product.id, score: 120, reason })
+    }
+
+    return NextResponse.json({
+      matched: matches.length,
+      duplicateArchived: 0,
+      failed: failures.length,
+      matches,
+      failures,
+    })
+  }
+
   const catalogNumbers = [
     ...new Set(parsedDocuments.map((item) => normalizeElisaCatalogNumber(item.catalogNumber)).filter(Boolean)),
   ]
